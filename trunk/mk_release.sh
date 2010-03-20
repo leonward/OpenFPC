@@ -33,7 +33,7 @@ else
 		cp $i $TARGET
 	done
 		cd $TARPATH
-		tar -czf "$FILENAME" $TARGET
+		tar -czf $FILENAME openfpc-$VER
 	 	cd -	
 fi
 
