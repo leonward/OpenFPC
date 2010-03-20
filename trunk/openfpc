@@ -1,0 +1,134 @@
+#!/bin/bash -e
+
+#########################################################################################
+# Copyright (C) 2009 Leon Ward 
+# OpenFPC - Part of the OpenFPC - (Full Packet Capture) project
+#
+# Contact: leon@rm-rf.co.uk
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#########################################################################################
+
+# ---------------- Configure this -----------------------
+source /opt/openfpc/openfpc.conf
+# ---------------- Nothing to do below here -------------
+
+FILENAME="buffer"    	# IMPORTANT the - is used to determine what is filename and what is file number!
+			# Make sure that there is only one - and it is at the end of the filename
+IAM=$(whoami)
+DATE=$(date)
+TSTAMP=$(date +%s)
+PATH=$PATH:/sbin:/usr/sbin
+TCPDUMPOPTS="-Z root" 	
+
+CURRENT=$(cat /opt/extract-pcap/current 2>/dev/null) || CURRENT="0"
+
+#sudo tcpdump -n -i eth1 -s 0 -C 50  -W 20 -w /var/tmp/buffer-
+
+function die()
+{
+	echo $1
+	exit 1
+}
+
+function clean()
+{
+	if [ "$IAM" != "root" ]
+	then
+		die "[!] Must be root"
+	fi
+	# Remove all non-current pcap buffers to free up disk space
+	echo [!] Are you sure you want to delete these old pcap buffers?
+	RMFILES=$(ls $BUFFER_PATH/$FILENAME* |grep -v $CURRENT)
+	echo "$RMFILES"
+	echo "---------------"
+	read -p "Hit CTRL+C to stop, enter to delete (current buffer will not be affected)"
+	rm $RMFILES
+}
+
+function start()
+{
+	if [ "$IAM" != "root" ]
+	then
+		die "[!] Must be root"
+	fi
+	pidof -x $TCPDUMP > /dev/null  && die "[!] Already running tcpdump! Not starting."
+	echo $TSTAMP > /opt/extract-pcap/current  || die "[!] Unable to save timestamp. Not starting."
+	[ -d $BUFFER_PATH ] || die "[!] Unable to find buffer path $BUFFER_PATH"
+	ifconfig $INTERFACE > /dev/null 2>&1 || die "[!] Unable to find device $INTERFACE."
+
+	$TCPDUMP $TCPDUMPOPTS \
+		 -i $INTERFACE \
+		 -s 0 \
+		 -C $FILE_SIZE \
+		 -W $FILE_COUNT \
+		 -w $BUFFER_PATH/$FILENAME.$TSTAMP- > $LOG 2>&1 &
+	echo [*] Traffic buffer started on $DATE
+	echo "[I] Traffic buffer started on $DATE" | /usr/bin/logger -t "trafficbuffer"
+}
+
+
+function stop()
+{
+	if [ "$IAM" != "root" ]
+	then
+		die "[!] Must be root"
+	fi
+	PID=$(pidof tcpdump) || die "[!] Not running"
+	kill $PID || kill -KILL  $PID
+	echo "[*] Traffic buffer $PID stopped"
+	echo "[I] Traffic buffer $PID stopped on $DATE" | /usr/bin/logger -t "trafficbuffer"
+}
+
+function status()
+{
+	FIRSTBUFFER=$(ls -tr $BUFFER_PATH/$FILENAME.$CURRENT-*|head -n 1)
+	FIRSTPACKET=$(tcpdump -n -r $FIRSTBUFFER -c 1 -tttt 2>/dev/null |awk '{print $1 " " $2}')
+	LASTBUFFER=$(ls -t $BUFFER_PATH/$FILENAME.$CURRENT-*|head -n 1)
+	PID=$(pidof tcpdump ) || die "[!] tcpdump not running"
+	echo "[*] traffic buffer running with pid $PID "
+	echo -e "	- Oldest packet is $FIRSTPACKET"
+	echo -e "	- Oldest File is   $FIRSTBUFFER"
+	echo -e "	- Using File       $LASTBUFFER"
+}
+
+
+case $1 in 
+	start)
+		start
+	;;
+	stop)
+		stop
+	;;
+	clean)
+		clean	
+	;;
+	restart)
+		stop
+		sleep 2
+		start	
+	;;
+	status)
+		status
+	;;
+	*)
+		echo -e " Usage"
+		echo -e " --------------"
+		echo -e " openfpc start"
+		echo -e " openfpc stop"
+		echo -e " openfpc status - Show buffer status"	
+		echo -e " openfpc clean  - Delete old buffers"	
+	;;
+esac
