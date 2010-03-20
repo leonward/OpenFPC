@@ -26,9 +26,9 @@
 use strict;
 use warnings;
 
-# So the process is:
+# So the process is.... 
 #  - Take some event details from the user via command line args 
-#  - Find the pcaps in the buffer location before and after the timestamp (number each way is set by --each-way
+#  - Find the pcaps in the buffer location before and after the timestamp (number each way is set by --each-way)
 #  - Find the packets in the pcap
 #  - Extract the data requested
 #  - Merge all pcaps into a single file
@@ -42,7 +42,7 @@ my $SAVE_PATH=0;			# Set in config file
 my $FILE_COUNT=0;			# Set in config file
 my $TCPDUMP="0";			# Set in config file 
 my $MERGECAP="0";
-my $version="1.10";
+my $openfpcver="1.10";
 my $EACHWAY="1";			# Default time before and after the timestamp
 my $TARGET=0;		
 my %TIME_HASH=();
@@ -114,7 +114,7 @@ Example: --epoch 1234567890 --src-addr 1.1.1.1 -e 2 --dst-port 31337
 
 	exit 1;
 }
-print "\n\n* extract-pcap.pl - \n* Part of the OpenFPC (Full Packet Capture) Project \nver $version - Leon Ward - leon\@rm-rf.co.uk\n\n";
+print "\n\n* extract-pcap.pl - \n* Part of the OpenFPC (Full Packet Capture) Project \nver $openfpcve - Leon Ward - leon\@rm-rf.co.uk\n\n";
 
 open (CONFIG,"$CONFIG_FILE");
 while (my $line = <CONFIG>){

@@ -32,6 +32,7 @@ DATE=$(date)
 TSTAMP=$(date +%s)
 PATH=$PATH:/sbin:/usr/sbin
 TCPDUMPOPTS="-Z root" 	
+openfpcver=1.10
 
 CURRENT=$(cat /opt/extract-pcap/current 2>/dev/null) || CURRENT="0"
 
