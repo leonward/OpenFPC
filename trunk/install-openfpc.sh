@@ -40,24 +40,23 @@ PATH=$PATH:/usr/sbin
 
 function die()
 {
-        echo $1
+        echo "$1"
         exit 1
 }
 
 
 function doinstall()
 {
-	echo Running Install.....
 
 	if [ "$IAM" != "root" ]
 	then
 	       	die "[!] Must be root to run this script"
 	fi
-
+	echo -e "* Checking for required programs"
 	for i in $REQUIRED_BINS
 	do
-		echo -e " Checking for $i "
-		which $i > /dev/null || die "Unable to fined $i installed on this system. Please install it and try again"
+		PROG=$(which $i) || die "Unable to fined $i installed on this system. Please install it and try again"
+		echo -e "- $i ($PROG)"
 	done
 
 
@@ -65,27 +64,27 @@ function doinstall()
 
         if [ -d $TARGET_DIR ] 
 	then
-                die "Cannot install - Directory Exists. Do you need to uninstall"
+                die "Can't Install in $TARGET_DIR - Directory Exists."
         else
                 mkdir $TARGET_DIR
         fi
     
         for file in $INSTALL_FILES
         do
-		echo -e " Installing $file"
+		echo -e "- Installing $file"
                 cp $file $TARGET_DIR || echo Unable to copy $file to $TARGET_DIR
         done
 
 	for file in $PERL_MODULES
 	do
-		echo -e " Installing PERL module $file"
+		echo -e "Installing PERL module $file"
 		[ -d $PERL_LIB_DIR ] || mkdir --parent $PERL_LIB_DIR
 		ln -s $TARGET_DIR/$file $PERL_LIB_DIR/$file
 	done
 
         for file in $INIT_SCRIPTS
         do
-		echo -e " Installing $INIT_DIR/$file"
+		echo -e "Installing $INIT_DIR/$file"
                 ln -s $TARGET_DIR/$file /$INIT_DIR/$file  || echo Unable to symlink $file into $INIT_DIR/$file
         done
 
@@ -119,8 +118,13 @@ function remove()
 
 	for file in $INIT_SCRIPTS
 	do
-		echo -e " $file"
-		$INIT_DIR/$file stop > /dev/null 2>&1 || echo -e " Unable to stop $file"
+		if [ -f $INIT_DIR/$file ] 
+		then 
+			echo -e "Stopping $file"
+			$INIT_DIR/$file stop || echo "- $file didn't stop, removing anyway"
+		else
+			echo -e "$INIT_DIR/$file doesn't exist - Wont try to stop"
+		fi
 	done
 	
 	echo -e "* Removing files..."
@@ -132,7 +136,7 @@ function remove()
 
 	for file in $INSTALL_FILES
 	do
-		echo -e " - $TARGET_DIR/$file"
+		echo -e "- $TARGET_DIR/$file"
 		if [ -f $TARGET_DIR/$file ] 
 		then
 			rm $TARGET_DIR/$file || echo unable to delete $file
@@ -173,24 +177,23 @@ function remove()
 
         if [ "$DISTRO" == "DEBIAN" ]
         then
-                echo "Debain Install"
-
                 for file in $INIT_SCRIPTS
                 do
-			echo -e " - Removing rc.d links for $file"
+			echo -e "- Removing rc.d links for $file"
 			update-rc.d $file remove
                 done
 
         elif [ "$DISTRO" == "REDHAT" ]
         then
-                echo "RedHat uninstall"
 		rm /etc/rc3.d/S99trafficbuffer || echo "init script not found"
 		rm /etc/rc0.d/K99trafficbuffer || echo "init script not found"
 		rm /etc/rc5.d/S99trafficbuffer || echo "init script not found"
 		rm /etc/rc6.d/K99trafficbuffer || echo "init script not found"
         fi
-
-	rm /usr/local/bin/extract-pcap.pl
+	if [ -f /use/local/bin/exract-pcap.pl ]
+	then
+		rm /usr/local/bin/extract-pcap.pl
+	fi
 }
 
 function installstatus()
@@ -239,7 +242,7 @@ then
 		die "Unable to detect distro. Set manually"
 	fi
 
-	echo "* Detected distribution as $DISTRO"
+	echo "- Detected distribution as $DISTRO"
 fi
 
 
