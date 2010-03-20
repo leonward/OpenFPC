@@ -106,7 +106,7 @@ function doinstall()
 		ln -s /etc/init.d/trafficbuffer /etc/rc0.d/K99trafficbuffer || echo "File exists"
 	fi
 
-	echo -e "Creating symlink to usr/local/bin"
+	echo -e "Creating mymlink to usr/local/bin"
 	ln -s $TARGET_DIR/extract-pcap.pl /usr/local/bin
 
 }
@@ -190,7 +190,7 @@ function remove()
 		rm /etc/rc5.d/S99trafficbuffer || echo "init script not found"
 		rm /etc/rc6.d/K99trafficbuffer || echo "init script not found"
         fi
-	if [ -f /use/local/bin/exract-pcap.pl ]
+	if [ -h /use/local/bin/exract-pcap.pl ]
 	then
 		rm /usr/local/bin/extract-pcap.pl
 	fi
@@ -256,6 +256,12 @@ case $1 in
         status)
                 installstatus
         ;;
+	reinstall)
+		echo Running REINSTALL
+		remove
+		echo And installing...
+		doinstall
+	;;
      *)
 		echo -e "OpenFPC installer - Usage"
 		echo -e "Leon Ward"

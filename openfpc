@@ -34,7 +34,7 @@ PATH=$PATH:/sbin:/usr/sbin
 TCPDUMPOPTS="-Z root" 	
 openfpcver=1.10
 
-CURRENT=$(cat /opt/extract-pcap/current 2>/dev/null) || CURRENT="0"
+CURRENT=$(cat /opt/openfpc/current 2>/dev/null) || CURRENT="0"
 
 #sudo tcpdump -n -i eth1 -s 0 -C 50  -W 20 -w /var/tmp/buffer-
 
@@ -66,7 +66,7 @@ function start()
 		die "[!] Must be root"
 	fi
 	pidof -x $TCPDUMP > /dev/null  && die "[!] Already running tcpdump! Not starting."
-	echo $TSTAMP > /opt/extract-pcap/current  || die "[!] Unable to save timestamp. Not starting."
+	echo $TSTAMP > /opt/openfpc/current  || die "[!] Unable to save timestamp. Not starting."
 	[ -d $BUFFER_PATH ] || die "[!] Unable to find buffer path $BUFFER_PATH"
 	ifconfig $INTERFACE > /dev/null 2>&1 || die "[!] Unable to find device $INTERFACE."
 
