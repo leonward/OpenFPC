@@ -21,10 +21,10 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #########################################################################################
 
-
-
 use strict;
 use warnings;
+use Getopt::Long qw(:config no_ignore_case bundling);
+use Data::Dumper;
 
 # So the process is.... 
 #  - Take some event details from the user via command line args 
@@ -34,16 +34,11 @@ use warnings;
 #  - Merge all pcaps into a single file
 #  - Provide the extracted data for simple download by a user
 
-# ------------- Configure this file -----------------------
-my $CONFIG_FILE="/opt/openfpc/openfpc.conf";
-# -------------- Nothing to do below here -----------------
-my $BUFFER_PATH=0;			# Set in config file
-my $SAVE_PATH=0;			# Set in config file
-my $FILE_COUNT=0;			# Set in config file
-my $TCPDUMP="0";			# Set in config file 
-my $MERGECAP="0";
+# List of config files to look for, first one wins 
+my @CONFIG_FILES=("/etc/openfpc/openfpc.conf","/opt/openfpc/openfpc.conf");
+my $CONFIG_FILE;
+my %CONFIG;
 my $openfpcver="1.10";
-my $EACHWAY="1";			# Default time before and after the timestamp
 my $TARGET=0;		
 my %TIME_HASH=();
 my @TIMESTAMPS=();
@@ -59,7 +54,6 @@ my $SUFFIX="$NOW.pcap";
 my $OUTPUTFILE="extracted.$SUFFIX";
 my $VERBOSE=0;
 my @PCAPS=();
-my $CURRENT_FILE=0;
 my $current=0;
 
 sub convert_time()
@@ -101,7 +95,7 @@ sub usage()
   --dst-addr or -d <DST_ADDR> 	Destination IP
   --src-port or -c <SRC_PORT>	Source Port 
   --dst-port or -p <DST_PORT>	Destination Port
-  --each-way or -e <FILE COUNT> Number of pcaps each-way Default: $EACHWAY
+  --each-way or -e <FILE COUNT> Number of pcaps each-way Default: $CONFIG{'EACHWAY'} 
   --event    or -a <EVENT_DATA> Attempt to parse a SF event table 
   --filename or -w <FILENAME>	Output pcap filename
   --verbose  or -v              Verbose output
@@ -114,31 +108,40 @@ Example: --epoch 1234567890 --src-addr 1.1.1.1 -e 2 --dst-port 31337
 
 	exit 1;
 }
-print "\n\n* extract-pcap.pl - \n* Part of the OpenFPC (Full Packet Capture) Project \nver $openfpcve - Leon Ward - leon\@rm-rf.co.uk\n\n";
+print "\n\n* extract-pcap.pl - \n* Part of the OpenFPC (Full Packet Capture) Project \nver $openfpcver - Leon Ward - leon\@rm-rf.co.uk\n\n";
 
-open (CONFIG,"$CONFIG_FILE");
-while (my $line = <CONFIG>){
-        if ($line =~ m/(BUFFER_PATH=\")(.*)(\")/) {
-                $BUFFER_PATH=$2;
-        }
-        if ($line =~ m/(SAVE_PATH=\")(.*)(\")/) {
-                $SAVE_PATH=$2;
-        }
-        if ($line =~ m/(FILE_COUNT=\")(.*)(\")/) {
-                $FILE_COUNT=$2;
-        }
-        if ($line =~ m/(CURRENT_FILE=\")(.*)(\")/) {
-                $CURRENT_FILE=$2;
-        }
-        if ($line =~ m/(TCPDUMP=\")(.*)(\")/) {
-                $TCPDUMP=$2;
-        }
-        if ($line =~ m/(MERGECAP=\")(.*)(\")/) {
-                $MERGECAP=$2;
-        }
+foreach (@CONFIG_FILES) {
+	if ( -f $_ ) {
+		print "* Reading config file $_\n";
+		$CONFIG_FILE=$_;
+		last;
+	}
 }
 
-open (CURRENT_FILE,"$CURRENT_FILE") or die ("Unable to open current file \"$CURRENT_FILE\". Have you got a buffer running?");
+# Defaults in case we don't have a config file
+$CONFIG{'BUFFER_PATH'}="/var/spool/openfpc/";
+$CONFIG{'SAVE_PATH'}=".";
+$CONFIG{'TCPDUMP'}="tcpdump";
+$CONFIG{'MERGECAP'}="mergecap";	
+$CONFIG{'EACHWAY'}="1";			
+$CONFIG{'CURRENT_FILE'}="/opt/openfpc/current";
+
+# Read a config file
+open my $config, '<', $CONFIG_FILE or die "Unable to open config file $CONFIG_FILE $!";
+while(<$config>) {
+	chomp;
+        if ( $_ =~ m/^[a-zA-Z]/) {
+        	(my $key, my @value) = split /=/, $_;
+                $CONFIG{$key} = join '=', @value;
+        }
+}
+close $config;
+
+if ($VERBOSE) {
+        print " ";
+}
+
+open (CURRENT_FILE,$CONFIG{'CURRENT_FILE'}) or die ("Unable to open current file \"$CONFIG{'CURRENT_FILE'}\". Have you got a buffer running?");
 while (my $line = <CURRENT_FILE>){
 	$current=$line;
 	chomp($current);
@@ -149,6 +152,7 @@ if ("$#ARGV" le "0") {
 	exit 1;
 }
 my $argcount=1;
+
 
 # Process command line args
 foreach (@ARGV) {
@@ -165,7 +169,7 @@ foreach (@ARGV) {
 	} elsif (( "$_" eq "-w" ) || ( "$_" eq "--filename")) {
 		$OUTPUTFILE=$ARGV[$argcount];
 	} elsif (( "$_" eq "-e") || ( "$_" eq "--each-way")) {
-		$EACHWAY=$ARGV[$argcount];
+		$CONFIG{'EACHWAY'}=$ARGV[$argcount];
 	} elsif ( "$_" eq "--all") {
 		$current="*";	
 	} elsif (( "$_" eq "-a") || ( "$_" eq "--event")) {
@@ -181,7 +185,7 @@ foreach (@ARGV) {
 }
 
 
-my @pcaptemp = `ls -rt $BUFFER_PATH/buffer.$current-*`;
+my @pcaptemp = `ls -rt $CONFIG{'BUFFER_PATH'}/buffer.$current-*`;
 
 foreach(@pcaptemp) {
 	chomp $_;
@@ -199,7 +203,7 @@ unless ($TARGET) {
 # Check that we are asking for data from a window we have in the buffer
 
 my $firstpacket;
-if (($firstpacket)=split(/ /,`$TCPDUMP -n -tt -r $PCAPS[0] -c 1 2>/dev/null`)) {
+if (($firstpacket)=split(/ /,`$CONFIG{'TCPDUMP'} -n -tt -r $PCAPS[0] -c 1 2>/dev/null`)) {
 	if ( $VERBOSE ) { 
 		my $request_time = localtime($TARGET);
 		my $firstpacket_localtime=localtime($firstpacket);
@@ -251,8 +255,8 @@ if ($VERBOSE) {
 }
 
 # Find what pcap files are eachway of target timestamp
-my $precount=$EACHWAY;
-my $postcount=$EACHWAY;
+my $precount=$CONFIG{'EACHWAY'};
+my $postcount=$CONFIG{'EACHWAY'};
 push(@TARGET_PCAPS,$TIME_HASH{$TIMESTAMPS[$location]});
 
 while($precount >= 1) {
@@ -276,7 +280,7 @@ while($postcount >= 1) {
 }
 
 if ($VERBOSE) { 
-	print " - Extracting from the following pcap files ($EACHWAY each side of $TIME_HASH{$TIMESTAMPS[$location]})\n"; 
+	print " - Extracting from the following pcap files ($CONFIG{'EACHWAY'} each side of $TIME_HASH{$TIMESTAMPS[$location]})\n"; 
 	foreach (@TARGET_PCAPS) {
 		print "   - $_ \n";
 	}
@@ -333,9 +337,9 @@ foreach (@TARGET_PCAPS){
 	(my $pcappath, my $pcapid)=split(/-/, $_);
 	print ".";
 	chomp $_;
-	my $filename="$SAVE_PATH/output-$pcapid.pcap";
+	my $filename="$CONFIG{'SAVE_PATH'}/output-$pcapid.pcap";
 	push(@outputpcaps,$filename);
-	`$TCPDUMP -r $_ -w $filename $BPF > /dev/null 2>&1`;
+	`$CONFIG{'TCPDUMP'} -r $_ -w $filename $BPF > /dev/null 2>&1`;
 
 	if ($VERBOSE) {
 		my $size = -s $filename;
@@ -347,26 +351,26 @@ print "\n";
 # Now that we have some pcaps, lets concatinate them into a single file
 print " - Merging..\n";
 
-if ( -d "$SAVE_PATH" ) {
+if ( -d "$CONFIG{'SAVE_PATH'}" ) {
 	if ($VERBOSE) {
-		print " - Found save path $SAVE_PATH\n";
+		print " - Found save path $CONFIG{'SAVE_PATH'}\n";
 	}
 } else {
-	die "Save path $SAVE_PATH not found!"
+	die "Save path $CONFIG{'SAVE_PATH'} not found!"
 }
 
 if ($VERBOSE) {
-	print " - Merge command is \"$MERGECAP -w $SAVE_PATH/$OUTPUTFILE @outputpcaps\" \n";
+	print " - Merge command is \"$CONFIG{'MERGECAP'} -w $CONFIG{'SAVE_PATH'}/$OUTPUTFILE @outputpcaps\" \n";
 }
 
-if (system("$MERGECAP -w $SAVE_PATH/$OUTPUTFILE @outputpcaps")) {
-	print "Problem merging pcap file!\n Is the mergecap command in $MERGECAP ? Check your buffer.conf!\n";
+if (system("$CONFIG{'MERGECAP'} -w $CONFIG{'SAVE_PATH'}/$OUTPUTFILE @outputpcaps")) {
+	print "Problem merging pcap file!\n Is the mergecap command in $CONFIG{'MERGECAP'} ? Check your buffer.conf!\n";
 	exit 1;
 }
 
-my $filesize=`ls -lh $SAVE_PATH/$OUTPUTFILE |awk '{print \$5}'`;		# Breaking out to a shell rather than stat for a human readable filesize
+my $filesize=`ls -lh $CONFIG{'SAVE_PATH'}/$OUTPUTFILE |awk '{print \$5}'`;		# Breaking out to a shell rather than stat for a human readable filesize
 chomp $filesize;
-print " - Created $SAVE_PATH/$OUTPUTFILE ($filesize)\n";
+print " - Created $CONFIG{'SAVE_PATH'}/$OUTPUTFILE ($filesize)\n";
 
 # Clean up...
 foreach(@outputpcaps)
