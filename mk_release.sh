@@ -5,16 +5,20 @@
 
 # Leon Ward - leon@rm-rf.co.uk
 
+TARPATH=..
+FILES="ofpc-extract.pl install-openfpc.sh openfpc openfpc.conf README"
+VERFILES="install-openfpc.sh ofpc-extract.pl openfpc"
+FILENAME="openfpc-$VER.tgz"
 
 echo Checking version numbers in code...
-grep openfpcver ./* |grep -v mk_release.sh |awk -F = '{print $2}'
+for i in $VERFILES
+do
+	VER=$(grep openfpcver $i |awk -F = '{print $2}')
+	echo -e " $VER - $i"
+done	
+
 VER=$(grep openfpcver openfpc |awk -F = '{print $2}')
-
-
-TARPATH=..
-FILES="extract-pcap.pl  install-openfpc.sh openfpc openfpc.conf README"
 TARGET="$TARPATH/openfpc-$VER"
-FILENAME="openfpc-$VER.tgz"
 echo -e "* Build Version $VER in $TARPATH ? (ENTER = yes)"
 
 read 

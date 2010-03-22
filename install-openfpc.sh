@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #########################################################################################
-
+openfpcver="1.10"
 TARGET_DIR="/opt/openfpc"
 INSTALL_FILES="extract-pcap.pl openfpc openfpc.conf"
 PERL_MODULES=""
@@ -55,7 +55,7 @@ function doinstall()
 	echo -e "* Checking for required programs"
 	for i in $REQUIRED_BINS
 	do
-		PROG=$(which $i) || die "Unable to fined $i installed on this system. Please install it and try again"
+		PROG=$(which $i) || die "Unable to find $i installed on this system. Please install it and try again"
 		echo -e "- $i ($PROG)"
 	done
 
