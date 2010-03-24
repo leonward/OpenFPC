@@ -21,9 +21,20 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #########################################################################################
 
-# ---------------- Configure this -----------------------
-source /opt/openfpc/openfpc.conf
 # ---------------- Nothing to do below here -------------
+# List of config files to try in order
+
+CONFIG_FILES="/etc/openfpc/openfpc.conf /opt/openfpc/openfpc.conf"
+
+for i in $CONFIG_FILES
+do
+	if [ -f $i ]
+	then
+		echo "[*] Reading configuration file $i"
+		source $i
+		break
+	fi
+done
 
 FILENAME="buffer"    	# IMPORTANT the - is used to determine what is filename and what is file number!
 			# Make sure that there is only one - and it is at the end of the filename
@@ -67,7 +78,7 @@ function start()
 	fi
 	pidof -x $TCPDUMP > /dev/null  && die "[!] Already running tcpdump! Not starting."
 	echo $TSTAMP > /opt/openfpc/current  || die "[!] Unable to save timestamp. Not starting."
-	[ -d $BUFFER_PATH ] || die "[!] Unable to find buffer path $BUFFER_PATH"
+	[ -d $BUFFER_PATH ] || die "[!] Unable to find buffer path $BUFFER_PATH. Do you need to mkdir it?"
 	ifconfig $INTERFACE > /dev/null 2>&1 || die "[!] Unable to find device $INTERFACE."
 
 	$TCPDUMP $TCPDUMPOPTS \
@@ -95,14 +106,19 @@ function stop()
 
 function status()
 {
-	FIRSTBUFFER=$(ls -tr $BUFFER_PATH/$FILENAME.$CURRENT-*|head -n 1)
-	FIRSTPACKET=$(tcpdump -n -r $FIRSTBUFFER -c 1 -tttt 2>/dev/null |awk '{print $1 " " $2}')
-	LASTBUFFER=$(ls -t $BUFFER_PATH/$FILENAME.$CURRENT-*|head -n 1)
-	PID=$(pidof tcpdump ) || die "[!] tcpdump not running"
-	echo "[*] traffic buffer running with pid $PID "
-	echo -e "	- Oldest packet is $FIRSTPACKET"
-	echo -e "	- Oldest File is   $FIRSTBUFFER"
-	echo -e "	- Using File       $LASTBUFFER"
+	if ls $BUFFER_PATH/$FILENAME.$CURRENT-* > /dev/null 2>&1
+	then
+		FIRSTBUFFER=$(ls -tr $BUFFER_PATH/$FILENAME.$CURRENT-*|head -n 1)
+		FIRSTPACKET=$(tcpdump -n -r $FIRSTBUFFER -c 1 -tttt 2>/dev/null |awk '{print $1 " " $2}')
+		LASTBUFFER=$(ls -t $BUFFER_PATH/$FILENAME.$CURRENT-*|head -n 1)
+		PID=$(pidof tcpdump ) || die "[!] tcpdump not running"
+		echo "[*] Traffic buffer running with pid $PID "
+		echo -e "	- Oldest packet is $FIRSTPACKET"
+		echo -e "	- Oldest File is   $FIRSTBUFFER"
+		echo -e "	- Using File       $LASTBUFFER"
+	else
+		echo "[!] No current buffers found in $BUFFER_PATH - Have you started it yet?"
+	fi
 }
 
 
