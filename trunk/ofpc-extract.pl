@@ -45,7 +45,7 @@ my $dst_addr=0;
 my $src_port=0;
 my $dst_port=0;
 my $timestamp=0;
-my $outputFile="extracted-$now.pcap";
+my $outputFile="ofpc-$now.pcap";
 my $help=0;
 my $http=0;
 my $startTime=0;
@@ -84,23 +84,31 @@ sub showerror($) {
 sub usage()
 {
         print "
-  --src-addr or -s <SRC_ADDR>      Source IP 
-  --dst-addr or -d <DST_ADDR>      Destination IP
-  --src-port or -c <SRC_PORT>      Source Port 
-  --dst-port or -p <DST_PORT>      Destination Port
-  --each-way or -e <FILE COUNT>    Number of pcaps each-way Default: $eachway
-  --event    or -a <EVENT_DATA>    Attempt to parse a SF event table 
-  --search   or -r 		   Use search mode (allows start/end time)
-  --mode     or -m <search|extact> Search or session mode
-  --sf                   	   Timestamp in SF format, convert it
-  --http			   Output in HTML for download
-  --verbose  or -v              Verbose output
-  --all                         Check in all buffers not just current sniff buffer
-  --starttime                   Start timestamp for searching in absolute mode
-  --endtime                     End timestamp for searching is absolute mode
 
-Example: --epoch 1234567890 --src-addr 1.1.1.1 -e 2 --dst-port 31337 
-         --sf \"2009-02-17 08:30:22\" --src-addr 1.2.3.4 \n\n";
+  --mode     or -m <at|between> 	At a single timestamp, or between two timestamps	  
+  --src-addr or -s <SRC_ADDR>           Source IP 
+  --dst-addr or -d <DST_ADDR>           Destination IP
+  --src-port or -c <SRC_PORT>           Source Port 
+  --dst-port or -p <DST_PORT>           Destination Port
+  --write    or -w <FILENAME>		Output file
+
+  --http     or -l		        Output in HTML for download
+  --verbose  or -v                      Verbose output
+  --all                                 Check in all buffers not just current sniff buffer
+
+  *** Operation Mode Specific ***
+
+  \"At\" mode.
+  --each-way or -e <FILE COUNT>         Number of pcaps each-way Default: $eachway
+  --event    or -a <EVENT_DATA>         Parse a SF event table line
+  --timestamp or -t			Event mode - Look each way of this epoch value
+  --sf                   	        Timestamp in SF format, convert it
+
+ \"Between\" mode.
+  --start    or -b                      Start timestamp for searching in absolute mode
+  --end      or -j                      End timestamp for searching is absolute mode
+
+Example: -x -t 1234567890 --src-addr 1.1.1.1 -e 2 --dst-port 31337 --src-addr 1.2.3.4 \n\n";
 
         exit 1;
 }
@@ -119,23 +127,23 @@ sub findBuffers {
         if ($verbose) {
                 print " - $numberOfFiles requested each side of target timestamp \n";
         }
-
-        push(@timestampArray, $targetTimeStamp);            # Add target timestamp to our array
-        $timeHash{$targetTimeStamp} = "TARGET";         # Method to identify our target timestamp in the hash
+	
+        push(@timestampArray, $targetTimeStamp);            # Add target timestamp to an array of all file timestamps
+        $timeHash{$targetTimeStamp} = "TARGET";             # Method to identify our target timestamp in the hash
 
         foreach my $pcap (@PCAPS) {
                 my $timestamp = ((stat($pcap))[9]);
                 if ($verbose) {
-                        print " - Adding file $pcap with timestamp $timestamp (" . localtime($timestamp) . ") to hash\n";
+                        print " - Adding file $pcap with timestamp $timestamp (" . localtime($timestamp) . ") to hash of timestamps \n";
                 }
                 $timeHash{$timestamp} = $pcap;
                 push(@timestampArray,$timestamp);
         }
         #if ($verbose) {
-                #print ": timestampArray array looks like\n";
-                #print Dumper "@timestampArray";
-                #print " Hash looks like this \n";
-                #print Dumper %timeHash;
+        #        print ": timestampArray array looks like\n";
+        #        print Dumper "@timestampArray";
+        #        print " Hash looks like this \n";
+        #        print Dumper %timeHash;
         #}
 
         my $count=0;
@@ -150,16 +158,18 @@ sub findBuffers {
                         }
                 }
         }
-
-        if ($verbose) {
-                my $expectedts = ((stat($timeHash{$timestampArray[$location]}))[9]);
-                my $lexpectedts = localtime($expectedts);
-                if ($verbose) {
-                        print " - Target PCAP filename is $timeHash{$timestampArray[$location]} : $lexpectedts\n";
-                }
+	#print Dumper %timeHash;
+	#print "LEON Filename = $timeHash{$timestampArray[$location]} \n";
+	#print "LEON $timeHash{$timestampArray[$location]} \n";
+        #if ($verbose) {
+        #        my $expectedts = ((stat($timeHash{$timestampArray[$location]}))[9]);
+        #        my $lexpectedts = localtime($expectedts);
+        #        if ($verbose) {
+        #                print " - Target PCAP filename is $timeHash{$timestampArray[$location]} : $lexpectedts\n";
+        #        }
                 #print " DUMPING hash \n";
                 #print Dumper "\%timeHash\n";
-        }
+        #}
 
 
         # Find what pcap files are eachway of target timestamp
@@ -293,11 +303,11 @@ sub doSearch{
 }
 
 sub doEvent{	
-	@filelist=(findBuffers("$timestamp", ""));
+	@filelist=(findBuffers("$timestamp", "$eachway"));
 	if ($verbose) {
-		print " ----- File Roster ------\n";
-	        foreach my $foo (@filelist){
-        	        print " - $foo \n";
+		print " ----- Extract will be performed against the following files -----\n";
+	        foreach (@filelist){
+        	        print " - $_\n";
         	}
 		print " -----/ File Roster ------\n";
 	}
@@ -315,19 +325,12 @@ sub doExtract(){
         	chomp $_;
         	my $filename="$config{'SAVE_PATH'}/output-$pcapid.pcap";
         	push(@outputpcaps,$filename);
-		
+		my $exec="$config{'TCPDUMP'} -r $_ -w $filename $bpf > /dev/null 2>&1";	
 		if ($verbose) { 
-			print " - Running $config{'TCPDUMP'} -r $_ -w $filename $bpf \n";
-        		`P -r $_ -w $filename $bpf > /dev/null 2>&1`;
-		} else {
-        		`$config{'TCPDUMP'} -r $_ -w $filename $bpf > /dev/null 2>&1`;
+			print " - Running $exec \n";
 		}
 
-        	if ($verbose) {
-			my $size="Unable to calculate";
-                	$size = -s $filename ;
-                	print " - File $filename is $size bytes\n";
-        	}
+		`$exec`;
 	}
 	print "\n";
 
@@ -353,7 +356,7 @@ sub doExtract(){
         	exit 1;
 	}
 
-	my $filesize=`ls -lh /$outputFile |awk '{print \$5}'`;                # Breaking out to a shell rather than stat for a human readable filesize
+	my $filesize=`ls -lh $config{'SAVE_PATH'}/$outputFile |awk '{print \$5}'`;                # Breaking out to a shell rather than stat for a human readable filesize
 	chomp $filesize;
 
 	if ($http) {
@@ -364,7 +367,7 @@ sub doExtract(){
 	# Clean up...
 	foreach(@outputpcaps)
 	{
-        	unlink($_);
+        	#unlink($_);
 	}
 }
 
@@ -417,6 +420,7 @@ $config{'EACHWAY'}="1";
 $config{'CURRENT_FILE'}="/opt/openfpc/current";
 $config{'HYPERLINK_PATH'}="/pcaps/";
 
+
 # Decide what config file to read
 foreach (@CONFIG_FILES) {
         if ( -f $_ ) {
@@ -427,8 +431,6 @@ foreach (@CONFIG_FILES) {
                 last;
         }
 }
-
-# Read a config file
 open my $config, '<', $CONFIG_FILE or die "Unable to open config file $CONFIG_FILE $!";
 while(<$config>) {
         chomp;
@@ -439,12 +441,10 @@ while(<$config>) {
 }
 close $config;
 
-# If verbose is set on the config file, lets run in verbose mode.
-
 # Display command line options and config file settings
 if ($verbose) {
 	print "* Dumping options \n" .
-		"   timestanmp = $timestamp \n" .
+		"   timestamp = $timestamp \n" .
 		"   mode = $mode \n" .
 		"   event = $event \n" .
 		"   src_addr = $src_addr \n" .
@@ -455,7 +455,6 @@ if ($verbose) {
 		"   write    = $outputFile \n" .
 		"   Starttime = $startTime (". localtime($startTime) . ") \n" .
 		"   Endtime   = $endTime (". localtime($endTime) . ")\n" ;
-
 }
 
 ##### Decide what to do.
@@ -465,22 +464,22 @@ if ($help) {
 	exit 0;
 }
 
-if ( ($mode eq "search") or ($mode eq "s") or ($startTime and $endTime)) {
+if ( ($mode eq "between") or ($mode eq "b") or ($startTime and $endTime)) {
 	if ($verbose) {
 		print "*  Running in search mode\n";
 	}
 	doInit;
 	doSearch;
 
-} elsif ( ($mode eq "extract") or ($mode eq "x") or $event) {
+} elsif ( ($mode eq "at") or ($mode eq "a") or $event) {
 	if ($verbose) {
 		print "*  Running in event session mode\n";
 	}
 
 	# Process and convert timestamp if required from different formats.
 	unless ($timestamp) {
-		print "Timestamp required for extract. \nLook at --help\n";
-		exit 1;
+		$timestamp=$now-500;
+		print STDERR "Warning: Timestamp not specified, Assuming \"now\" of " . localtime($now) ." \n";
 	}
 	if ($sf) {	
 		if ($verbose) {
@@ -501,7 +500,7 @@ if ( ($mode eq "search") or ($mode eq "s") or ($startTime and $endTime)) {
         	print " - Event requested is     : $request_time\n";
 	}
 	if (($timestamp < $firstpacket) or ($timestamp > time())) {
-        	&showerror("Date requested is outside the range of the packet in buffer - We don't have it. \nCould the event be in another set of files? Consider --all");
+        	&showerror("Date requested is outside the range of the packet in buffer - We don't have it. \nCould the event be in another set of files? Consider --all\n");
         	exit 1;
 	}
 	doEvent;

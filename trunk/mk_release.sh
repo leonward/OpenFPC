@@ -8,7 +8,6 @@
 TARPATH=..
 FILES="ofpc-extract.pl install-openfpc.sh openfpc openfpc.conf README"
 VERFILES="install-openfpc.sh ofpc-extract.pl openfpc"
-FILENAME="openfpc-$VER.tgz"
 
 echo Checking version numbers in code...
 for i in $VERFILES
@@ -19,6 +18,7 @@ done
 
 VER=$(grep openfpcver openfpc |awk -F = '{print $2}')
 TARGET="$TARPATH/openfpc-$VER"
+FILENAME="openfpc-$VER.tgz"
 echo -e "* Build Version $VER in $TARPATH ? (ENTER = yes)"
 
 read 

@@ -22,7 +22,7 @@
 #########################################################################################
 openfpcver="1.10"
 TARGET_DIR="/opt/openfpc"
-INSTALL_FILES="extract-pcap.pl openfpc openfpc.conf"
+INSTALL_FILES="ofpc-extract.pl openfpc openfpc.conf"
 PERL_MODULES=""
 INIT_SCRIPTS="openfpc"
 INIT_DIR="/etc/init.d/" 
@@ -38,6 +38,29 @@ IAM=$(whoami)
 DATE=$(date)
 PATH=$PATH:/usr/sbin
 
+
+function autoconfig()
+{
+	# This may look a little OTT, but I have run into problems across multiple platforms
+	# with the location of these files. And as OpenFPC is aimed at the non-experts it makes
+	# sense to help out where possible.
+
+	# Check if we have a /etc/openfpc/openfpc.conf file. If so, the user probably knows 
+	# what they are doing.
+	if [ -f /etc/openfpc/openfpc.conf ] 
+	then
+		echo "* Wont autoconfigure, /etc/openfpc/openfoc.conf found"
+	else
+		echo -e "* Checking for required programs"
+		for i in $REQUIRED_BINS
+		do
+			PROG=$(which $i) || die "Unable to find $i installed on this system. Please install it and try again"
+			echo -e "- $i ($PROG)"
+		done
+	fi
+
+}
+
 function die()
 {
         echo "$1"
@@ -52,12 +75,6 @@ function doinstall()
 	then
 	       	die "[!] Must be root to run this script"
 	fi
-	echo -e "* Checking for required programs"
-	for i in $REQUIRED_BINS
-	do
-		PROG=$(which $i) || die "Unable to find $i installed on this system. Please install it and try again"
-		echo -e "- $i ($PROG)"
-	done
 
 
 	[ -d $INIT_DIR ] || die "Cannot find init.d directory $INIT_DIR. Something bad must have happened."
@@ -107,7 +124,7 @@ function doinstall()
 	fi
 
 	echo -e "Creating mymlink to usr/local/bin"
-	ln -s $TARGET_DIR/extract-pcap.pl /usr/local/bin
+	ln -s $TARGET_DIR/ofpc-extract.pl /usr/local/bin
 
 }
 
@@ -263,12 +280,13 @@ case $1 in
 		doinstall
 	;;
      *)
-		echo -e "OpenFPC installer - Usage"
-		echo -e "Leon Ward"
-		echo -e " --------------"
+		echo -e "* OpenFPC installer - Usage"
+		echo -e "  Leon Ward - leon@rm-rf.co.uk"
+		echo -e " ------------------------------------------"
                 echo -e " insatall		Install the system"
                 echo -e " remove		Uninstall the system"
                 echo -e " status	 	Check install status"
+                echo -e " reinstall	 	Re-install system"
 		echo
         ;;
 esac
