@@ -26,7 +26,8 @@ INSTALL_FILES="ofpc-extract.pl openfpc openfpc.conf"
 PERL_MODULES=""
 INIT_SCRIPTS="openfpc"
 INIT_DIR="/etc/init.d/" 
-REQUIRED_BINS="tcpdump date mergecap perl tshark"
+REQUIRED_BINS="tcpdump date mergecap perl tshark fuckfoo"
+LOCAL_CONFIG="/etc/openfpc/openfpc.conf"
 
 DISTRO="AUTO"		# Try to work out what distro we are installing on
 # DISTRO="RH"		# force to RedHat
@@ -41,21 +42,20 @@ PATH=$PATH:/usr/sbin
 
 function autoconfig()
 {
-	# This may look a little OTT, but I have run into problems across multiple platforms
-	# with the location of these files. And as OpenFPC is aimed at the non-experts it makes
-	# sense to help out where possible.
+	# This may look a little OTT, but path varies across multiple disros as does $PATH
 
 	# Check if we have a /etc/openfpc/openfpc.conf file. If so, the user probably knows 
-	# what they are doing.
-	if [ -f /etc/openfpc/openfpc.conf ] 
+	# what they are doing and already been through this.
+
+	if [ -f $LOCAL_CONFIG ] 
 	then
-		echo "* Wont autoconfigure, /etc/openfpc/openfoc.conf found"
+		echo "* Wont autoconfigure, $LOCAL_CONFIG found"
 	else
 		echo -e "* Checking for required programs"
 		for i in $REQUIRED_BINS
 		do
-			PROG=$(which $i) || die "Unable to find $i installed on this system. Please install it and try again"
-			echo -e "- $i ($PROG)"
+			PROG=$(whereis -b $i |awk '{print $2}') || die "Unable to find $i installed on this system. Please install it and try again. ( Hint - whereis -b $i ) "
+			echo -e "- Found $i ($PROG)"
 		done
 	fi
 
@@ -278,6 +278,10 @@ case $1 in
 		remove
 		echo And installing...
 		doinstall
+	;;
+	autoconfig)
+		echo Configuring
+		autoconfig
 	;;
      *)
 		echo -e "* OpenFPC installer - Usage"
