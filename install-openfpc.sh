@@ -49,7 +49,7 @@ function autoconfig()
 
 	if [ -f $LOCAL_CONFIG ] 
 	then
-		echo "* Wont autoconfigure, $LOCAL_CONFIG found"
+		echo "* Won't autoconfigure, $LOCAL_CONFIG found"
 	else
 		echo -e "* Checking for required programs"
 		for i in $REQUIRED_BINS
@@ -140,7 +140,7 @@ function remove()
 			echo -e "Stopping $file"
 			$INIT_DIR/$file stop || echo "- $file didn't stop, removing anyway"
 		else
-			echo -e "$INIT_DIR/$file doesn't exist - Wont try to stop"
+			echo -e "  $INIT_DIR/$file doesn't exist - Won't try to stop"
 		fi
 	done
 	
@@ -153,12 +153,12 @@ function remove()
 
 	for file in $INSTALL_FILES
 	do
-		echo -e "- $TARGET_DIR/$file"
 		if [ -f $TARGET_DIR/$file ] 
 		then
+			echo -e "  Removed   $TARGET_DIR/$file"
 			rm $TARGET_DIR/$file || echo unable to delete $file
 		else
-			echo -e "   * Not found"	
+			echo -e "  Not Found $TARGET_DIR/$file"	
 		fi
 	done
 
@@ -178,10 +178,14 @@ function remove()
 	do
 		if [ -L $INIT_DIR/$file ] 
 		then
-			rm $INIT_DIR/$file || echo unable to delete $file
+			if rm $INIT_DIR/$file 
+			then
+				echo -e " Removed   $INIT_DIR/$file "
+			else
+				echo -e " rm failed $INIT_DIR/$file"
+			fi
 		else
-			echo -e " - $INIT_DIR/$file"
-			echo -e "   * Not found"	
+			echo -e "  Can't find $INIT_DIR/$file - Won't remove"
 		fi
 	done
 	
@@ -196,7 +200,6 @@ function remove()
         then
                 for file in $INIT_SCRIPTS
                 do
-			echo -e "- Removing rc.d links for $file"
 			update-rc.d $file remove
                 done
 
@@ -215,12 +218,12 @@ function remove()
 
 function installstatus()
 {
-	echo -e " Status"
+	echo -e "* Status"
 	if [ -d $TARGET_DIR ] 
 	then
-		echo -e " - Target install dir $TARGET_DIR Exists"	
+		echo -e " Yes Target install dir $TARGET_DIR Exists"	
 	else
-		echo -e " - Target install dir $TARGET_DIR does not exist"
+		echo -e " No  Target install dir $TARGET_DIR does not exist"
 
 	fi
 	
@@ -228,9 +231,9 @@ function installstatus()
 	do
 		if [ -f $TARGET_DIR/$file ] 
 		then
-			echo -e " - $TARGET_DIR/$file Exists"
+			echo -e " Yes $TARGET_DIR/$file Exists"
 		else
-			echo -e " - $TARGET_DIR/$file  does not exist"
+			echo -e " No  $TARGET_DIR/$file  does not exist"
 		fi
 
 	done
@@ -240,14 +243,20 @@ function installstatus()
 	
 		if [ -f $TARGET_DIR/$file ]
 		then
-			echo -e " = $TARGET_DIR/$file Exists"
+			echo -e " Yes $TARGET_DIR/$file Exists"
 		else
-			echo -e " - $TARGET_DIR/$file does not exist"
+			echo -e " No  $TARGET_DIR/$file does not exist"
 		fi	
 	done
-
-
 }
+
+echo -e "
+* OpenFPC installer - leon@rm-rf.co.uk v$openfpcver
+  A set if scripts to help manage and find data in a large network traffic
+  archive. - http://code.google.com/p/openfpc/ 
+"
+	
+
 
 if  [ "$DISTRO" == "AUTO" ]
 then
@@ -259,7 +268,7 @@ then
 		die "Unable to detect distro. Set manually"
 	fi
 
-	echo "- Detected distribution as $DISTRO"
+	echo -e "  (Detected distribution as $DISTRO )\n"
 fi
 
 
@@ -284,13 +293,10 @@ case $1 in
 		autoconfig
 	;;
      *)
-		echo -e "* OpenFPC installer - Usage"
-		echo -e "  Leon Ward - leon@rm-rf.co.uk"
-		echo -e " ------------------------------------------"
-                echo -e " insatall		Install the system"
-                echo -e " remove		Uninstall the system"
-                echo -e " status	 	Check install status"
-                echo -e " reinstall	 	Re-install system"
+                echo -e " insatall   - Install the system"
+                echo -e " remove     - Remove the system"
+                echo -e " status     - Check install status"
+                echo -e " reinstall  - Re-install system"
 		echo
         ;;
 esac
