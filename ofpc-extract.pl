@@ -83,7 +83,7 @@ sub showerror($) {
 
 sub usage()
 {
-        print "
+        print "- Usage:
 
   --mode     or -m <at|between> 	At a single timestamp, or between two timestamps	  
   --src-addr or -s <SRC_ADDR>           Source IP 
@@ -96,7 +96,7 @@ sub usage()
   --verbose  or -v                      Verbose output
   --all                                 Check in all buffers not just current sniff buffer
 
-  *** Operation Mode Specific ***
+  ***** Operation Mode Specific Stuff *****
 
   \"At\" mode.
   --each-way or -e <FILE COUNT>         Number of pcaps each-way Default: $eachway
@@ -108,7 +108,7 @@ sub usage()
   --start    or -b                      Start timestamp for searching in absolute mode
   --end      or -j                      End timestamp for searching is absolute mode
 
-Example: -x -t 1234567890 --src-addr 1.1.1.1 -e 2 --dst-port 31337 --src-addr 1.2.3.4 \n\n";
+Example: -a -t 1234567890 --src-addr 1.1.1.1 -e 2 --dst-port 31337 --src-addr 1.2.3.4 \n";
 
         exit 1;
 }
@@ -139,16 +139,10 @@ sub findBuffers {
                 $timeHash{$timestamp} = $pcap;
                 push(@timestampArray,$timestamp);
         }
-        #if ($verbose) {
-        #        print ": timestampArray array looks like\n";
-        #        print Dumper "@timestampArray";
-        #        print " Hash looks like this \n";
-        #        print Dumper %timeHash;
-        #}
 
         my $count=0;
         my $location=0;
-        foreach (sort @timestampArray){                     # Sort our array of timetsamps (including
+        foreach (sort @timestampArray){                 # Sort our array of timetsamps (including
                 $count++;                               # our target timestamp)
                 if ( "$_" == "$targetTimeStamp" ) {     # Find Target Timestamp
                         $location=$count;               # And store its place
@@ -156,20 +150,16 @@ sub findBuffers {
                         if ($verbose) {
                                 print " - Found location of target timestamp $targetTimeStamp in hash. Position $location of " . $sizeofarray . " pcap files\n";
                         }
+		last;
                 }
         }
-	#print Dumper %timeHash;
-	#print "LEON Filename = $timeHash{$timestampArray[$location]} \n";
-	#print "LEON $timeHash{$timestampArray[$location]} \n";
-        #if ($verbose) {
-        #        my $expectedts = ((stat($timeHash{$timestampArray[$location]}))[9]);
-        #        my $lexpectedts = localtime($expectedts);
-        #        if ($verbose) {
-        #                print " - Target PCAP filename is $timeHash{$timestampArray[$location]} : $lexpectedts\n";
-        #        }
-                #print " DUMPING hash \n";
-                #print Dumper "\%timeHash\n";
-        #}
+        if ($verbose) {
+                my $expectedts = ((stat($timeHash{$timestampArray[$location]}))[9]);
+                my $lexpectedts = localtime($expectedts);
+                if ($verbose) {
+                        print " - Target PCAP filename is $timeHash{$timestampArray[$location]} : $lexpectedts\n";
+                }
+        }
 
 
         # Find what pcap files are eachway of target timestamp
@@ -250,7 +240,7 @@ sub mkBPF(){
 	}
 
 	if (("$bpf" eq  "0") || ("$bpf" eq " " )) {
-        	showerror("Fatal - Search scope too large. \n" .
+        	showerror("Fatal Search scope too large. \n" .
 				"Source address =  $src_addr\n" .
 				"Destination address = $dst_addr \n" .
 				"Source port = $src_port \n" .
@@ -258,7 +248,6 @@ sub mkBPF(){
 				"Is too large. Please limit it with some constraints");
 	}
 }
-
 
 sub doSearch{
 	if ($verbose) {
@@ -318,7 +307,9 @@ sub doEvent{
 sub doExtract(){
 	my $pcapcount=1;
 	my @outputpcaps=();
-
+	unless ($http) {
+		print " - Searching ";
+	}
 	foreach (@filelist){
         	(my $pcappath, my $pcapid)=split(/-/, $_);
         	unless ($http or $verbose) { print "."; }
@@ -478,8 +469,8 @@ if ( ($mode eq "between") or ($mode eq "b") or ($startTime and $endTime)) {
 
 	# Process and convert timestamp if required from different formats.
 	unless ($timestamp) {
-		$timestamp=$now-500;
-		print STDERR "Warning: Timestamp not specified, Assuming \"now\" of " . localtime($now) ." \n";
+		$timestamp=$now;
+		print STDERR " - Warning: Timestamp not specified, Assuming \"now\" of " . localtime($now) ." \n";
 	}
 	if ($sf) {	
 		if ($verbose) {

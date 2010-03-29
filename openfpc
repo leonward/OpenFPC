@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash 
 
 #########################################################################################
 # Copyright (C) 2009 Leon Ward 
@@ -40,12 +40,16 @@ FILENAME="buffer"    	# IMPORTANT the - is used to determine what is filename an
 			# Make sure that there is only one - and it is at the end of the filename
 IAM=$(whoami)
 DATE=$(date)
-TSTAMP=$(date +%s)
 PATH=$PATH:/sbin:/usr/sbin
 TCPDUMPOPTS="-Z root" 	
 openfpcver=1.10
 
-CURRENT=$(cat /opt/openfpc/current 2>/dev/null) || CURRENT="0"
+if [ "$MULTI_BUFFER" == "1" ] 
+then
+	CURRENT=$(cat $CURRENT_FILE 2>/dev/null) || CURRENT="SINGLE"
+else
+	CURRENT="SINGLE"
+fi
 
 #sudo tcpdump -n -i eth1 -s 0 -C 50  -W 20 -w /var/tmp/buffer-
 
@@ -77,7 +81,15 @@ function start()
 		die "[!] Must be root"
 	fi
 	pidof -x $TCPDUMP > /dev/null  && die "[!] Already running tcpdump! Not starting."
-	echo $TSTAMP > /opt/openfpc/current  || die "[!] Unable to save timestamp. Not starting."
+
+	if [ "$MULTI_BUFFER" == "1" ] 
+	then
+		TSTAMP=$(date +%s)
+	else
+		TSTAMP="SINGLE"
+	fi
+		echo $TSTAMP > $CURRENT_FILE  || die "[!] Unable to save data to $CURRENT_FILE. Not starting."
+
 	[ -d $BUFFER_PATH ] || die "[!] Unable to find buffer path $BUFFER_PATH. Do you need to mkdir it?"
 	ifconfig $INTERFACE > /dev/null 2>&1 || die "[!] Unable to find device $INTERFACE."
 
@@ -110,12 +122,20 @@ function status()
 	then
 		FIRSTBUFFER=$(ls -tr $BUFFER_PATH/$FILENAME.$CURRENT-*|head -n 1)
 		FIRSTPACKET=$(tcpdump -n -r $FIRSTBUFFER -c 1 -tttt 2>/dev/null |awk '{print $1 " " $2}')
+		NOW=$(date +%Y-%m-%d\ %H:%M:%S)
 		LASTBUFFER=$(ls -t $BUFFER_PATH/$FILENAME.$CURRENT-*|head -n 1)
 		PID=$(pidof tcpdump ) || die "[!] tcpdump not running"
+		EPOC_FIRST=$(date -d "$FIRSTPACKET" +%s)
+		EPOC_LAST=$(date -d "$NOW" +%s)
+		let EPOC_DELTA=($EPOC_LAST-$EPOC_FIRST)/60/60
+		
+
 		echo "[*] Traffic buffer running with pid $PID "
-		echo -e "	- Oldest packet is $FIRSTPACKET"
-		echo -e "	- Oldest File is   $FIRSTBUFFER"
-		echo -e "	- Using File       $LASTBUFFER"
+		echo -e "	- Time now 		$NOW"
+		echo -e "	- Oldest packet		$FIRSTPACKET"
+		echo -e "	- Oldest File		$FIRSTBUFFER"
+		echo -e "	- Using File		$LASTBUFFER"
+		echo -e "	- Time Window		~ $EPOC_DELTA hours"
 	else
 		echo "[!] No current buffers found in $BUFFER_PATH - Have you started it yet?"
 	fi
