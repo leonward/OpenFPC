@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -I .
 
 #########################################################################################
 # Copyright (C) 2009 Leon Ward 
@@ -25,6 +25,7 @@ use strict;
 use warnings;
 use Data::Dumper;
 use Getopt::Long;
+use ofpcParse;
 
 # List of config files to look for, first one wins 
 my @CONFIG_FILES=("/etc/openfpc/openfpc.conf","/opt/openfpc/openfpc.conf");
@@ -35,7 +36,6 @@ my $eachway=1;
 my $now=time();
 my $verbose=0;
 my @filelist=();
-my $bpf=0;
 my $firstpacket=0;
 my $sizeofarray=0;
 my @PCAPS=();
@@ -134,7 +134,7 @@ sub findBuffers {
         foreach my $pcap (@PCAPS) {
                 my $timestamp = ((stat($pcap))[9]);
                 if ($verbose) {
-                        print " - Adding file $pcap with timestamp $timestamp (" . localtime($timestamp) . ") to hash of timestamps \n";
+                        #print " - Adding file $pcap with timestamp $timestamp (" . localtime($timestamp) . ") to hash of timestamps \n";
                 }
                 $timeHash{$timestamp} = $pcap;
                 push(@timestampArray,$timestamp);
@@ -198,6 +198,13 @@ sub findBuffers {
                 }
                 $postcount--;
         }
+	if ($verbose) {
+		print "* Search scope : ";
+		foreach (@TARGET_PCAPS) {
+			print "$_ \n";
+		}
+		print "\n";
+	}
         return(@TARGET_PCAPS);
 }
 
@@ -209,32 +216,32 @@ sub mkBPF(){
 	my $pbpf="";
 
 	if ($src_addr) {
-        	$hbpf="host $src_addr";
+       		$hbpf="host $src_addr";
 	}
 
 	if ($dst_addr) {
-        	if ($src_addr) {
-                	$hbpf=$hbpf . " and ";
-        	}
-        	$hbpf=$hbpf . "host $dst_addr";
+       		if ($src_addr) {
+               		$hbpf=$hbpf . " and ";
+       		}
+       		$hbpf=$hbpf . "host $dst_addr";
 	}
 
 	if ($src_port) {
-        	$pbpf="port $src_port";
-        	}
+       		$pbpf="port $src_port";
+       		}
 
 	if ($dst_port) {
-        	if ($src_port) {
-                	$pbpf=$pbpf . " and ";
-        	}
-        	$pbpf=$pbpf . "port $dst_port";
-        }
+       		if ($src_port) {
+               		$pbpf=$pbpf . " and ";
+       		}
+       		$pbpf=$pbpf . "port $dst_port";
+       	}
 
 	if ($hbpf and $pbpf) {
-        	$pbpf=" and " . $pbpf;
+       		$pbpf=" and " . $pbpf;
 	}
 
-	$bpf="$hbpf $pbpf";
+	my $bpf="$hbpf $pbpf";
 	if ($verbose) {
 		print " - BPF Generated as $bpf\n";
 	}
@@ -247,6 +254,7 @@ sub mkBPF(){
 				"Destination port = $dst_port \n".
 				"Is too large. Please limit it with some constraints");
 	}
+	return($bpf);
 }
 
 sub doSearch{
@@ -287,26 +295,18 @@ sub doSearch{
         	        print " - $foo \n";
         	}
 	}
-	&mkBPF;
-	&doExtract;
+	my $bpf=mkBPF();
+	&doExtract($bpf);
 }
 
-sub doEvent{	
-	@filelist=(findBuffers("$timestamp", "$eachway"));
-	if ($verbose) {
-		print " ----- Extract will be performed against the following files -----\n";
-	        foreach (@filelist){
-        	        print " - $_\n";
-        	}
-		print " -----/ File Roster ------\n";
-	}
-	&mkBPF;
-	&doExtract;
-}
 
-sub doExtract(){
+sub doExtract{
+	my $bpf=shift;
 	my $pcapcount=1;
 	my @outputpcaps=();
+	if ($verbose) {
+		print "- Doing Extraction with BPF $bpf\n";
+	}
 	unless ($http) {
 		print " - Searching ";
 	}
@@ -362,6 +362,56 @@ sub doExtract(){
 	}
 }
 
+sub doAt{	
+	@filelist=(findBuffers("$timestamp", "$eachway"));
+	if ($verbose) {
+		print " Running in doAt mode \n";
+		print " ----- Extract will be performed against the following files -----\n";
+	        foreach (@filelist){
+        	        print " - $_\n";
+        	}
+		print " -----/ File Roster ------\n";
+	}
+	my $bpf=mkBPF();
+	doExtract($bpf);
+}
+
+
+sub doEvent{
+	if ($verbose) {
+		print " ----- Running in doEvent mode ----- \n";
+	}
+
+	my @eventData=ofpcParse::SF49IPS($event);
+
+	if ($verbose) {
+		print "---Decoded Event---\n" .
+			"Type: $eventData[0]\n".
+			"Timestamp: $eventData[1] (" . localtime($eventData[1]) . ")\n" .
+			"SIP: $eventData[2]\n" .
+			"DIP: $eventData[3]\n" .
+			"SPT: $eventData[4]\n" .
+			"DPT: $eventData[5]\n" .
+			"Protocol: $eventData[6]\n" .
+			"Message: $eventData[7]\n" ;
+	}
+	$timestamp=$eventData[1];
+
+	# Do some sanity checks on the timestamp
+	if ($timestamp < $firstpacket) {
+		&showerror("Date requested is outside the range of the packet in buffer - We don't have it. \nCould the event be in another set of files? Consid    er --all\n");
+	
+	}
+
+	if ($timestamp > $now) {
+		showerror("Date requested is in the future. Clearly you have a ntp problem");
+	}
+
+	my $bpf="host $eventData[2] and host $eventData[3] and port $eventData[4] and port $eventData[5]";
+	@filelist=(findBuffers("$timestamp", "$eachway"));
+	doExtract($bpf);	
+	
+}
 
 sub doInit{
 	# Do the stuff that's required regardless of mode of operation
@@ -462,9 +512,9 @@ if ( ($mode eq "between") or ($mode eq "b") or ($startTime and $endTime)) {
 	doInit;
 	doSearch;
 
-} elsif ( ($mode eq "at") or ($mode eq "a") or $event) {
+} elsif ( ($mode eq "at") or ($mode eq "a")) {
 	if ($verbose) {
-		print "*  Running in event session mode\n";
+		print "*  Running in \"At\" mode\n";
 	}
 
 	# Process and convert timestamp if required from different formats.
@@ -494,8 +544,13 @@ if ( ($mode eq "between") or ($mode eq "b") or ($startTime and $endTime)) {
         	&showerror("Date requested is outside the range of the packet in buffer - We don't have it. \nCould the event be in another set of files? Consider --all\n");
         	exit 1;
 	}
+	doAt;
+} elsif ($event) {
+	if ($verbose) {
+		print "Running in Event mode\n";	
+	}
+	doInit;
 	doEvent;
-
 } else {
 	print STDERR "Error, You need to tell me what to do!\n";
 	print STDERR "Take a look at --help\n";
