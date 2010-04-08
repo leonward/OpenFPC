@@ -98,4 +98,17 @@ sub EXIM4{
 	}
 }
 
+sub SnortSyslog{
+	# Sample: 
+	my $event=shift;
+	my $spt=0;
+        my $dpt=0;
+        my $sip=0;
+        my $dip=0;    
+        my $proto=0;
+        my $epoch=0;
+        my $msg="Email Transfer";
+
+}
+
 1;
