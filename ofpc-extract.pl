@@ -1,4 +1,4 @@
-#!/usr/bin/perl -I .
+#!/usr/bin/perl -I . /opt/openfpc/
 
 #########################################################################################
 # Copyright (C) 2009 Leon Ward 
@@ -85,7 +85,7 @@ sub usage()
 {
         print "- Usage:
 
-  --mode     or -m <at|between> 	At a single timestamp, or between two timestamps	  
+  --mode     or -m <at|window> 		At a specific time, or search in a window	  
   --src-addr or -s <SRC_ADDR>           Source IP 
   --dst-addr or -d <DST_ADDR>           Destination IP
   --src-port or -c <SRC_PORT>           Source Port 
@@ -100,11 +100,11 @@ sub usage()
 
   \"At\" mode.
   --each-way or -e <FILE COUNT>         Number of pcaps each-way Default: $eachway
-  --event    or -a <EVENT_DATA>         Parse a SF event table line
+  --event    or -a <EVENT_DATA>         Parse a supported event log line e.g. Snort, Sourcefire, Exim etc
   --timestamp or -t			Event mode - Look each way of this epoch value
   --sf                   	        Timestamp in SF format, convert it
 
- \"Between\" mode.
+ \"Window\" mode.
   --start    or -b                      Start timestamp for searching in absolute mode
   --end      or -j                      End timestamp for searching is absolute mode
 
@@ -379,35 +379,43 @@ sub doAt{
 
 sub doEvent{
 	if ($verbose) {
-		print " ----- Running in doEvent mode ----- \n";
+		print " ----- Running in doEvent mode (input from log file)----- \n";
 	}
+	my $logline=shift;
 
-	my @eventData=ofpcParse::SF49IPS($event);
+	my %eventdata = (); 
+
+	# Work through a list of file-parsers until we get a hit	
+	while (1) {
+        	%eventdata=ofpcParse::SF49IPS($logline); if ($eventdata{'parsed'} ) { last; }
+        	%eventdata=ofpcParse::Exim4($logline); if ($eventdata{'parsed'} ) { last; }
+        	%eventdata=ofpcParse::SnortSyslog($logline); if ($eventdata{'parsed'} ) { last; }
+        	die("Unable to parse this log line. It Doesn't match any of my parsers. Sorry!")
+	}
 
 	if ($verbose) {
 		print "---Decoded Event---\n" .
-			"Type: $eventData[0]\n".
-			"Timestamp: $eventData[1] (" . localtime($eventData[1]) . ")\n" .
-			"SIP: $eventData[2]\n" .
-			"DIP: $eventData[3]\n" .
-			"SPT: $eventData[4]\n" .
-			"DPT: $eventData[5]\n" .
-			"Protocol: $eventData[6]\n" .
-			"Message: $eventData[7]\n" ;
+			"Type: $eventdata{'type'}\n" .
+			"Timestamp: $eventdata{'timestamp'} (" . localtime($eventdata{'timestamp'}) . ")\n" .
+			"SIP: $eventdata{'sip'}\n" .
+			"DIP: $eventdata{'dip'}\n" .
+			"SPT: $eventdata{'spt'}\n" .
+			"DPT: $eventdata{'dpt'}\n" .
+			"Protocol: $eventdata{'proto'}\n" .
+			"Message: $eventdata{'msg'}\n" ;
 	}
-	$timestamp=$eventData[1];
 
 	# Do some sanity checks on the timestamp
-	if ($timestamp < $firstpacket) {
-		&showerror("Date requested is outside the range of the packet in buffer - We don't have it. \nCould the event be in another set of files? Consid    er --all\n");
+	if ($eventdata{'timestamp'} < $firstpacket) {
+		&showerror("Date requested is outside the range of the packet in buffer - We don't have it. \nCould the event be in another set of files? Consider --all\n");
 	
 	}
 
-	if ($timestamp > $now) {
-		showerror("Date requested is in the future. Clearly you have a ntp problem");
+	if ($eventdata{'timestamp'} > $now) {
+		showerror("Historical date requested is in the future. Clearly you have a ntp problem.");
 	}
-
-	my $bpf="host $eventData[2] and host $eventData[3] and port $eventData[4] and port $eventData[5]";
+	#my $bpf = "foo";
+	my $bpf="host $eventdata{'sip'} and host $eventdata{'dip'} and port $eventdata{'spt'} and port $eventdata{'dpt'}";
 	@filelist=(findBuffers("$timestamp", "$eachway"));
 	doExtract($bpf);	
 	
@@ -505,9 +513,9 @@ if ($help) {
 	exit 0;
 }
 
-if ( ($mode eq "between") or ($mode eq "b") or ($startTime and $endTime)) {
+if ( ($mode eq "window") or ($mode eq "w") or ($startTime and $endTime)) {
 	if ($verbose) {
-		print "*  Running in search mode\n";
+		print "*  Running in window search mode\n";
 	}
 	doInit;
 	doSearch;
@@ -550,7 +558,7 @@ if ( ($mode eq "between") or ($mode eq "b") or ($startTime and $endTime)) {
 		print "Running in Event mode\n";	
 	}
 	doInit;
-	doEvent;
+	doEvent($event);
 } else {
 	print STDERR "Error, You need to tell me what to do!\n";
 	print STDERR "Take a look at --help\n";

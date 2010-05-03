@@ -44,7 +44,7 @@ sub SF49IPS{
 		'dip' => 0,
 		'proto' => 0,
 		'msg' => "Sourcefire IPS event",
-		'epoch' => 0,
+		'timestamp' => 0,
 		'bpf' => 0,
 		'parsed' =>0
 		);
@@ -52,8 +52,8 @@ sub SF49IPS{
 	my $logline=shift;
 
         if ($logline =~ m/(.*)( high| medium| low)/) {   # Timestamp comes before priority
-        	$event{'epoch'}=`date --date='$1' +%s`;
-		chomp $event{'epoch'};
+        	$event{'timestamp'}=`date --date='$1' +%s`;
+		chomp $event{'timestamp'};
         }   
 
         if ($logline =~ m/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(.*)(\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/) {   
@@ -70,14 +70,14 @@ sub SF49IPS{
 		$event{'proto'}=$1;
 	}
 
-	if ( $event{'sip'} and $event{'dip'} and $event{'epoch'} and $event{'proto'} ) {
+	if ( $event{'sip'} and $event{'dip'} and $event{'timestamp'} and $event{'proto'} ) {
 		$event{'parsed'} = 1;
 	}
 
 	return(%event);
 }
 
-sub EXIM4{
+sub Exim4{
 	# Exim4 mainlog - As found on my Debian SMTP relay
 	my %event=(
 		'type' => "Exim4",
@@ -87,7 +87,7 @@ sub EXIM4{
 		'dip' => 0,
 		'proto' => "TCP",
 		'msg' => "Email transfer",
-		'epoch' => 0,
+		'timestamp' => 0,
 		'bpf' => 0,
 		'parsed' => 0
 		);
@@ -97,9 +97,8 @@ sub EXIM4{
 	# Sample 2010-04-05 10:23:12 1NyiWV-0002IK-QJ <= lodgersau3@nattydreadtours.com H=(ABTS-AP-dynamic-117.149.169.122.airtelbroadband.in) [122.169.149.117] P=esmtp S=2056 id=000d01cad4a1$ab5a3780$6400a8c0@lodgersau3
 
 	if ($logline =~ m/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/) {
-		$event{'epoch'}=`date --date='$1' +%s`;
-		chomp $event{'epoch'};
-		print "Date is $1 epoch = $event{'epoch'}\n";
+		$event{'timestamp'}=`date --date='$1' +%s`;
+		chomp $event{'timestamp'};
 	}
 
 	# Get direction of email, inbound is <= outbound is =>
@@ -123,7 +122,7 @@ sub EXIM4{
 
 	# Check we have enough to rtn a good event
 	
-	if ( ($event{'sip'} or $event{'dip'}) and $event{'epoch'} and $event{'bpf'} ) {
+	if ( ($event{'sip'} or $event{'dip'}) and $event{'timestamp'} and $event{'bpf'} ) {
 		$event{'parsed'} = 1 ;
 	}
 		
@@ -141,22 +140,51 @@ sub SnortSyslog{
 		'dip' => 0,
 		'proto' => 0,
 		'msg' => "Snort IPS event",
-		'epoch' => 0,
+		'timestamp' => 0,
 		'bpf' => 0,
 		'parsed' => 0
 		);
 
 	#Apr 11 14:03:45 rancid snort: [1:13923:3] SMTP MailEnable SMTP HELO command denial of service attempt [Classification: Attempted Denial of Service] [Priority: 2]: {TCP} 122.166.99.139:2135 -> 80.68.89.43:25
 	# Apr 11 08:53:16 rancid snort: [1:254:7] DNS SPOOF query response with TTL of 1 min. and no authority [Classification: Potentially Bad Traffic] [Priority: 2]: {UDP} 80.68.80.24:53 -> 80.68.89.43:50331 	
+# May  3 15:16:30 rancid snort: [1:13923:3] SMTP MailEnable SMTP HELO command denial of service attempt [Classification: Attempted Denial of Service] [Priority: 2]: {TCP} 213.138.226.169:2690 -> 80.68.89.43:25
 
-	my $event=shift;
-	my $spt=0;
-        my $dpt=0;
-        my $sip=0;
-        my $dip=0;    
-        my $proto=0;
-        my $epoch=0;
-        my $msg="Email Transfer";
+	my $logline=shift;
+
+	if ($logline =~ m/(\[[0-9]+:[0-9]+:[0-9]+] )(.*)(\[\*\*\])/) {
+                $event{'msg'} = "Snort event: $2"; 
+        }
+
+
+	if ($logline =~ m/{(ICMP|TCP|UDP)}/) {
+                $event{'proto'} = $1; 
+        }
+
+	if ($logline =~ m/(^.*\s\d\d:\d\d:\d\d\s)/) {
+		$event{'timestamp'}=`date --date='$1' +%s`;
+        	chomp $event{'timestamp'};
+	} 
+
+	
+  	if ($event{'proto'} eq "ICMP") {
+                if ($logline =~ m/(\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b) -> (\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b)/) {
+                        $event{'sip'} = $1;
+                        $event{'dip'} = $2;
+               }
+        } elsif (($event{'proto'} eq "TCP") | ($event{'proto'} eq "UDP")) {
+                if ($logline =~ /((\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b):(\d+)) -> ((\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b):(\d+))/) {
+                        $event{'sip'} = $2;
+                        $event{'dip'} = $5;
+                        $event{'spt'} = $3;
+                        $event{'dpt'} = $6;
+                }
+	}
+
+	 if ( ($event{'sip'} or $event{'dip'}) and $event{'proto'} and $event{'timestamp'} ) {
+		$event{'parsed'}=1;
+	}
+	
+	return(%event);
 
 }
 
