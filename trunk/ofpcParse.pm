@@ -33,73 +33,122 @@ $VERSION = '0.01';
 # Output = array of..
 # Type,Timestamp,SrcIP, DstIP, SrcPort, DstPort, Proto, comment/msg
 
+
 sub SF49IPS{
 	# Sourcefire 3D 4.9 IPS event
+	my %event=(
+		'type' => "SFIPS",
+		'spt' => 0,
+		'dpt' => 0,
+		'sip' => 0,
+		'dip' => 0,
+		'proto' => 0,
+		'msg' => "Sourcefire IPS event",
+		'epoch' => 0,
+		'bpf' => 0,
+		'parsed' =>0
+		);
 
-	my $event=shift;
-	my $spt=0;
-	my $dpt=0;
-	my $sip=0;
-	my $dip=0;
-	my $proto=0;
-	my $msg="Sourcefire IPS Event";
-	my $epoch=0;
+	my $logline=shift;
 
-        if ($event =~ m/(.*)( high| medium| low)/) {   # Timestamp comes before priority
-        	$epoch=`date --date='$1' +%s`;
-		chomp $epoch;
+        if ($logline =~ m/(.*)( high| medium| low)/) {   # Timestamp comes before priority
+        	$event{'epoch'}=`date --date='$1' +%s`;
+		chomp $event{'epoch'};
         }   
 
-        if ($event =~ m/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(.*)(\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/) {   
-                $sip=$3;
-                $dip=$1;
+        if ($logline =~ m/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(.*)(\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/) {   
+                $event{'sip'}=$3;
+                $event{'dip'}=$1;
         }   
 
-	if ($event =~ m/(\d{1,5})\/(tcp|udp)\s*(\d{1,5})\/(tcp|udp)/) {
-                $spt=$1;
-                $dpt=$3;
+	if ($logline =~ m/(\d{1,5})\/(tcp|udp)\s*(\d{1,5})\/(tcp|udp)/) {
+                $event{'spt'}=$1;
+                $event{'dpt'}=$3;
         }   
 
-	if ($event =~ m/(tcp|udp|icmp)\s*Go to Host View/ ) {
-		$proto=$1;
+	if ($logline =~ m/(tcp|udp|icmp)\s*Go to Host View/ ) {
+		$event{'proto'}=$1;
 	}
 
-	my @event=("SF49IPS",
-			"$epoch" ,
-			"$sip" ,
-			"$dip" ,
-			"$spt" , 
-			"$dpt" ,
-			"$proto" ,
-			"$msg");
-	return(@event);
+	if ( $event{'sip'} and $event{'dip'} and $event{'epoch'} and $event{'proto'} ) {
+		$event{'parsed'} = 1;
+	}
+
+	return(%event);
 }
 
 sub EXIM4{
 	# Exim4 mainlog - As found on my Debian SMTP relay
-	my $event=shift;
-	my $spt=0;
-	my $dpt=0;
-	my $sip=0;
-	my $dip=0;	
-	my $proto=0;
-	my $epoch=0;
-	my $msg="Email Transfer";
+	my %event=(
+		'type' => "Exim4",
+		'spt' => 0,
+		'dpt' => 25,
+		'sip' => 0,
+		'dip' => 0,
+		'proto' => "TCP",
+		'msg' => "Email transfer",
+		'epoch' => 0,
+		'bpf' => 0,
+		'parsed' => 0
+		);
+
+	my $logline=shift;
+
 	# Sample 2010-04-05 10:23:12 1NyiWV-0002IK-QJ <= lodgersau3@nattydreadtours.com H=(ABTS-AP-dynamic-117.149.169.122.airtelbroadband.in) [122.169.149.117] P=esmtp S=2056 id=000d01cad4a1$ab5a3780$6400a8c0@lodgersau3
 
-	if ($event =~ m/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/) {
-		$epoch=`date --date='$1' +%s`;
-		print "Date is $1 epoch = $epoch\n";
+	if ($logline =~ m/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/) {
+		$event{'epoch'}=`date --date='$1' +%s`;
+		chomp $event{'epoch'};
+		print "Date is $1 epoch = $event{'epoch'}\n";
 	}
 
-	if ($event =~ m/\[(\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3})\]/) {
-		$sip=$1;
-		print "SIP is $sip\n";
+	# Get direction of email, inbound is <= outbound is =>
+
+	my $mailinbound=0;
+	if ($logline =~ m/<=/) {
+		$mailinbound=1;
+	} 
+
+	my $eventip;
+	if ($logline =~ m/\[(\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3})\]/) {
+		if ($mailinbound) {
+			$event{'sip'}=$1;
+		} else {
+			$event{'dip'}=$1;
+		}
+		$eventip=$1;
 	}
+	
+	$event{'bpf'}="tcp host $eventip and tcp port 25";
+
+	# Check we have enough to rtn a good event
+	
+	if ( ($event{'sip'} or $event{'dip'}) and $event{'epoch'} and $event{'bpf'} ) {
+		$event{'parsed'} = 1 ;
+	}
+		
+
+	return(%event);
 }
 
 sub SnortSyslog{
-	# Sample: 
+	# Snort's syslog output: 
+	my %event=(
+		'type' => "SnortSyslog",
+		'spt' => 0,
+		'dpt' => 0,
+		'sip' => 0,
+		'dip' => 0,
+		'proto' => 0,
+		'msg' => "Snort IPS event",
+		'epoch' => 0,
+		'bpf' => 0,
+		'parsed' => 0
+		);
+
+	#Apr 11 14:03:45 rancid snort: [1:13923:3] SMTP MailEnable SMTP HELO command denial of service attempt [Classification: Attempted Denial of Service] [Priority: 2]: {TCP} 122.166.99.139:2135 -> 80.68.89.43:25
+	# Apr 11 08:53:16 rancid snort: [1:254:7] DNS SPOOF query response with TTL of 1 min. and no authority [Classification: Potentially Bad Traffic] [Priority: 2]: {UDP} 80.68.80.24:53 -> 80.68.89.43:50331 	
+
 	my $event=shift;
 	my $spt=0;
         my $dpt=0;
