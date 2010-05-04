@@ -128,6 +128,8 @@ function status()
 		EPOC_FIRST=$(date -d "$FIRSTPACKET" +%s)
 		EPOC_LAST=$(date -d "$NOW" +%s)
 		let EPOC_DELTA=($EPOC_LAST-$EPOC_FIRST)/60/60
+		SIZE=$(du $BUFFER_PATH -h)
+		USED=$(df $BUFER_PATH -h |grep ^/ |awk '{print $5}')
 		
 
 		echo "[*] Traffic buffer running with pid $PID "
@@ -136,6 +138,8 @@ function status()
 		echo -e "	- Oldest File		$FIRSTBUFFER"
 		echo -e "	- Using File		$LASTBUFFER"
 		echo -e "	- Time Window		~ $EPOC_DELTA hours"
+		echo -e "	- Disk space used	$SIZE"
+		echo -e "	- Partition utilization $USED"
 	else
 		echo "[!] No current buffers found in $BUFFER_PATH - Have you started it yet?"
 	fi
