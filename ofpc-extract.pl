@@ -54,7 +54,6 @@ my %cmdargs=(
 #my $src_port=0;
 #my $dst_port=0;
 my $timestamp=0;
-
 my $help=0;
 my $http=0;
 #my $startTime=0;
@@ -63,6 +62,8 @@ my $event=0;
 my $mode=0;
 my $currentRun=0;		# suffix of buffer filename for current running process
 my $sf=0;
+
+my ($debug);
 
 GetOptions ( 	't|time=s' => \$timestamp,
 		's|src-addr=s' => \$cmdargs{'sip'},
@@ -76,6 +77,7 @@ GetOptions ( 	't|time=s' => \$timestamp,
 		'j|end|endtime=s' => \$cmdargs{'endTime'},
 		'e|eachway=i' => \$eachway,
 		'a|event=s' => \$event,
+		'debug' => \$debug,
 		'm|mode=s' => \$mode,
 		'v|verbose' => \$verbose,
 		'sf' => \$sf,
@@ -178,7 +180,7 @@ sub findBuffers {
         my %timeHash=();
 	my @timestampArray=();
 
-        if ($verbose) {
+        if ($debug) {
                 print " - $numberOfFiles requested each side of target timestamp \n";
         }
 	
@@ -187,8 +189,8 @@ sub findBuffers {
 
         foreach my $pcap (@PCAPS) {
                 my $timestamp = ((stat($pcap))[9]);
-                if ($verbose) {
-                        #print " - Adding file $pcap with timestamp $timestamp (" . localtime($timestamp) . ") to hash of timestamps \n";
+                if ($debug) {
+                        print " - Adding file $pcap with timestamp $timestamp (" . localtime($timestamp) . ") to hash of timestamps \n";
                 }
                 $timeHash{$timestamp} = $pcap;
                 push(@timestampArray,$timestamp);
@@ -198,10 +200,13 @@ sub findBuffers {
         my $location=0;
         foreach (sort @timestampArray){                 # Sort our array of timetsamps (including
                 $count++;                               # our target timestamp)
+		if ($debug) {
+			print " + $count - $_ \n";
+		}
                 if ( "$_" == "$targetTimeStamp" ) {     # Find Target Timestamp
                         $location=$count;               # And store its place
                         $sizeofarray=@timestampArray - 1 ;
-                        if ($verbose) {
+                        if ($debug) {
                                 print " - Found location of target timestamp $targetTimeStamp in hash. Position $location of " . $sizeofarray . " pcap files\n";
                         }
 		last;
@@ -441,7 +446,7 @@ sub doEvent{
 	}
 
 	my $bpf=mkBPF(\%eventdata);
-	@filelist=(findBuffers("$timestamp", "$eachway"));
+	@filelist=(findBuffers($eventdata{'timestamp'}, $eachway));
 	doExtract($bpf);	
 }
 
