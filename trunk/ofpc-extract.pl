@@ -40,31 +40,40 @@ my $firstpacket=0;
 my $sizeofarray=0;
 my @PCAPS=();
 
-my $src_addr=0;
-my $dst_addr=0;
-my $src_port=0;
-my $dst_port=0;
+my %cmdargs=(
+	'sip' => 0,
+	'dip' => 0,
+	'spt' => 0,
+	'dpt' => 0,
+	'startTime' => 0,
+	'endTime' => 0,
+	'outputFile' => "ofpc=$now.pcap"
+);
+#my $src_addr=0;
+#my $dst_addr=0;
+#my $src_port=0;
+#my $dst_port=0;
 my $timestamp=0;
-my $outputFile="ofpc-$now.pcap";
+
 my $help=0;
 my $http=0;
-my $startTime=0;
-my $endTime=0;
+#my $startTime=0;
+#my $endTime=0;
 my $event=0;
 my $mode=0;
 my $currentRun=0;		# suffix of buffer filename for current running process
 my $sf=0;
 
 GetOptions ( 	't|time=s' => \$timestamp,
-		's|src-addr=s' => \$src_addr ,
-		'd|dst-addr=s' => \$dst_addr, 
-		'q|src-port=s' => \$src_port,
-		'r|dst-port=s' => \$dst_port,
-		'w|write=s' => \$outputFile,
+		's|src-addr=s' => \$cmdargs{'sip'},
+		'd|dst-addr=s' => \$cmdargs{'dip'}, 
+		'q|src-port=s' => \$cmdargs{'spt'},
+		'r|dst-port=s' => \$cmdargs{'dpt'},
+		'w|write=s' => \$cmdargs{'outputFile'},
 		'h|help' => \$help,
 		'l|http' => \$http,
-		'b|start|starttime=s' => \$startTime,
-		'j|end|endtime=s' => \$endTime,
+		'b|start|starttime=s' => \$cmdargs{'startTime'},
+		'j|end|endtime=s' => \$cmdargs{'endTime'},
 		'e|eachway=i' => \$eachway,
 		'a|event=s' => \$event,
 		'm|mode=s' => \$mode,
@@ -113,6 +122,51 @@ Example: -a -t 1234567890 --src-addr 1.1.1.1 -e 2 --dst-port 31337 --src-addr 1.
         exit 1;
 }
 
+
+sub mkBPF($) {
+	# Give me an event hash, and ill give you a bpf
+	my %eventdata=%{$_[0]};
+	my @eventbpf=();
+	my $bpfstring;
+
+	if ($eventdata{'proto'}) {
+		$eventdata{'proto'} = lc $eventdata{'proto'}; # In case the tool provides a protocol in upper case
+	}
+
+	if ( $eventdata{'sip'} xor $eventdata{'dip'} ) { # One sided bpf
+		if ($eventdata{'sip'} ) { push(@eventbpf, "host $eventdata{'sip'}" ) }
+		if ($eventdata{'dip'} ) { push(@eventbpf, "host $eventdata{'dip'}" ) }
+	}
+
+	if ( $eventdata{'sip'} and $eventdata{'dip'} ) {
+		 push(@eventbpf, "host $eventdata{'sip'}" );
+		 push(@eventbpf, "host $eventdata{'dip'}" );
+	}
+	
+	if ( $eventdata{'spt'} xor $eventdata{'dpt'} ) { 
+		if ($eventdata{'spt'} ) { push(@eventbpf, "$eventdata{'proto'} port $eventdata{'spt'}" ) }
+		if ($eventdata{'dpt'} ) { push(@eventbpf, "$eventdata{'proto'} port $eventdata{'dpt'}" ) }
+	}
+
+	if ( $eventdata{'spt'} and $eventdata{'dpt'} ) {
+		 push(@eventbpf, "$eventdata{'proto'} port $eventdata{'spt'}" );
+		 push(@eventbpf, "$eventdata{'proto'} port $eventdata{'dpt'}" );
+	}
+
+	# cat the eventbpf array into a string
+	foreach (@eventbpf) {
+		if ($bpfstring) { 
+			$bpfstring = $bpfstring . " and "; 
+		} else {
+			$bpfstring = $_ ;
+			next;
+		}
+		$bpfstring = $bpfstring . $_ . " ";
+	}
+
+	if ($verbose) { print "- EventBPF created is $bpfstring\n"; }
+	return($bpfstring);
+}
 
 sub findBuffers {
         # Pass me a timestamp and number of files,
@@ -208,61 +262,14 @@ sub findBuffers {
         return(@TARGET_PCAPS);
 }
 
-sub mkBPF(){
-	# ----------------------
-	# Calculate BPF for extraction
-	# -----------------------------------------------------
-	my $hbpf="";
-	my $pbpf="";
-
-	if ($src_addr) {
-       		$hbpf="host $src_addr";
-	}
-
-	if ($dst_addr) {
-       		if ($src_addr) {
-               		$hbpf=$hbpf . " and ";
-       		}
-       		$hbpf=$hbpf . "host $dst_addr";
-	}
-
-	if ($src_port) {
-       		$pbpf="port $src_port";
-       		}
-
-	if ($dst_port) {
-       		if ($src_port) {
-               		$pbpf=$pbpf . " and ";
-       		}
-       		$pbpf=$pbpf . "port $dst_port";
-       	}
-
-	if ($hbpf and $pbpf) {
-       		$pbpf=" and " . $pbpf;
-	}
-
-	my $bpf="$hbpf $pbpf";
-	if ($verbose) {
-		print " - BPF Generated as $bpf\n";
-	}
-
-	if (("$bpf" eq  "0") || ("$bpf" eq " " )) {
-        	showerror("Fatal Search scope too large. \n" .
-				"Source address =  $src_addr\n" .
-				"Destination address = $dst_addr \n" .
-				"Source port = $src_port \n" .
-				"Destination port = $dst_port \n".
-				"Is too large. Please limit it with some constraints");
-	}
-	return($bpf);
-}
-
 sub doSearch{
 	if ($verbose) {
 		print "*  Running in Search mode\n";
 	}
-	my @startFile=findBuffers("$startTime","0");
-	my @endFile=findBuffers("$endTime","0");
+
+	my %eventdata=();
+	my @startFile=findBuffers("$cmdargs{'startTime'}","0");
+	my @endFile=findBuffers("$cmdargs{'endTime'}","0");
 
 	if ($verbose) {
 		print " * Starting search in file 	: $startFile[0] \n";
@@ -295,7 +302,15 @@ sub doSearch{
         	        print " - $foo \n";
         	}
 	}
-	my $bpf=mkBPF();
+
+
+	$eventdata{'sip'} = $cmdargs{'sip'};
+	$eventdata{'dip'} = $cmdargs{'dip'};
+	$eventdata{'spt'} = $cmdargs{'spt'};
+	$eventdata{'dpt'} = $cmdargs{'dpt'};
+
+
+	my $bpf=mkBPF(\%eventdata);
 	&doExtract($bpf);
 }
 
@@ -339,21 +354,21 @@ sub doExtract{
 	}
 
 	if ($verbose) {
-        	print " - Merge command is \"$config{'MERGECAP'} -w $config{'SAVE_PATH'}/$outputFile @outputpcaps\" \n";
+        	print " - Merge command is \"$config{'MERGECAP'} -w $config{'SAVE_PATH'}/$cmdargs{'outputFile'} @outputpcaps\" \n";
 	}
 
-	if (system("$config{'MERGECAP'} -w $config{'SAVE_PATH'}/$outputFile @outputpcaps")) {
+	if (system("$config{'MERGECAP'} -w $config{'SAVE_PATH'}/$cmdargs{'outputFile'} @outputpcaps")) {
         	print "Problem merging pcap file!\n Run in verbose mode to debug\n";
         	exit 1;
 	}
 
-	my $filesize=`ls -lh $config{'SAVE_PATH'}/$outputFile |awk '{print \$5}'`;                # Breaking out to a shell rather than stat for a human readable filesize
+	my $filesize=`ls -lh $config{'SAVE_PATH'}/$cmdargs{'outputFile'} |awk '{print \$5}'`;                # Breaking out to a shell rather than stat for a human readable filesize
 	chomp $filesize;
 
 	if ($http) {
-        	print "<a href=\"$config{'HYPERLINK_PATH'}/$outputFile\">Download $outputFile ($filesize Bytes)</a>";
+        	print "<a href=\"$config{'HYPERLINK_PATH'}/$cmdargs{'outputFile'}\">Download $cmdargs{'outputFile'} ($filesize Bytes)</a>";
 	} else {
-        	print " - Created $config{'SAVE_PATH'}/$outputFile ($filesize)\n";
+        	print " - Created $config{'SAVE_PATH'}/$cmdargs{'outputFile'} ($filesize)\n";
 	}
 	# Clean up...
 	foreach(@outputpcaps)
@@ -365,21 +380,31 @@ sub doExtract{
 sub doAt{	
 	@filelist=(findBuffers("$timestamp", "$eachway"));
 	if ($verbose) {
-		print " Running in doAt mode \n";
+		print "*  Running in doAt mode \n";
 		print " ----- Extract will be performed against the following files -----\n";
 	        foreach (@filelist){
         	        print " - $_\n";
         	}
 		print " -----/ File Roster ------\n";
 	}
-	my $bpf=mkBPF();
+
+	# Because we don't have a real log line, lets create a fake eventdata hash from command
+	# line args
+
+	my %eventdata=();
+	$eventdata{'sip'} = $cmdargs{'sip'};
+	$eventdata{'dip'} = $cmdargs{'dip'};
+	$eventdata{'spt'} = $cmdargs{'spt'};
+	$eventdata{'dpt'} = $cmdargs{'dpt'};
+
+	my $bpf=mkBPF(\%eventdata);
 	doExtract($bpf);
 }
 
 
 sub doEvent{
 	if ($verbose) {
-		print " ----- Running in doEvent mode (input from log file)----- \n";
+		print " * Running in doEvent mode (input from log file) \n";
 	}
 	my $logline=shift;
 
@@ -414,11 +439,10 @@ sub doEvent{
 	if ($eventdata{'timestamp'} > $now) {
 		showerror("Historical date requested is in the future. Clearly you have a ntp problem.");
 	}
-	#my $bpf = "foo";
-	my $bpf="host $eventdata{'sip'} and host $eventdata{'dip'} and port $eventdata{'spt'} and port $eventdata{'dpt'}";
+
+	my $bpf=mkBPF(\%eventdata);
 	@filelist=(findBuffers("$timestamp", "$eachway"));
 	doExtract($bpf);	
-	
 }
 
 sub doInit{
@@ -439,7 +463,7 @@ sub doInit{
         	push(@PCAPS,$_);
 	}
 	
-	# Check that we are asking for data from a window we have in the buffer
+	# Get info about the traffic buffer
 	if (($firstpacket)=split(/ /,`$config{'TCPDUMP'} -n -tt -r $PCAPS[0] -c 1 2>/dev/null`)) {
         	if ( $verbose ) {
 	                my $firstpacket_localtime=localtime($firstpacket);
@@ -469,7 +493,6 @@ $config{'EACHWAY'}="1";
 $config{'CURRENT_FILE'}="/opt/openfpc/current";
 $config{'HYPERLINK_PATH'}="/pcaps/";
 
-
 # Decide what config file to read
 foreach (@CONFIG_FILES) {
         if ( -f $_ ) {
@@ -496,14 +519,14 @@ if ($verbose) {
 		"   timestamp = $timestamp \n" .
 		"   mode = $mode \n" .
 		"   event = $event \n" .
-		"   src_addr = $src_addr \n" .
-		"   dst_addr = $dst_addr \n" .
-		"   src_port = $src_port \n" .
-		"   dst_port = $dst_port \n" .
+		"   src_addr = $cmdargs{'sip'} \n" .
+		"   dst_addr = $cmdargs{'dip'} \n" .
+		"   src_port = $cmdargs{'spt'} \n" .
+		"   dst_port = $cmdargs{'dpt'} \n" .
 		"   eachway  = $eachway \n" .
-		"   write    = $outputFile \n" .
-		"   Starttime = $startTime (". localtime($startTime) . ") \n" .
-		"   Endtime   = $endTime (". localtime($endTime) . ")\n" ;
+		"   write    = $cmdargs{'outputFile'} \n" .
+		"   Starttime = $cmdargs{'startTime'} (". localtime($cmdargs{'startTime'}) . ") \n" .
+		"   Endtime   = $cmdargs{'endTime'} (". localtime($cmdargs{'endTime'}) . ")\n" ;
 }
 
 ##### Decide what to do.
@@ -513,10 +536,14 @@ if ($help) {
 	exit 0;
 }
 
-if ( ($mode eq "window") or ($mode eq "w") or ($startTime and $endTime)) {
+if ( ($mode eq "window") or ($mode eq "w") or ($cmdargs{'startTime'} and $cmdargs{'endTime'})) {
 	if ($verbose) {
-		print "*  Running in window search mode\n";
+		print "*  Running in time window search mode\n";
 	}
+	if ( $cmdargs{'startTime'} > $cmdargs{'endTime'} ) {
+		die("Start time is gt than end time. Something's wrong there");
+	}
+
 	doInit;
 	doSearch;
 
@@ -542,8 +569,9 @@ if ( ($mode eq "window") or ($mode eq "w") or ($startTime and $endTime)) {
 			print " - Converted SF timestamp to $timestamp\n";
 		}	
 	}
+
 	doInit;
-	
+
 	my $request_time = localtime($timestamp);
 	if ($verbose) {
         	print " - Event requested is     : $request_time\n";
@@ -552,8 +580,10 @@ if ( ($mode eq "window") or ($mode eq "w") or ($startTime and $endTime)) {
         	&showerror("Date requested is outside the range of the packet in buffer - We don't have it. \nCould the event be in another set of files? Consider --all\n");
         	exit 1;
 	}
+
 	doAt;
-} elsif ($event) {
+
+} elsif ($event) {	# Process a log-line and extract session(s)
 	if ($verbose) {
 		print "Running in Event mode\n";	
 	}
