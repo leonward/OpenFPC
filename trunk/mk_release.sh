@@ -6,7 +6,7 @@
 # Leon Ward - leon@rm-rf.co.uk
 
 TARPATH=..
-FILES="ofpc-extract.pl install-openfpc.sh openfpc openfpc.conf README"
+FILES="ofpc-extract.pl install-openfpc.sh openfpc openfpc.conf README ofpcParse.pm"
 VERFILES="install-openfpc.sh ofpc-extract.pl openfpc"
 
 echo Checking version numbers in code...
