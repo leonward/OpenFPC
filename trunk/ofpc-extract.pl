@@ -47,28 +47,20 @@ my %cmdargs=(
 	'dpt' => 0,
 	'startTime' => 0,
 	'endTime' => 0,
-	'outputFile' => "ofpc=$now.pcap"
+	'outputFile' => "extracted-$now.pcap"
 );
-#my $src_addr=0;
-#my $dst_addr=0;
-#my $src_port=0;
-#my $dst_port=0;
+
 my $timestamp=0;
-my $help=0;
-my $http=0;
-#my $startTime=0;
-#my $endTime=0;
-my $event=0;
 my $mode=0;
 my $currentRun=0;		# suffix of buffer filename for current running process
 my $sf=0;
 
-my ($debug);
+my ($debug,$quiet,$http,$event,$help);
 
 GetOptions ( 	't|time=s' => \$timestamp,
 		's|src-addr=s' => \$cmdargs{'sip'},
 		'd|dst-addr=s' => \$cmdargs{'dip'}, 
-		'q|src-port=s' => \$cmdargs{'spt'},
+		'u|src-port=s' => \$cmdargs{'spt'},
 		'r|dst-port=s' => \$cmdargs{'dpt'},
 		'w|write=s' => \$cmdargs{'outputFile'},
 		'h|help' => \$help,
@@ -79,18 +71,10 @@ GetOptions ( 	't|time=s' => \$timestamp,
 		'a|event=s' => \$event,
 		'debug' => \$debug,
 		'm|mode=s' => \$mode,
+		'q|quiet' => \$quiet,
 		'v|verbose' => \$verbose,
 		'sf' => \$sf,
 		);
-
-sub showerror($) {
-	my $message=shift;
-
-	# Present an error to the user. Die works great, but when output in HTML mode
-	# we also went to show the problem to the user
-	print "Error : $message";
-	die("$message");
-}
 
 sub usage()
 {
@@ -99,12 +83,14 @@ sub usage()
   --mode     or -m <at|window> 		At a specific time, or search in a window	  
   --src-addr or -s <SRC_ADDR>           Source IP 
   --dst-addr or -d <DST_ADDR>           Destination IP
-  --src-port or -c <SRC_PORT>           Source Port 
+  --src-port or -u <SRC_PORT>           Source Port 
   --dst-port or -p <DST_PORT>           Destination Port
   --write    or -w <FILENAME>		Output file
 
   --http     or -l		        Output in HTML for download
   --verbose  or -v                      Verbose output
+  --debug				Debug output 
+  --quiet				Return only a filename or an error
   --all                                 Check in all buffers not just current sniff buffer
 
   ***** Operation Mode Specific Stuff *****
@@ -212,7 +198,7 @@ sub findBuffers {
 		last;
                 }
         }
-        if ($verbose) {
+        if ($debug) {
                 my $expectedts = ((stat($timeHash{$timestampArray[$location]}))[9]);
                 my $lexpectedts = localtime($expectedts);
                 if ($verbose) {
@@ -229,7 +215,7 @@ sub findBuffers {
         while($precount >= 1) {
                 my $file=$location-$precount;
                 if ($file < 0 ){        # I the range to search is out of bounds
-                        if ($verbose) {
+                        if ($debug) {
                                 print " - Out of bounds search at location $file in array. Thats le 0!\n";
                         }
                 } else {
@@ -245,7 +231,7 @@ sub findBuffers {
         while($postcount >= 1) {
                 my $file=$location+$postcount;
                 if ($file > (@timestampArray - 1) ) {       # I the range to search is out of bounds
-                        if ($verbose) {
+                        if ($debug) {
                                 print " - Out of bounds search at location $file in array. Skipping each way value too high \n";
                         }
                 } else {
@@ -257,7 +243,7 @@ sub findBuffers {
                 }
                 $postcount--;
         }
-	if ($verbose) {
+	if ($debug) {
 		print "* Search scope : ";
 		foreach (@TARGET_PCAPS) {
 			print "$_ \n";
@@ -268,10 +254,6 @@ sub findBuffers {
 }
 
 sub doSearch{
-	if ($verbose) {
-		print "*  Running in Search mode\n";
-	}
-
 	my %eventdata=();
 	my @startFile=findBuffers("$cmdargs{'startTime'}","0");
 	my @endFile=findBuffers("$cmdargs{'endTime'}","0");
@@ -284,7 +266,7 @@ sub doSearch{
 	(my $startFilename, my $startFileSuffix)=split(/-/, $startFile[0]);
 	(my $endFilename, my $endFileSuffix)=split(/-/, $endFile[0]);
 
-	if ($verbose) {
+	if ($debug) {
 		print " - StartFile/Endfile are $startFileSuffix / $endFileSuffix\n";
 	}
 	push(@filelist,"$startFilename-$startFileSuffix");	
@@ -295,9 +277,7 @@ sub doSearch{
 		}	
 		push(@filelist,"$startFilename-$startFileSuffix");
 		if ($startFileSuffix >= $sizeofarray) {
-			if ($verbose) {
-				print " - Wrapping suffix search back to 00";
-			}
+			if ($debug) { print " - Wrapping suffix search back to 00"; }
 			$startFileSuffix="00";
 		}
 	}
@@ -325,14 +305,12 @@ sub doExtract{
 	my $pcapcount=1;
 	my @outputpcaps=();
 	if ($verbose) {
-		print "- Doing Extraction with BPF $bpf\n";
+		print "* Doing Extraction with BPF $bpf\n";
 	}
-	unless ($http) {
-		print " - Searching ";
-	}
+	unless ($http or $quiet) { print " - Searching for traffic"; }
 	foreach (@filelist){
         	(my $pcappath, my $pcapid)=split(/-/, $_);
-        	unless ($http or $verbose) { print "."; }
+        	unless ($http or $verbose or $quiet) { print "."; }
         	chomp $_;
         	my $filename="$config{'SAVE_PATH'}/output-$pcapid.pcap";
         	push(@outputpcaps,$filename);
@@ -343,11 +321,11 @@ sub doExtract{
 
 		`$exec`;
 	}
-	print "\n";
+	unless ($quiet) { print "\n"; }
 
 	# Now that we have some pcaps, lets concatinate them into a single file
-	unless ($http) {
-        	print " - Merging..\n";
+	unless ($http or $quiet) {
+        	print " - Merging ...\n";
 	}
 
 	if ( -d "$config{'SAVE_PATH'}" ) {
@@ -355,7 +333,7 @@ sub doExtract{
                		print " - Found save path $config{'SAVE_PATH'}\n";
         	}
 	} else {
-        	shorerror("Save path $config{'SAVE_PATH'} not found!")
+        	die("Save path $config{'SAVE_PATH'} not found!")
 	}
 
 	if ($verbose) {
@@ -363,29 +341,34 @@ sub doExtract{
 	}
 
 	if (system("$config{'MERGECAP'} -w $config{'SAVE_PATH'}/$cmdargs{'outputFile'} @outputpcaps")) {
-        	print "Problem merging pcap file!\n Run in verbose mode to debug\n";
-        	exit 1;
+        	die("Problem merging pcap file!\n Run in verbose mode to debug\n");
 	}
 
 	my $filesize=`ls -lh $config{'SAVE_PATH'}/$cmdargs{'outputFile'} |awk '{print \$5}'`;                # Breaking out to a shell rather than stat for a human readable filesize
 	chomp $filesize;
+	if ($filesize eq 24) {
+		print "EMPTY\n";
+	}
 
 	if ($http) {
         	print "<a href=\"$config{'HYPERLINK_PATH'}/$cmdargs{'outputFile'}\">Download $cmdargs{'outputFile'} ($filesize Bytes)</a>";
+	} elsif ($quiet) {
+		print "$config{'SAVE_PATH'}/$cmdargs{'outputFile'}\n";
 	} else {
-        	print " - Created $config{'SAVE_PATH'}/$cmdargs{'outputFile'} ($filesize)\n";
+        	print " - Created $config{'SAVE_PATH'}/$cmdargs{'outputFile'} ($filesize Bytes)\n";
 	}
-	# Clean up...
+
+	# Clean up temp files that have been merged...
 	foreach(@outputpcaps)
 	{
-        	#unlink($_);
+		if ($debug) { print "Unlinking temp file : $_ \n"; }
+        	unlink($_);
 	}
 }
 
 sub doAt{	
 	@filelist=(findBuffers("$timestamp", "$eachway"));
-	if ($verbose) {
-		print "*  Running in doAt mode \n";
+	if ($debug) {
 		print " ----- Extract will be performed against the following files -----\n";
 	        foreach (@filelist){
         	        print " - $_\n";
@@ -408,9 +391,6 @@ sub doAt{
 
 
 sub doEvent{
-	if ($verbose) {
-		print " * Running in doEvent mode (input from log file) \n";
-	}
 	my $logline=shift;
 
 	my %eventdata = (); 
@@ -423,8 +403,8 @@ sub doEvent{
         	die("Unable to parse this log line. It Doesn't match any of my parsers. Sorry!")
 	}
 
-	if ($verbose) {
-		print "---Decoded Event---\n" .
+	if ($debug) {
+		print " ---Decoded Event---\n" .
 			"Type: $eventdata{'type'}\n" .
 			"Timestamp: $eventdata{'timestamp'} (" . localtime($eventdata{'timestamp'}) . ")\n" .
 			"SIP: $eventdata{'sip'}\n" .
@@ -437,12 +417,12 @@ sub doEvent{
 
 	# Do some sanity checks on the timestamp
 	if ($eventdata{'timestamp'} < $firstpacket) {
-		&showerror("Date requested is outside the range of the packet in buffer - We don't have it. \nCould the event be in another set of files? Consider --all\n");
+		die("Date requested is outside the range of the packet in buffer - We don't have it. \nCould the event be in another set of files? Consider --all\n");
 	
 	}
 
 	if ($eventdata{'timestamp'} > $now) {
-		showerror("Historical date requested is in the future. Clearly you have a ntp problem.");
+		die("Historical date requested is in the future. Clearly you have a ntp problem.");
 	}
 
 	my $bpf=mkBPF(\%eventdata);
@@ -453,11 +433,11 @@ sub doEvent{
 sub doInit{
 	# Do the stuff that's required regardless of mode of operation
 
-	open (CURRENT_FILE,"$config{'CURRENT_FILE'}") or showerror("Unable to open current file \"$config{'CURRENT_FILE'}\". Have you got a buffer running?");
+	open (CURRENT_FILE,"$config{'CURRENT_FILE'}") or die("Unable to open current file \"$config{'CURRENT_FILE'}\". Have you got a buffer running?");
 	while (my $line = <CURRENT_FILE>){
         	$currentRun=$line;
         	chomp($currentRun);
-		if ($verbose) {
+		if ($debug) {
 			print " - Current running buffer suffix is $currentRun\n";
 		}
 	}
@@ -473,21 +453,22 @@ sub doInit{
         	if ( $verbose ) {
 	                my $firstpacket_localtime=localtime($firstpacket);
         	        my $localtime = localtime();
+			print " ---------Traffic Buffer Data-----------\n";
                 	print " - First buffer found is  : $PCAPS[0]\n";
                 	print " - First packet in buffer : $firstpacket_localtime\n";
                 	print " - Local time is now      : $localtime\n";
         	}
 	} else {
-        	print "Problem accessing $PCAPS[0]\n Without a buffer I cant continue";
-        	exit 1;
+        	die("Problem accessing $PCAPS[0]\n Without a buffer I cant continue");
 	}
 }
 
 ################# Start processing here ####################
 
 print STDERR "
-	* ofpc-extract.pl  - Part of the OpenFPC (Full Packet Capture)
-	  Leon Ward - leon\@rm-rf.co.uk\n\n";
+* ofpc-extract.pl  - Part of the OpenFPC Project *
+  Leon Ward - leon\@rm-rf.co.uk 
+-------------------------------------------------- \n\n";
 
 # Some "sane" defaults to work with in case there isn't a config file
 $config{'BUFFER_PATH'}="/var/spool/openfpc/";
@@ -519,8 +500,8 @@ while(<$config>) {
 close $config;
 
 # Display command line options and config file settings
-if ($verbose) {
-	print "* Dumping options \n" .
+if ($debug) {
+	print "* Dumping command line options \n" .
 		"   timestamp = $timestamp \n" .
 		"   mode = $mode \n" .
 		"   event = $event \n" .
@@ -543,7 +524,7 @@ if ($help) {
 
 if ( ($mode eq "window") or ($mode eq "w") or ($cmdargs{'startTime'} and $cmdargs{'endTime'})) {
 	if ($verbose) {
-		print "*  Running in time window search mode\n";
+		print "*  Running in time window mode\n";
 	}
 	if ( $cmdargs{'startTime'} > $cmdargs{'endTime'} ) {
 		die("Start time is gt than end time. Something's wrong there");
@@ -567,10 +548,10 @@ if ( ($mode eq "window") or ($mode eq "w") or ($cmdargs{'startTime'} and $cmdarg
 			print " - Got timestamp in SF format \"$timestamp\"\n";
 		}
 
-        	my $epoch=`date --date='$timestamp' +%s` or showerror("Unable to convert SF format timestamp $timestamp to epoch. Are you sure its valid");
+        	my $epoch=`date --date='$timestamp' +%s` or die("Unable to convert SF format timestamp $timestamp to epoch. Are you sure its valid");
         	chomp $epoch;
 		$timestamp=$epoch;
-		if ($verbose) {
+		if ($debug) {
 			print " - Converted SF timestamp to $timestamp\n";
 		}	
 	}
@@ -582,7 +563,7 @@ if ( ($mode eq "window") or ($mode eq "w") or ($cmdargs{'startTime'} and $cmdarg
         	print " - Event requested is     : $request_time\n";
 	}
 	if (($timestamp < $firstpacket) or ($timestamp > time())) {
-        	&showerror("Date requested is outside the range of the packet in buffer - We don't have it. \nCould the event be in another set of files? Consider --all\n");
+        	die("Date requested is outside the range of the packet in buffer - We don't have it. \nCould the event be in another set of files? Consider --all\n");
         	exit 1;
 	}
 
@@ -590,7 +571,7 @@ if ( ($mode eq "window") or ($mode eq "w") or ($cmdargs{'startTime'} and $cmdarg
 
 } elsif ($event) {	# Process a log-line and extract session(s)
 	if ($verbose) {
-		print "Running in Event mode\n";	
+		print "* Running in Event (log line) mode\n";	
 	}
 	doInit;
 	doEvent($event);
