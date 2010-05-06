@@ -125,7 +125,6 @@ sub Exim4{
 	if ( ($event{'sip'} or $event{'dip'}) and $event{'timestamp'} and $event{'bpf'} ) {
 		$event{'parsed'} = 1 ;
 	}
-		
 
 	return(%event);
 }
