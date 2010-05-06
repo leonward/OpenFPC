@@ -20,13 +20,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #########################################################################################
-openfpcver="1.10"
+openfpcver="0.1"
 TARGET_DIR="/opt/openfpc"
-INSTALL_FILES="ofpc-extract.pl openfpc openfpc.conf"
-PERL_MODULES=""
+INSTALL_FILES="ofpc-extract.pl openfpc openfpc.conf ofpcParse.pm"
+PERL_MODULES="ofpcParse.pm"
 INIT_SCRIPTS="openfpc"
 INIT_DIR="/etc/init.d/" 
-REQUIRED_BINS="tcpdump date mergecap perl tshark fuckfoo"
+REQUIRED_BINS="tcpdump date mergecap perl tshark"
 LOCAL_CONFIG="/etc/openfpc/openfpc.conf"
 
 DISTRO="AUTO"		# Try to work out what distro we are installing on
@@ -94,14 +94,14 @@ function doinstall()
 
 	for file in $PERL_MODULES
 	do
-		echo -e "Installing PERL module $file"
+		echo -e "- Installing PERL module $file"
 		[ -d $PERL_LIB_DIR ] || mkdir --parent $PERL_LIB_DIR
 		ln -s $TARGET_DIR/$file $PERL_LIB_DIR/$file
 	done
 
         for file in $INIT_SCRIPTS
         do
-		echo -e "Installing $INIT_DIR/$file"
+		echo -e "- Installing $INIT_DIR/$file"
                 ln -s $TARGET_DIR/$file /$INIT_DIR/$file  || echo Unable to symlink $file into $INIT_DIR/$file
         done
 
@@ -268,7 +268,7 @@ then
 		die "Unable to detect distro. Set manually"
 	fi
 
-	echo -e "  (Detected distribution as $DISTRO )\n"
+	echo -e "* Detected distribution as $DISTRO\n"
 fi
 
 

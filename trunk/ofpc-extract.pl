@@ -31,7 +31,7 @@ use ofpcParse;
 my @CONFIG_FILES=("/etc/openfpc/openfpc.conf","/opt/openfpc/openfpc.conf");
 my $CONFIG_FILE;
 my %config;
-my $openfpcver="1.10";
+my $openfpcver="0.1";
 my $eachway=1;
 my $now=time();
 my $verbose=0;

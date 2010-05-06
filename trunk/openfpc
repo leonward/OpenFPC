@@ -42,7 +42,7 @@ IAM=$(whoami)
 DATE=$(date)
 PATH=$PATH:/sbin:/usr/sbin
 TCPDUMPOPTS="-Z root" 	
-openfpcver=1.10
+openfpcver=0.1
 
 if [ "$MULTI_BUFFER" == "1" ] 
 then
