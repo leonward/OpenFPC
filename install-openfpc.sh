@@ -123,7 +123,7 @@ function doinstall()
 		ln -s /etc/init.d/trafficbuffer /etc/rc0.d/K99trafficbuffer || echo "File exists"
 	fi
 
-	echo -e "Creating mymlink to usr/local/bin"
+	echo -e "Creating symlink to usr/local/bin"
 	ln -s $TARGET_DIR/ofpc-extract.pl /usr/local/bin
 
 }
@@ -210,9 +210,9 @@ function remove()
 		rm /etc/rc5.d/S99trafficbuffer || echo "init script not found"
 		rm /etc/rc6.d/K99trafficbuffer || echo "init script not found"
         fi
-	if [ -h /use/local/bin/exract-pcap.pl ]
+	if [ -h /usr/local/bin/ofpc-extract.pl ]
 	then
-		rm /usr/local/bin/extract-pcap.pl
+		rm /usr/local/bin/ofpc-extract.pl || echo "/usr/local/bin/ofpc-extract.pl not found"
 	fi
 }
 
@@ -293,10 +293,10 @@ case $1 in
 		autoconfig
 	;;
      *)
-                echo -e " insatall   - Install the system"
+                echo -e " install   - Install the system"
                 echo -e " remove     - Remove the system"
                 echo -e " status     - Check install status"
                 echo -e " reinstall  - Re-install system"
-		echo
+		echo -e "\nUsage: ./install-openfpc <command>"
         ;;
 esac

@@ -44,6 +44,12 @@ PATH=$PATH:/sbin:/usr/sbin
 TCPDUMPOPTS="-Z root" 	
 openfpcver=0.1
 
+if [ "$DONE_CONFIG" != 1 ]
+then
+	echo -e "[!] Configuration not complete, unable to read config from $CONFIG_FILES \n    Have you run ./install-opefpc ?"
+	exit 1
+fi
+
 if [ "$MULTI_BUFFER" == "1" ] 
 then
 	CURRENT=$(cat $CURRENT_FILE 2>/dev/null) || CURRENT="SINGLE"
@@ -88,6 +94,7 @@ function start()
 	else
 		TSTAMP="SINGLE"
 	fi
+		echo CURRENT is $CURRENT_FILE
 		echo $TSTAMP > $CURRENT_FILE  || die "[!] Unable to save data to $CURRENT_FILE. Not starting."
 
 	[ -d $BUFFER_PATH ] || die "[!] Unable to find buffer path $BUFFER_PATH. Do you need to mkdir it?"
