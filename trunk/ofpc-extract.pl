@@ -84,7 +84,7 @@ sub usage()
   --src-addr or -s <SRC_ADDR>           Source IP 
   --dst-addr or -d <DST_ADDR>           Destination IP
   --src-port or -u <SRC_PORT>           Source Port 
-  --dst-port or -p <DST_PORT>           Destination Port
+  --dst-port or -r <DST_PORT>           Destination Port
   --write    or -w <FILENAME>		Output file
 
   --http     or -l		        Output in HTML for download
@@ -187,16 +187,29 @@ sub findBuffers {
         foreach (sort @timestampArray){                 # Sort our array of timetsamps (including
                 $count++;                               # our target timestamp)
 		if ($debug) {
-			print " + $count - $_ \n";
+			print " + $count - $_ $timeHash{$_}\n";
 		}
-                if ( "$_" == "$targetTimeStamp" ) {     # Find Target Timestamp
-                        $location=$count;               # And store its place
+
+		
+
+		if ( "$timeHash{$_}" eq "TARGET" ) {
+			$sizeofarray=@timestampArray - 1;
+			$location=$count - 1;
+			if ($debug) {
+				print " - Got TARGET match of $_ in array location $count\n";
+				print "   Pcap file at previous to TARGET is in location $location -> filename $timeHash{$timestampArray[$location]} \n";
+			}
+			last;
+		} elsif ( "$_" == "$targetTimeStamp" ) {     # If the timestamp of the pcap file is identical to the timestamp
+                        $location=$count;               # we are looking for (corner case), store its place
                         $sizeofarray=@timestampArray - 1 ;
                         if ($debug) {
-                                print " - Found location of target timestamp $targetTimeStamp in hash. Position $location of " . $sizeofarray . " pcap files\n";
+                                print " - Got TIMESTAMP match of $_ in array location $count\n";
+				print "   Pcap file associated with $_ is $timeHash{$timestampArray[$location]}\n";
                         }
-		last;
-                }
+			last;
+		}
+
         }
         if ($debug) {
                 my $expectedts = ((stat($timeHash{$timestampArray[$location]}))[9]);
@@ -216,7 +229,7 @@ sub findBuffers {
                 my $file=$location-$precount;
                 if ($file < 0 ){        # I the range to search is out of bounds
                         if ($debug) {
-                                print " - Out of bounds search at location $file in array. Thats le 0!\n";
+                                print " - Eachway generated an OOB earch at location $file in array. Thats le 0!\n";
                         }
                 } else {
                         if ($timeHash{$timestampArray[$file]}) {
@@ -232,7 +245,7 @@ sub findBuffers {
                 my $file=$location+$postcount;
                 if ($file > (@timestampArray - 1) ) {       # I the range to search is out of bounds
                         if ($debug) {
-                                print " - Out of bounds search at location $file in array. Skipping each way value too high \n";
+                                print " - Eachway generated an OOB search at location $file in array. Skipping each way value too high \n";
                         }
                 } else {
                         if ($timeHash{$timestampArray[$file]}) {
@@ -288,6 +301,10 @@ sub doSearch{
         	}
 	}
 
+	# Check we have enough args to do some type of sensible search
+	unless ($cmdargs{'sip'} or $cmdargs{'dip'} or $cmdargs{'spt'} or $cmdargs{'dpt'} ) {
+		die("Not enough constraints added. Won't extact");
+	}
 
 	$eventdata{'sip'} = $cmdargs{'sip'};
 	$eventdata{'dip'} = $cmdargs{'dip'};
@@ -385,6 +402,10 @@ sub doAt{
 	$eventdata{'spt'} = $cmdargs{'spt'};
 	$eventdata{'dpt'} = $cmdargs{'dpt'};
 
+	# Check we have enough args to do some type of sensible search
+	unless ($cmdargs{'sip'} or $cmdargs{'dip'} or $cmdargs{'spt'} or $cmdargs{'dpt'} ) {
+		die("Not enough constraints added. Won't extact");
+	}
 	my $bpf=mkBPF(\%eventdata);
 	doExtract($bpf);
 }
@@ -541,7 +562,7 @@ if ( ($mode eq "window") or ($mode eq "w") or ($cmdargs{'startTime'} and $cmdarg
 	# Process and convert timestamp if required from different formats.
 	unless ($timestamp) {
 		$timestamp=$now;
-		print STDERR " - Warning: Timestamp not specified, Assuming \"now\" of " . localtime($now) ." \n";
+		print STDERR " - Warning: Timestamp not specified, Assuming \"now\" of $now " . localtime($now) ." \n";
 	}
 	if ($sf) {	
 		if ($verbose) {
