@@ -88,13 +88,22 @@ function start()
 	fi
 	pidof -x $TCPDUMP > /dev/null  && die "[!] Already running tcpdump! Not starting."
 
+
+	if [ -d $BUFFER_PATH ]
+	then
+		touch $BUFFER_PATH/ok || dir "[!] Cant write to buffer path $BUFFER_PATH."
+		rm $BUFFER_PATH/ok || echo Cant find ok file in buffer path - Strange.	
+	else
+		mkdir --parent $BUFFER_PATH || die "[!] Cant mkdir buffer location $BUFFER_PATH"
+	fi
+
+	
 	if [ "$MULTI_BUFFER" == "1" ] 
 	then
 		TSTAMP=$(date +%s)
 	else
 		TSTAMP="SINGLE"
 	fi
-		echo CURRENT is $CURRENT_FILE
 		echo $TSTAMP > $CURRENT_FILE  || die "[!] Unable to save data to $CURRENT_FILE. Not starting."
 
 	[ -d $BUFFER_PATH ] || die "[!] Unable to find buffer path $BUFFER_PATH. Do you need to mkdir it?"

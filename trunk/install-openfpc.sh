@@ -39,28 +39,6 @@ IAM=$(whoami)
 DATE=$(date)
 PATH=$PATH:/usr/sbin
 
-
-function autoconfig()
-{
-	# This may look a little OTT, but path varies across multiple disros as does $PATH
-
-	# Check if we have a /etc/openfpc/openfpc.conf file. If so, the user probably knows 
-	# what they are doing and already been through this.
-
-	if [ -f $LOCAL_CONFIG ] 
-	then
-		echo "* Won't autoconfigure, $LOCAL_CONFIG found"
-	else
-		echo -e "* Checking for required programs"
-		for i in $REQUIRED_BINS
-		do
-			PROG=$(whereis -b $i |awk '{print $2}') || die "Unable to find $i installed on this system. Please install it and try again. ( Hint - whereis -b $i ) "
-			echo -e "- Found $i ($PROG)"
-		done
-	fi
-
-}
-
 function die()
 {
         echo "$1"
@@ -126,6 +104,8 @@ function doinstall()
 	echo -e "Creating symlink to usr/local/bin"
 	ln -s $TARGET_DIR/ofpc-extract.pl /usr/local/bin
 
+
+	echo -e "--------Installation Complete--------"
 }
 
 
@@ -271,10 +251,19 @@ then
 	echo -e "* Detected distribution as $DISTRO\n"
 fi
 
+function checkdeps() {
+
+	source $TARGET_DIR/openfpc.conf
+	echo -e "* Checking for dependancies"
+	[ -f $MERGECAP ] || echo "WARNING - Can't find mergecap in $MERGECAP - Make sure that it's installed and correctly configured in openfpc.conf. \nHint -> Install the wireshark / tshak packages" 
+	[ -f $TCPDUMP ] || echo "WARNING - Cant find tcpdump in location $TCPDUMP - Make sure it is installed and correctly configured in openfpc.conf. \nHint -> Install the tcpdump package on your system"
+
+}
 
 case $1 in  
         install)
                 doinstall
+		checkdeps
         ;;
         remove)
                 remove
@@ -288,9 +277,9 @@ case $1 in
 		echo And installing...
 		doinstall
 	;;
-	autoconfig)
-		echo Configuring
-		autoconfig
+	check)
+		echo Checking for dependencies
+		checkdeps
 	;;
      *)
                 echo -e " install   - Install the system"
