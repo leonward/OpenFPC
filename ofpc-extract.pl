@@ -421,6 +421,7 @@ sub doEvent{
         	%eventdata=ofpcParse::SF49IPS($logline); if ($eventdata{'parsed'} ) { last; }
         	%eventdata=ofpcParse::Exim4($logline); if ($eventdata{'parsed'} ) { last; }
         	%eventdata=ofpcParse::SnortSyslog($logline); if ($eventdata{'parsed'} ) { last; }
+        	%eventdata=ofpcParse::SnortFast($logline); if ($eventdata{'parsed'} ) { last; }
         	die("Unable to parse this log line. It Doesn't match any of my parsers. Sorry!")
 	}
 

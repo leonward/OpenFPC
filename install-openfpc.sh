@@ -255,8 +255,8 @@ function checkdeps() {
 
 	source $TARGET_DIR/openfpc.conf
 	echo -e "* Checking for dependancies"
-	[ -f $MERGECAP ] || echo "WARNING - Can't find mergecap in $MERGECAP - Make sure that it's installed and correctly configured in openfpc.conf. \nHint -> Install the wireshark / tshak packages" 
-	[ -f $TCPDUMP ] || echo "WARNING - Cant find tcpdump in location $TCPDUMP - Make sure it is installed and correctly configured in openfpc.conf. \nHint -> Install the tcpdump package on your system"
+	[ -f $MERGECAP ] || echo -e "WARNING - Can't find mergecap in $MERGECAP - Make sure that it's installed and correctly configured in openfpc.conf. \nHint -> Install the wireshark / tshak packages" 
+	[ -f $TCPDUMP ] || echo -e "WARNING - Cant find tcpdump in location $TCPDUMP - Make sure it is installed and correctly configured in openfpc.conf. \nHint -> Install the tcpdump package on your system"
 
 }
 
