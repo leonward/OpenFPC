@@ -1,4 +1,4 @@
-#!/usr/bin/perl -I . /opt/openfpc/
+#!/usr/bin/perl -I /opt/openfpc/ .
 
 #########################################################################################
 # Copyright (C) 2009 Leon Ward 
@@ -28,7 +28,7 @@ use Getopt::Long;
 use ofpcParse;
 
 # List of config files to look for, first one wins 
-my @CONFIG_FILES=("/etc/openfpc/openfpc.conf","/opt/openfpc/openfpc.conf");
+my @CONFIG_FILES=("/etc/openfpc/openfpc.conf","/opt/openfpc/openfpc.conf","openfpc.conf");
 my $CONFIG_FILE;
 my %config;
 my $openfpcver="0.1";
