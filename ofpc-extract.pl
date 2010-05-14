@@ -169,9 +169,10 @@ sub findBuffers {
         if ($debug) {
                 print " - $numberOfFiles requested each side of target timestamp \n";
         }
-	
-        push(@timestampArray, $targetTimeStamp);            # Add target timestamp to an array of all file timestamps
-        $timeHash{$targetTimeStamp} = "TARGET";             # Method to identify our target timestamp in the hash
+
+	$targetTimeStamp=$targetTimeStamp-0.5;			# Remove risk of TARGET conflict with file timestamp.	
+        push(@timestampArray, $targetTimeStamp);            	# Add target timestamp to an array of all file timestamps
+        $timeHash{$targetTimeStamp} = "TARGET";             	# Method to identify our target timestamp in the hash
 
         foreach my $pcap (@PCAPS) {
                 my $timestamp = ((stat($pcap))[9]);
@@ -182,15 +183,25 @@ sub findBuffers {
                 push(@timestampArray,$timestamp);
         }
 
-        my $count=0;
         my $location=0;
+	my $count=0; 		
+	print "-----------------Array----------------\n";
+	if ($debug) {		# Yes I do this twice, but it helps me debug timestamp pain!
+		foreach (sort @timestampArray) {
+			print " $count";
+			print " - $_ $timeHash{$_}\n";
+			$count++;
+		}
+	}
+	print "-------------------------------------\n";
+
+	$location=0;
+        $count=0;
         foreach (sort @timestampArray){                 # Sort our array of timetsamps (including
                 $count++;                               # our target timestamp)
 		if ($debug) {
 			print " + $count - $_ $timeHash{$_}\n";
 		}
-
-		
 
 		if ( "$timeHash{$_}" eq "TARGET" ) {
 			$sizeofarray=@timestampArray - 1;
@@ -209,21 +220,25 @@ sub findBuffers {
                         }
 			last;
 		}
-
         }
+
         if ($debug) {
-                my $expectedts = ((stat($timeHash{$timestampArray[$location]}))[9]);
-                my $lexpectedts = localtime($expectedts);
-                if ($verbose) {
-                        print " - Target PCAP filename is $timeHash{$timestampArray[$location]} : $lexpectedts\n";
-                }
+                if (my $expectedts = ((stat($timeHash{$timestampArray[$location]}))[9])) { 
+                	my $lexpectedts = localtime($expectedts);
+                	if ($verbose) {
+                        	print " - Target PCAP filename is $timeHash{$timestampArray[$location]} : $lexpectedts\n";
+                	}
+		}
         }
-
 
         # Find what pcap files are eachway of target timestamp
         my $precount=$numberOfFiles;
         my $postcount=$numberOfFiles;
-        push(@TARGET_PCAPS,$timeHash{$timestampArray[$location]});
+	unless ( $timeHash{$timestampArray[$location]} eq "TARGET" ) {
+        	push(@TARGET_PCAPS,$timeHash{$timestampArray[$location]});
+	} else {
+		print "Skipping got target\n";
+	}
 
         while($precount >= 1) {
                 my $file=$location-$precount;
@@ -439,7 +454,7 @@ sub doEvent{
 
 	# Do some sanity checks on the timestamp
 	if ($eventdata{'timestamp'} < $firstpacket) {
-		die("Date requested is outside the range of the packet in buffer - We don't have it. \nCould the event be in another set of files? Consider --all\n");
+		die("Date requested is before FirstPacket ($firstpacket " . localtime($firstpacket) . ") and therefore outside the range of the packet in buffer - We don't have it. \nCould the event be in another set of files? Consider --all\n");
 	
 	}
 
@@ -524,7 +539,7 @@ close $config;
 # Display command line options and config file settings
 if ($debug) {
 	print "* Dumping command line options \n" .
-		"   timestamp = $timestamp \n" .
+		"   timestamp = $timestamp " . localtime($timestamp) . "\n" .
 		"   mode = $mode \n" .
 		"   event = $event \n" .
 		"   src_addr = $cmdargs{'sip'} \n" .
@@ -585,7 +600,7 @@ if ( ($mode eq "window") or ($mode eq "w") or ($cmdargs{'startTime'} and $cmdarg
         	print " - Event requested is     : $request_time\n";
 	}
 	if (($timestamp < $firstpacket) or ($timestamp > time())) {
-        	die("Date requested is outside the range of the packet in buffer - We don't have it. \nCould the event be in another set of files? Consider --all\n");
+        	die("Date requested is before $firstpacket " . localtime($firstpacket) . " and therefore outside the range of the packet in buffer - We don't have it. \nCould the event be in another set of files? Consider --all\n");
         	exit 1;
 	}
 
