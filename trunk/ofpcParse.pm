@@ -187,4 +187,64 @@ sub SnortSyslog{
 
 }
 
+
+sub SnortFast{
+	# Snort's alert-Fast output: 
+	my %event=(
+		'type' => "SnortFast",
+		'spt' => 0,
+		'dpt' => 0,
+		'sip' => 0,
+		'dip' => 0,
+		'proto' => 0,
+		'msg' => "Snort IPS event",
+		'timestamp' => 0,
+		'bpf' => 0,
+		'parsed' => 0
+		);
+
+	#05/14-09:01:49.390801  [**] [1:12628:2] RPC portmap Solaris sadmin port query udp portmapper sadmin port query attempt [**] [Classification: Decode of an RPC Query] [Priority: 2] {UDP} 192.168.133.50:666 -> 192.168.10.90:32772
+
+	my $logline=shift;
+
+	if ($logline =~ m/(\[[0-9]+:[0-9]+:[0-9]+] )(.*)(\[\*\*\])/) {
+                $event{'msg'} = "Snort event: $2"; 
+        }
+
+	if ($logline =~ m/{(ICMP|TCP|UDP)}/) {
+                $event{'proto'} = $1; 
+        }
+
+	if ($logline =~ m/(^\s*\d\d\/\d\d-\d\d:\d\d:\d\d)/ ) { 
+		my $tempdate=$1;
+		$tempdate =~ s/-/ /g;
+		$event{'timestamp'}=`date --date='$tempdate' +%s`;
+        	chomp $event{'timestamp'};
+	} 
+
+	
+  	if ($event{'proto'} eq "ICMP") {
+                if ($logline =~ m/(\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b) -> (\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b)/) {
+                        $event{'sip'} = $1;
+                        $event{'dip'} = $2;
+               }
+        } elsif (($event{'proto'} eq "TCP") | ($event{'proto'} eq "UDP")) {
+                if ($logline =~ /((\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b):(\d+)) -> ((\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b):(\d+))/) {
+                        $event{'sip'} = $2;
+                        $event{'dip'} = $5;
+                        $event{'spt'} = $3;
+                        $event{'dpt'} = $6;
+                }
+	}
+
+	if ( ($event{'sip'} or $event{'dip'}) and $event{'proto'} and $event{'timestamp'} ) {
+		$event{'parsed'}=1;
+	}
+	
+	return(%event);
+
+}
+
+
+
 1;
