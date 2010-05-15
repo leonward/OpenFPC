@@ -1,4 +1,4 @@
-#!/bin/bash  
+#!/bin/bash 
 
 #########################################################################################
 # Copyright (C) 2009 Leon Ward 
@@ -42,7 +42,7 @@ IAM=$(whoami)
 DATE=$(date)
 PATH=$PATH:/sbin:/usr/sbin
 TCPDUMPOPTS="-Z root" 	
-openfpcver=0.1
+openfpcver=0.1a
 PID_FILE=openfpc-dl
 PID_PATH=/var/run
 FILENAME=openfpc-pcap
@@ -52,6 +52,7 @@ then
 	echo -e "[!] Configuration not complete, unable to read config from $CONFIG_FILES \n    Have you run ./install-opefpc ?"
 	exit 1
 fi
+
 
 if [ "$MULTI_BUFFER" == "1" ] 
 then
@@ -110,16 +111,36 @@ function start()
 	# of questions from confused users. Strange I know, but hey.
 
 	touch $LOG/openfpc-pcap.0
-	$DAEMONLOGGER -d \
+	CMD="$DAEMONLOGGER -d \
 		-i $INTERFACE \
 		-l $LOG \
 		-M $DISK_SPACE \
 		-s $FILE_SIZE \
 		-p $PID_FILE \
 		-P $PID_PATH \
-		-n openfpc-pcap || die "Unable to start daemonlogger"
+		-n openfpc-pcap "
+
+	$CMD || die "Unable to start daemonlogger"
 	sleep 1
-	[ -f $LOG/openfpc-pcap.0 ] && rm $LOG/openfpc-pcap.0 	
+	[ -f $LOG/openfpc-pcap.0 ] && rm $LOG/openfpc-pcap.0
+	
+	if [ -f $PID_PATH/$PID_FILE ] 
+	then
+		DPID=$(cat $PID_PATH/$PID_FILE) || die "[!] Error: Unable to read pid file"
+		if ps aux |grep $DPID |grep -v grep  > /dev/null
+		then
+			echo 
+			echo "[-] It looks like daemonlogger has started successfully"
+		else
+			echo
+			echo "[!] Error: It looks like something went wrong starting daemonlogger"
+			echo "    OpenFPC requires daemonlogger version 1.2.1 or above"
+			echo "    You could also try to run the following command to work out what went wrong"
+			echo $CMD
+		fi
+	else 
+		die "[!] Error: I don't think daemonlogger is running! No PID file $PID_PATH/$PID_FILE found"
+	fi 
 	echo "[*] Traffic buffer (Daemonlogger) started on $DATE"
 }
 
@@ -150,15 +171,19 @@ function status()
 		FIRSTPACKET=$(tcpdump -n -r $FIRSTBUFFER -c 1 -tttt 2>/dev/null |awk '{print $1 " " $2}')
 		NOW=$(date +%Y-%m-%d\ %H:%M:%S)
 		LASTBUFFER=$(ls -t $BUFFER_PATH/$FILENAME*|head -n 1)
-		PID=$(cat /$PID_PATH/$PID_FILE) || echo "Daemonlogger not running"
 		EPOC_FIRST=$(date -d "$FIRSTPACKET" +%s)
 		EPOC_LAST=$(date -d "$NOW" +%s)
 		let EPOC_DELTA=($EPOC_LAST-$EPOC_FIRST)/60/60
 		SIZE=$(du $BUFFER_PATH -h | awk '{print $1}')
 		USED=$(df $BUFER_PATH -h |grep ^/ |awk '{print $5}')
-		
+		DPID=$(cat $PID_PATH/$PID_FILE) || DPID="NONE_NOT_RUNNING"
 
-		echo "[*] Traffic buffer (Daemonlogger) running with pid $PID "
+		if ps aux |grep $DPID > /dev/null 
+		then
+			echo "[*] Traffic buffer (Daemonlogger) running with pid $PID "
+		else
+			echo "[!] Traffic buffer (Daemonlogger) not running"
+		fi
 		echo -e " - Time now 		    $NOW"
 		echo -e " - Oldest packet	    $FIRSTPACKET"
 		echo -e " - Oldest File		    $FIRSTBUFFER"
