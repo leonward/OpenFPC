@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/bash  
 
 #########################################################################################
 # Copyright (C) 2009 Leon Ward 
@@ -24,7 +24,7 @@
 # ---------------- Nothing to do below here -------------
 # List of config files to try in order
 
-CONFIG_FILES="/etc/openfpc/openfpc.conf /opt/openfpc/openfpc.conf"
+CONFIG_FILES="./openfpc.conf /etc/openfpc/openfpc.conf /opt/openfpc/openfpc.conf"
 
 for i in $CONFIG_FILES
 do
@@ -43,6 +43,9 @@ DATE=$(date)
 PATH=$PATH:/sbin:/usr/sbin
 TCPDUMPOPTS="-Z root" 	
 openfpcver=0.1
+PID_FILE=openfpc-dl
+PID_PATH=/var/run
+FILENAME=openfpc-pcap
 
 if [ "$DONE_CONFIG" != 1 ]
 then
@@ -86,37 +89,38 @@ function start()
 	then
 		die "[!] Must be root"
 	fi
-	pidof -x $TCPDUMP > /dev/null  && die "[!] Already running tcpdump! Not starting."
 
+	if [ -f $PID_PATH/$PID_FILE ] 
+	then
+		DPID=$(cat $PID_PATH/$PID_FILE)
+		ps aux |grep $DPID |grep -v grep > /dev/null && die "[!] Daemonlogger already running"
+	fi 
 
 	if [ -d $BUFFER_PATH ]
 	then
 		touch $BUFFER_PATH/ok || dir "[!] Cant write to buffer path $BUFFER_PATH."
-		rm $BUFFER_PATH/ok || echo Cant find ok file in buffer path - Strange.	
+		rm $BUFFER_PATH/ok || die "Cant remove ok file in buffer path - Strange."
 	else
 		mkdir --parent $BUFFER_PATH || die "[!] Cant mkdir buffer location $BUFFER_PATH"
 	fi
-
 	
-	if [ "$MULTI_BUFFER" == "1" ] 
-	then
-		TSTAMP=$(date +%s)
-	else
-		TSTAMP="SINGLE"
-	fi
-		echo $TSTAMP > $CURRENT_FILE  || die "[!] Unable to save data to $CURRENT_FILE. Not starting."
-
-	[ -d $BUFFER_PATH ] || die "[!] Unable to find buffer path $BUFFER_PATH. Do you need to mkdir it?"
 	ifconfig $INTERFACE > /dev/null 2>&1 || die "[!] Unable to find device $INTERFACE."
+	# It looks like daemonlogger expects to find SOMETHING to unlink in $LOGDIR when it gets 
+	# close to -M value. Lets give it a little something, I think this will pevent a lot
+	# of questions from confused users. Strange I know, but hey.
 
-	$TCPDUMP $TCPDUMPOPTS \
-		 -i $INTERFACE \
-		 -s 0 \
-		 -C $FILE_SIZE \
-		 -W $FILE_COUNT \
-		 -w $BUFFER_PATH/$FILENAME.$TSTAMP- > $LOG 2>&1 &
-	echo [*] Traffic buffer started on $DATE
-	echo "[I] Traffic buffer started on $DATE" | /usr/bin/logger -t "trafficbuffer"
+	touch $LOG/openfpc-pcap.0
+	$DAEMONLOGGER -d \
+		-i $INTERFACE \
+		-l $LOG \
+		-M $DISK_SPACE \
+		-s $FILE_SIZE \
+		-p $PID_FILE \
+		-P $PID_PATH \
+		-n openfpc-pcap || die "Unable to start daemonlogger"
+	sleep 1
+	[ -f $LOG/openfpc-pcap.0 ] && rm $LOG/openfpc-pcap.0 	
+	echo "[*] Traffic buffer (Daemonlogger) started on $DATE"
 }
 
 
@@ -126,21 +130,27 @@ function stop()
 	then
 		die "[!] Must be root"
 	fi
-	PID=$(pidof tcpdump) || die "[!] Not running"
-	kill $PID || kill -KILL  $PID
-	echo "[*] Traffic buffer $PID stopped"
-	echo "[I] Traffic buffer $PID stopped on $DATE" | /usr/bin/logger -t "trafficbuffer"
+
+	if [ -f $PID_PATH/$PID_FILE ] 
+	then
+		DPID=$(cat $PID_PATH/$PID_FILE) || die "[!] Cant read PID file $PID_PATH/$PID_FILE"
+	else 
+		die "[!] Wont stop. I don't think daemonlogger is running! No PID file $PID_PATH/$PID_FILE found"
+	fi 
+
+	kill $DPID 
+	echo "[*] Traffic buffer (Daemonlogger) $DPID stopped"
 }
 
 function status()
 {
-	if ls $BUFFER_PATH/$FILENAME.$CURRENT-* > /dev/null 2>&1
+	if ls $BUFFER_PATH/$FILENAME* > /dev/null 2>&1
 	then
-		FIRSTBUFFER=$(ls -tr $BUFFER_PATH/$FILENAME.$CURRENT-*|head -n 1)
+		FIRSTBUFFER=$(ls -tr $BUFFER_PATH/$FILENAME*|head -n 1)
 		FIRSTPACKET=$(tcpdump -n -r $FIRSTBUFFER -c 1 -tttt 2>/dev/null |awk '{print $1 " " $2}')
 		NOW=$(date +%Y-%m-%d\ %H:%M:%S)
-		LASTBUFFER=$(ls -t $BUFFER_PATH/$FILENAME.$CURRENT-*|head -n 1)
-		PID=$(pidof tcpdump ) || die "[!] tcpdump not running"
+		LASTBUFFER=$(ls -t $BUFFER_PATH/$FILENAME*|head -n 1)
+		PID=$(cat /$PID_PATH/$PID_FILE) || echo "Daemonlogger not running"
 		EPOC_FIRST=$(date -d "$FIRSTPACKET" +%s)
 		EPOC_LAST=$(date -d "$NOW" +%s)
 		let EPOC_DELTA=($EPOC_LAST-$EPOC_FIRST)/60/60
@@ -148,7 +158,7 @@ function status()
 		USED=$(df $BUFER_PATH -h |grep ^/ |awk '{print $5}')
 		
 
-		echo "[*] Traffic buffer running with pid $PID "
+		echo "[*] Traffic buffer (Daemonlogger) running with pid $PID "
 		echo -e " - Time now 		    $NOW"
 		echo -e " - Oldest packet	    $FIRSTPACKET"
 		echo -e " - Oldest File		    $FIRSTBUFFER"

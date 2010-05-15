@@ -28,7 +28,7 @@ use Getopt::Long;
 use ofpcParse;
 
 # List of config files to look for, first one wins 
-my @CONFIG_FILES=("/etc/openfpc/openfpc.conf","/opt/openfpc/openfpc.conf","openfpc.conf");
+my @CONFIG_FILES=("openfpc.conf", "/etc/openfpc/openfpc.conf","/opt/openfpc/openfpc.conf");
 my $CONFIG_FILE;
 my %config;
 my $openfpcver="0.1";
@@ -170,12 +170,13 @@ sub findBuffers {
                 print " - $numberOfFiles requested each side of target timestamp \n";
         }
 
-	$targetTimeStamp=$targetTimeStamp-0.5;			# Remove risk of TARGET conflict with file timestamp.	
+	#$targetTimeStamp=$targetTimeStamp-0.5;			# Remove risk of TARGET conflict with file timestamp.	
         push(@timestampArray, $targetTimeStamp);            	# Add target timestamp to an array of all file timestamps
         $timeHash{$targetTimeStamp} = "TARGET";             	# Method to identify our target timestamp in the hash
 
         foreach my $pcap (@PCAPS) {
-                my $timestamp = ((stat($pcap))[9]);
+		#my $timestamp = ((stat($pcap))[9]);
+		(my $fileprefix, my $timestamp)  = split(/\./,$pcap);
                 if ($debug) {
                         print " - Adding file $pcap with timestamp $timestamp (" . localtime($timestamp) . ") to hash of timestamps \n";
                 }
@@ -185,15 +186,15 @@ sub findBuffers {
 
         my $location=0;
 	my $count=0; 		
-	print "-----------------Array----------------\n";
 	if ($debug) {		# Yes I do this twice, but it helps me debug timestamp pain!
+		print "-----------------Array----------------\n";
 		foreach (sort @timestampArray) {
 			print " $count";
 			print " - $_ $timeHash{$_}\n";
 			$count++;
 		}
+		print "-------------------------------------\n";
 	}
-	print "-------------------------------------\n";
 
 	$location=0;
         $count=0;
@@ -470,16 +471,18 @@ sub doEvent{
 sub doInit{
 	# Do the stuff that's required regardless of mode of operation
 
-	open (CURRENT_FILE,"$config{'CURRENT_FILE'}") or die("Unable to open current file \"$config{'CURRENT_FILE'}\". Have you got a buffer running?");
-	while (my $line = <CURRENT_FILE>){
-        	$currentRun=$line;
-        	chomp($currentRun);
-		if ($debug) {
-			print " - Current running buffer suffix is $currentRun\n";
-		}
-	}
-	close (CURRENT_FILE);
-	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/buffer.$currentRun-*`;
+	#open (CURRENT_FILE,"$config{'CURRENT_FILE'}") or die("Unable to open current file \"$config{'CURRENT_FILE'}\". Have you got a buffer running?");
+	#while (my $line = <CURRENT_FILE>){
+        #	$currentRun=$line;
+        #	chomp($currentRun);
+	#	if ($debug) {
+	#		print " - Current running buffer suffix is $currentRun\n";
+	#	}
+	#}
+
+	#	close (CURRENT_FILE);
+
+	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-pcap.*`;
 	foreach(@pcaptemp) {
         	chomp $_;
         	push(@PCAPS,$_);
