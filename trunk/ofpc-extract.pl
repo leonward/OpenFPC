@@ -55,7 +55,7 @@ my $mode=0;
 my $currentRun=0;		# suffix of buffer filename for current running process
 my $sf=0;
 
-my ($debug,$quiet,$http,$event,$help);
+my ($debug,$quiet,$http,$event,$help,@pcaptemp);
 
 GetOptions ( 	't|time=s' => \$timestamp,
 		's|src-addr=s' => \$cmdargs{'sip'},
@@ -75,6 +75,8 @@ GetOptions ( 	't|time=s' => \$timestamp,
 		'v|verbose' => \$verbose,
 		'sf' => \$sf,
 		);
+
+# ----------------- Subs -------------------
 
 sub usage()
 {
@@ -273,7 +275,7 @@ sub findBuffers {
                 $postcount--;
         }
 	if ($debug) {
-		print "* Search scope : ";
+		print " - Returning array of buffers : ";
 		foreach (@TARGET_PCAPS) {
 			print "$_ \n";
 		}
@@ -284,32 +286,42 @@ sub findBuffers {
 
 sub doSearch{
 	my %eventdata=();
+	# startFile/endFile are arrays because they can rtn multple files (eachway value)
 	my @startFile=findBuffers("$cmdargs{'startTime'}","0");
 	my @endFile=findBuffers("$cmdargs{'endTime'}","0");
 
 	if ($verbose) {
-		print " * Starting search in file 	: $startFile[0] \n";
-		print " * Ending search in file 	: $endFile[0] \n";
+		print " * Search start/end data\n";
+		print "   Starting search in file 	: $startFile[0] (for timestamp $cmdargs{'startTime'}) \n";
+		print "   Ending search in file 	: $endFile[0] (for timestamp $cmdargs{'endTime'})\n";
 	}
-	
-	(my $startFilename, my $startFileSuffix)=split(/-/, $startFile[0]);
-	(my $endFilename, my $endFileSuffix)=split(/-/, $endFile[0]);
+
+	(my $startFilename, my $startFileSuffix)=split(/\./, $startFile[0]);
+	(my $endFilename, my $endFileSuffix)=split(/\./, $endFile[0]);
 
 	if ($debug) {
-		print " - StartFile/Endfile are $startFileSuffix / $endFileSuffix\n";
+		print " - StartFile/Endfile suffix are $startFileSuffix / $endFileSuffix\n";
 	}
+	# Create a list of pcap files that are in the range of startFileSuffix and endFileSuffix
+
+
 	push(@filelist,"$startFilename-$startFileSuffix");	
-	while ($startFileSuffix != $endFileSuffix) {
-		$startFileSuffix++;
-		if ($startFileSuffix <10) {
-			$startFileSuffix = "0".$startFileSuffix;
-		}	
-		push(@filelist,"$startFilename-$startFileSuffix");
-		if ($startFileSuffix >= $sizeofarray) {
-			if ($debug) { print " - Wrapping suffix search back to 00"; }
-			$startFileSuffix="00";
+	
+	# Create an array of all files
+	# for each file in array
+	# Check if timestamp is in range startfile
+	# add file in range to filelist
+
+	foreach my $bufferfile (@pcaptemp)  {
+		(my $bufferPrefix, my $bufferSuffix)=split(/\./,$bufferfile);
+
+		if ($bufferSuffix ge $startFileSuffix) {
+			if ($bufferSuffix le $endFileSuffix) {
+				push(@filelist, $bufferfile);
+			}	
 		}
 	}
+
 	if ($verbose) {
 		print "*  Exteact file list \n";
 	        foreach my $foo (@filelist){
@@ -482,7 +494,7 @@ sub doInit{
 
 	#	close (CURRENT_FILE);
 
-	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-pcap.*`;
+	@pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-pcap.*`;
 	foreach(@pcaptemp) {
         	chomp $_;
         	push(@PCAPS,$_);
@@ -510,6 +522,7 @@ print STDERR "
   Leon Ward - leon\@rm-rf.co.uk 
 -------------------------------------------------- \n\n";
 
+if ($debug) { $verbose=1; }
 # Some "sane" defaults to work with in case there isn't a config file
 $config{'BUFFER_PATH'}="/var/spool/openfpc/";
 $config{'SAVE_PATH'}=".";
@@ -565,6 +578,8 @@ if ($help) {
 if ( ($mode eq "window") or ($mode eq "w") or ($cmdargs{'startTime'} and $cmdargs{'endTime'})) {
 	if ($verbose) {
 		print "*  Running in time window mode\n";
+		print "   Start:   $cmdargs{'startTime'} (" . localtime($cmdargs{'startTime'}) . "\n";
+		print "   End:     $cmdargs{'endTime'} (" . localtime($cmdargs{'endTime'}) ."\n";
 	}
 	if ( $cmdargs{'startTime'} > $cmdargs{'endTime'} ) {
 		die("Start time is gt than end time. Something's wrong there");
