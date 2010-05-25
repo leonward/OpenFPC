@@ -305,7 +305,7 @@ sub doSearch{
 	# Create a list of pcap files that are in the range of startFileSuffix and endFileSuffix
 
 
-	push(@filelist,"$startFilename-$startFileSuffix");	
+	push(@filelist,"$startFilename.$startFileSuffix");	
 	
 	# Create an array of all files
 	# for each file in array
