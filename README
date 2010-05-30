@@ -1,3 +1,17 @@
 OpenFPC Project.
 
 Still under dev, not ready for usage yet. 
+
+Protocol notes for ofpc-queued
+
+OFPC-Protocol Version 1
+
+Fileld			Type		Len
+# Proto version		4		
+# userid      		15		
+# wait			1 (1/0)
+# filename		20
+# storagelocation	50
+# capture-device	20
+# Request data		500
+
