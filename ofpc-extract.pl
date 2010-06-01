@@ -467,7 +467,7 @@ sub doEvent{
 
 	# Do some sanity checks on the timestamp
 	if ($eventdata{'timestamp'} < $firstpacket) {
-		die("Date requested is before FirstPacket ($firstpacket " . localtime($firstpacket) . ") and therefore outside the range of the packet in buffer - We don't have it. \nCould the event be in another set of files? Consider --all\n");
+		die("Date requested ($eventdata{'timestamp'}) is before FirstPacket ($firstpacket " . localtime($firstpacket) . ") and therefore outside the range of the packet in buffer - We don't have it. \nCould the event be in another set of files? Consider --all\n");
 	
 	}
 
