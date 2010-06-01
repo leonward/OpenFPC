@@ -15,3 +15,9 @@ Fileld			Type		Len
 # capture-device	20
 # Request data		500
 
+OpenFPC-v1\n
+<userid>||<action>||<device>||<filename>||<location>||<logformat>||<data>
+
+UserID = 20chars
+
+
