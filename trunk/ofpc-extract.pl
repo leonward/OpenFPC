@@ -62,6 +62,7 @@ GetOptions ( 	't|time=s' => \$timestamp,
 		'd|dst-addr=s' => \$cmdargs{'dip'}, 
 		'u|src-port=s' => \$cmdargs{'spt'},
 		'r|dst-port=s' => \$cmdargs{'dpt'},
+		'p|proto=s' => \$cmdargs{'proto'},
 		'w|write=s' => \$cmdargs{'outputFile'},
 		'h|help' => \$help,
 		'l|http' => \$http,
@@ -87,6 +88,7 @@ sub usage()
   --dst-addr or -d <DST_ADDR>           Destination IP
   --src-port or -u <SRC_PORT>           Source Port 
   --dst-port or -r <DST_PORT>           Destination Port
+  --proto    or -p <PROTOCOL>		Protocol 
   --write    or -w <FILENAME>		Output file
 
   --http     or -l		        Output in HTML for download
@@ -429,6 +431,7 @@ sub doAt{
 	$eventdata{'dip'} = $cmdargs{'dip'};
 	$eventdata{'spt'} = $cmdargs{'spt'};
 	$eventdata{'dpt'} = $cmdargs{'dpt'};
+	$eventdata{'proto'} = $cmdargs{'proto'};
 
 	# Check we have enough args to do some type of sensible search
 	unless ($cmdargs{'sip'} or $cmdargs{'dip'} or $cmdargs{'spt'} or $cmdargs{'dpt'} ) {
@@ -558,6 +561,7 @@ if ($debug) {
 		"   timestamp = $timestamp " . localtime($timestamp) . "\n" .
 		"   mode = $mode \n" .
 		"   event = $event \n" .
+		"   proto =    $cmdargs{'proto'}\n" .
 		"   src_addr = $cmdargs{'sip'} \n" .
 		"   dst_addr = $cmdargs{'dip'} \n" .
 		"   src_port = $cmdargs{'spt'} \n" .
