@@ -10,8 +10,8 @@ use IO::Select;
 use IO::Socket;
 use Digest::MD5(qw(md5_hex));
 use Getopt::Long;
-use ofpcParse;
 use Data::Dumper;
+use ofpcParse;
 
 my $openfpcver="0.1a";
 
@@ -23,12 +23,37 @@ $debug=1;
 my $TCPPORT=4242;
 if ($debug) { $verbose=1;}
 
+sub pipeHandler {
+    my $sig = shift @_;
+    print "SIGPIPE -> Bad client went away! $sig \n\n" if ($verbose);
+}
+
+$SIG{PIPE} = \&pipeHandler;
+
+
 sub decoderequest($){
 	# Take a rawrequest from a user and return a ref to a hash of event data
 	my $rawrequest=shift;
-	my %request=();	
-	($request{'user'},$request{'action'},$request{'device'},$request{'filename'},$request{'location'},$request{'logtype'},$request{'logline'}) = split(/\|\|/, $rawrequest) ;
-	if ($debug) {
+	my %request=( 	user 	 => 	0,
+			action 	 =>	0,
+			device 	 =>	0,
+			filename =>	0,
+			locatoin =>	0,
+			logtype  =>	0,
+			logline  =>	0,
+	);	
+	my @requestarray = split(/\|\|/, $rawrequest);
+
+	my $argnum=@requestarray;
+	unless ($argnum == 7 ) {
+		if ($debug) {
+			print "-D  Bad request, only $argnum args. Expected 7\n";
+		}
+		return(0,"Expected 7 args, got $argnum");
+	}
+	($request{'user'},$request{'action'},$request{'device'},$request{'filename'},$request{'location'},$request{'logtype'},$request{'logline'}) = split(/\|\|/, $rawrequest);
+
+	if ($debug) { 
                 print "-- Decoded Request --\n" .
                 "   User: $request{'user'}\n" .
                 "   Action: $request{'action'}\n" .
@@ -38,7 +63,8 @@ sub decoderequest($){
                 "   Type: $request{'logtype'}\n" .
                 "   LogLine: $request{'logline'}\n";
         }
-	return(\%request);
+
+	return(\%request,"Okay");
 }
 
 sub parselog{
@@ -57,7 +83,7 @@ sub parselog{
         }
  
         if ($debug) {
-                print " ---Decoded Event---\n" .
+                print "PARSE ---Decoded Event---\n" .
                        "   Type: $eventdata{'type'}\n" .
                        "   Timestamp: $eventdata{'timestamp'} (" . localtime($eventdata{'timestamp'}) . ")\n" .
                        "   SIP: $eventdata{'sip'}\n" .
@@ -68,7 +94,7 @@ sub parselog{
                        "   Message: $eventdata{'msg'}\n" ;
         }
 
-	return(\%eventdata);
+	return(\%eventdata,);
 }
 
 sub preprocessEventV1{
@@ -104,6 +130,81 @@ sub preprocessEventV1{
 	return(1,"Okay");
 }
 
+sub ofpcv1{
+	# V1 of communication
+	my $handle=shift;
+	my ($rawrequest, %request);
+	print "v1 Using OFPC-v1 protocol\n" if ($debug);
+	print $handle "OFPC-v1 OK\n";
+	#$rawrequest=<$handle>;
+	sysread $handle, $rawrequest, 1024,0;
+	chomp $rawrequest;
+	
+	# Check we have a sane request before doing anything
+	# put above in an unless
+
+	my ($reqh,$message)=decoderequest($rawrequest);
+	if ($reqh) {	
+		if ($userlist{$reqh->{'user'}}) {
+			# Valid user
+			print "v1 User: $reqh->{'user'} OK\n" if ($debug);
+			my $slen=10;
+			my $challenge="";
+			for (1..$slen) {
+				$challenge="$challenge" . int(rand(99));
+			}
+			print "v1 Sending challenge: $challenge\n" if ($debug);
+			print $handle "CHALLENGE||$challenge\n";
+			#my $expResp="$challenge$userlist{$user}";
+			my $expResp=md5_hex("$challenge$userlist{$reqh->{'user'}}");
+			my $resp;
+			#$resp=<$handle>;
+			sysread $handle, $resp, 128,0;
+			chomp $resp;
+
+			if ($debug) {
+				print "v1 Expected resp: -$expResp-\n";
+				print "v1 Real resp    : -$resp-\n";
+			}
+
+			# Check response hash
+			if ( "$resp" eq "$expResp" ) {
+				print "v1 Pass Okay\n" if ($debug);
+				print $handle "OK PASS\n";
+				# Good to process
+				(my $result, my $message) = preprocessEventV1($reqh,$handle);
+
+				# This is ugly, but threads::shared cant yet share nested references. 
+				# So instead of adding a ref to our request onto the queue array ill
+				# put the raw data onto it we got from the client. It's be tested so 
+				# we know it makes sense.
+
+				if ($result) {
+					print "v1 PreprocessEvent OK : Result $result : Message: $message\n" if ($verbose);
+					print "v1 Pushing on to queue" if ($verbose);
+					push(@queue,$rawrequest);
+					return(1,"OK");
+				} else {
+					if ($verbose) {
+						print "v1 PreprocessEvent FAIL : Result $result : Message: $message\n" if ($verbose);
+						print "v1 Not adding to queue\n";
+					}
+					return(0,"BAD REQUEST||$message");
+				}
+			} else { # BAD PASS
+				print "v1 Pass Bad\n" if ($debug);
+				return(0,"BAD PASS");
+			}
+
+		} else { # Invalid user
+			print "v1 User: $request{'user'} -> invalid - Hangup\n" if ($debug);
+			return(0,"BAD USER");
+		}
+	} else { # Bad request
+		print "V1 Bad request\n" if ($debug);
+		return(0,"BAD ofpc-v1 REQUEST: $message");
+	}
+}
 
 sub listener{
 	my ($read_set,$request_s,$request,$sock,$protover);
@@ -125,80 +226,28 @@ sub listener{
                                 my $ns = $rh->accept();
                                 $read_set->add($ns);
                         } else {
-                                sysread $rh, $protover, 20, 0; 	# TODO Input validation on len
+                                #$protover=<$rh>;
+				sysread $rh, $protover, 20, 0; 	# TODO Input validation on len
                                 if ($protover) { 		# Get protocol version from client
 					chomp($protover);
-					print "-L Got version $protover\n" if ($debug);
-
+					print "-L Got version ->$protover<-\n" if ($debug);
 					if ($protover eq "OFPC-v1") { 	# V1 event - In case this changes over time maintain compatibility
-						my ($rawrequest, %request, $reqh);
-						print "-L Using OFPC-v1 protocol\n" if ($debug);
-						print $rh "OFPC-v1 OK\n";
-						sysread $rh, $rawrequest, 1024,0;
-						chomp $rawrequest;
-						$reqh=decoderequest($rawrequest);
-						#($request{'user'},$request{'action'},$request{'device'},$request{'filename'},$request{'location'},$request{'logtype'},$request{'logline'}) = split(/\|\|/, $rawrequest);
-						# Check we have a sane request before doing anything
-						# put above in an unless
-						#print "Got line $request\n";
-
-						if ($userlist{$reqh->{'user'}}) {
-							if ($debug) { print "-L User: $reqh->{'user'} OK\n"; }
-							my $slen=10;
-							my $challenge="";
-							for (1..$slen) {
-								$challenge="$challenge" . int(rand(99));
-							}
-
-							print $rh "CHALLENGE||$challenge\n";
-							#my $expResp="$challenge$userlist{$user}";
-							my $expResp=md5_hex("$challenge$userlist{$reqh->{'user'}}");
-							my $resp;
-							sysread $rh, $resp, 128,0;
-							chomp $resp;
-
-							if ($debug) {
-								print "-L Expected resp: -$expResp-\n";
-								print "-L Real resp    : -$resp-\n";
-							}
-
-							# Check response hash
-							if ( "$resp" eq "$expResp" ) {
-								print "-L Pass Okay\n" if ($debug);
-								print $rh "Pass OK\n";
-								# Good to process
-								(my $result, my $message) = preprocessEventV1($reqh,$rh);
-								print "Result is $result, message is $message\n";
-								print $rh "$result||$message\n";
-
-								# This is ugly, but threads::shared cant yet share nested references. 
-								# So instead of adding a ref to our request onto the queue array ill
-								# put the raw data onto it we got from the client. It's be tested so 
-								# we know it makes sense.
-
-								push(@queue,$rawrequest);
-							} else {
-								print "-L Pass Bad\n" if ($debug);
-								print $rh "Pass Bad $resp\n";
-							}
-
-							$read_set->remove($rh);
-							close($rh);
+						my ($result, $message) = ofpcv1($rh);
+						if ($result) {
+								print $rh "OK||GOOD TO PROCESS\n";
 						} else {
-							print "-L User: $request{'user'} -> invalid - Hangup\n" if ($debug);
-							print $rh "FAIL||Invalid user $request{'user'}\n";
-							$read_set->remove($rh);
-							close($rh);
+							print $rh "$message\n";
 						}
 					}		
-
                         	} else {
-                                	$read_set->remove($rh);
-                                	close($rh);
+					print $rh "BAD PROTOCOL\n"; 
 				}
+                                $read_set->remove($rh);
+                                close($rh);
                         }
                 }
         }
+	print "At end of while1\n";
 }
 
 sub runqueue{
@@ -209,30 +258,47 @@ sub runqueue{
 	my $request=shift;
 	my $erid=shift; 	# The rid value for this extract 
 	my $extractcmd;
-	my $cmdargs;		# Command args for slave extract
+	my @cmdargs;		# Command args for slave extract
 	
-	print "Q- $erid Processing event rid:$erid\n" if ($verbose);
-	print "Q- $erid \n" if ($verbose);
+	print "R- $erid Processing event rid:$erid\n" if ($verbose);
+	print "R- $erid \n" if ($verbose);
 
-	my $reqh=decoderequest($request);
-	unless ($reqh) { return(0,"Unable to decode request in runqueue"); 
+	my ($reqh,$message)=decoderequest($request);
+	unless ($reqh) { return(0,"Unable to decode request in runqueue -> $message"); }
 	my $eventh=parselog($reqh->{'logline'});
-	unless ($eventh) { return(0,"Unable to parse log line in runqueue");
+	unless ($eventh) { return(0,"Unable to parse log line in runqueue"); }
 	
 	# If we are the MASTER push this to a slave device
 	# If we are a slave, lets to the work
 	
 	if ($config{'MASTER'}) {
-		print "Q-* Master NOT DONE YET\n";
+		print "R- $erid * Master NOT DONE YET\n";
 	} else { # End of master code
-		print "Q- Slave device performing extraction\n";
+		print "R- $erid Slave device performing extraction\n";
+		# Depending on the log type, we may have all constraints, or possibly only a couple
+		push(@cmdargs,"ofpc-extract.pl -m a");
+		if ($debug) { push (@cmdargs,"--debug"); }
+		if ($debug) { push (@cmdargs,"--http"); }
+		if ($eventh->{'sip'}) { push (@cmdargs,"--src-addr $eventh->{'sip'}") ; }
+		if ($eventh->{'dip'}) { push (@cmdargs,"--dst-addr $eventh->{'dip'}") ; }
+		if ($eventh->{'spt'}) { push (@cmdargs,"--src-port $eventh->{'spt'}") ; }
+		if ($eventh->{'dpt'}) { push (@cmdargs,"--dst-port $eventh->{'dpt'}") ; }
+		if ($eventh->{'proto'}) { push (@cmdargs,"--proto $eventh->{'proto'}") ; }
+		if ($eventh->{'timestamp'}) { push (@cmdargs,"--timestamp $eventh->{'timestamp'}") ; }
+		#if ($reqh->{'location'}) { push (@cmdargs,$reqh->{'location'}) ; }
+		if ($reqh->{'filename'}) { push (@cmdargs,"--write $reqh->{'filename'}") ; }
 
-		if ($verbose) {
-			$extractcmd="ofpc-extract.pl --debug -a \"$reqh->{'logline'}\"";
-			print "Extract command is $extractcmd\n";
-		} else {
-			$extractcmd="ofpc-extract.pl -a \"$reqh->{'logline'}\"";
+		foreach(@cmdargs) {
+			$extractcmd=$extractcmd . "$_ ";
 		}
+
+		print "Extract command is $extractcmd\n" if ($verbose);
+		my $result=`$extractcmd`;
+		if ($debug)  {
+			print "Result : $extractcmd\n"
+		}
+
+		
 	} # End of slave code
 	# We shouldn't get here unless something has broken
 	return(0,"Unknown problem while trying to run queue on $erid")
@@ -282,6 +348,9 @@ $ipthread->detach();
 
 while (1) {
 	sleep(1);			# Pause between polls of queues
+	if ($debug) { 
+#		print "Waiting.\n" ;
+	} 
 	my $qlen=@queue;		# Length of extract queue
 	my $rqlen=@rqueue;		# Length of retry queue
 	if ($qlen >= 1) {
@@ -296,6 +365,8 @@ while (1) {
 			print "Q- Result: $result\nQ-  Message: $message\n";	
 		}
 	}
+
 }
 
+print "-\n\n-------------WTF?------- \n\n\n";
 
