@@ -30,8 +30,65 @@ $VERSION = '0.01';
 
 ####################################################
 # Input = logfile line
-# Output = array of..
+# Output = hash of..
 # Type,Timestamp,SrcIP, DstIP, SrcPort, DstPort, Proto, comment/msg
+
+
+sub OFPC1Event{
+	# OFPC-v1 Client request (text or GUI)
+
+	my %event=(
+		'type' => "OFPC Generic",
+		'spt' => 0,
+		'dpt' => 0,
+		'sip' => 0,
+		'dip' => 0,
+		'proto' => 0,
+		'msg' => "User request",
+		'timestamp' => 0,
+		'bpf' => 0,
+		'parsed' => 0
+		);
+
+	# ofpc-v1 type:event sip:1.1.1.1 dip:1.1.1.1 spt:3432 dpt:1234 proto:tcp time:246583 msg:Some freeform text
+	my $logline=shift;
+
+	if ($logline =~ m/msg:(.*)/) {
+                $event{'msg'} = "OFPC User request: $1"; 
+        }
+
+	if ($logline =~ m/proto:(tcp|udp|icmp)\s/i) {
+                $event{'proto'} = $1; 
+        }
+
+	if ($logline =~ m/time:(\d*)\s/ ) { 
+        	$event{'timestamp'}=$1;
+	} 
+
+	
+        if ($logline =~ /sip:\s*(\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b)/) {
+                        $event{'sip'} = $1;
+	}
+        if ($logline =~ /dip:\s*(\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b)/) {
+                        $event{'dip'} = $1;
+	}
+
+        if ($logline =~ /spt:\s*(\d{1,5})/) {
+                        $event{'spt'} = $1;
+	}
+        if ($logline =~ /dpt:\s*(\d{1,5})/) {
+                        $event{'dpt'} = $1;
+	}
+
+	# ofpc-v1 Events start with ofpc-v1 type:event
+	if ( ($logline =~/^ofpc-v1\s*type:\s*event/i) and $event{'timestamp'}) {
+		$event{'parsed'}=1;
+	
+	}
+
+	return(%event);
+
+}
 
 
 sub SF49IPS{

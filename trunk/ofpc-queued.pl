@@ -1,6 +1,12 @@
 #!/usr/bin/perl -I /opt/openfpc/ .
 
 # ofpc-queued.pl - Leon Ward leon@rm-rf.co.uk
+# TODO - Sort out dupe decodes
+#        Add log file
+#	 Check extraction result
+#	 Add MD5/SHA1 of files
+#	 Pass files back to master directly
+#        Add master mode
 
 use strict;
 use warnings;
@@ -19,7 +25,9 @@ my ($queuelen,$debug,$verbose,$rid,$CONFIG_FILE,%config,%userlist);
 my @queue : shared =1; @queue=();  	# Shared queue array
 my @rqueue : shared =1; @rqueue=();  	# Shared retry queue array (for extracts that have failed)
 
+my $daemon=0;
 $debug=1;
+$verbose=1;
 my $TCPPORT=4242;
 if ($debug) { $verbose=1;}
 
@@ -75,6 +83,7 @@ sub parselog{
 
         # Work through a list of file-parsers until we get a hit        
 	while (1) {
+		 %eventdata=ofpcParse::OFPC1Event($logline); if ($eventdata{'parsed'} ) { last; }
         	%eventdata=ofpcParse::SF49IPS($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=ofpcParse::Exim4($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=ofpcParse::SnortSyslog($logline); if ($eventdata{'parsed'} ) { last; }
@@ -154,8 +163,9 @@ sub ofpcv1{
 				$challenge="$challenge" . int(rand(99));
 			}
 			print "v1 Sending challenge: $challenge\n" if ($debug);
-			print $handle "CHALLENGE||$challenge\n";
-			#my $expResp="$challenge$userlist{$user}";
+			print $handle "CHALLENGE $challenge\n";
+			print "Waiting for response to challenge\n" if ($debug);
+			#my $expResp="$challenge$userlist{$reqh->{'user'}}";
 			my $expResp=md5_hex("$challenge$userlist{$reqh->{'user'}}");
 			my $resp;
 			#$resp=<$handle>;
@@ -170,7 +180,8 @@ sub ofpcv1{
 			# Check response hash
 			if ( "$resp" eq "$expResp" ) {
 				print "v1 Pass Okay\n" if ($debug);
-				print $handle "OK PASS\n";
+				print $handle "PASS OK\n";
+				wlog("LOGIN $reqh->{'user'} OK");
 				# Good to process
 				(my $result, my $message) = preprocessEventV1($reqh,$handle);
 
@@ -180,20 +191,20 @@ sub ofpcv1{
 				# we know it makes sense.
 
 				if ($result) {
-					print "v1 PreprocessEvent OK : Result $result : Message: $message\n" if ($verbose);
-					print "v1 Pushing on to queue" if ($verbose);
+					print "v1 PreprocessEvent OK : Result $result : Message: $message\n" if ($debug);
 					push(@queue,$rawrequest);
+					wlog("ADDED TO QUEUE: $reqh->{'user'} $rawrequest");
 					return(1,"OK");
 				} else {
 					if ($verbose) {
-						print "v1 PreprocessEvent FAIL : Result $result : Message: $message\n" if ($verbose);
-						print "v1 Not adding to queue\n";
+						print "v1 PreprocessEvent FAIL : Result $result : Message: $message\n" if ($debug);
+						wlog("BAD REQUES: $reqh->{'user'} $message : $rawrequest");
 					}
 					return(0,"BAD REQUEST||$message");
 				}
 			} else { # BAD PASS
 				print "v1 Pass Bad\n" if ($debug);
-				return(0,"BAD PASS");
+				return(0,"PASS BAD");
 			}
 
 		} else { # Invalid user
@@ -205,6 +216,16 @@ sub ofpcv1{
 		return(0,"BAD ofpc-v1 REQUEST: $message");
 	}
 }
+
+sub wlog{
+	my $logdata=shift;
+	chomp $logdata;
+	my $gmtime=gmtime();
+	unless ($daemon) {
+		print "LOG: $gmtime GMT: $logdata\n";
+	}
+}
+
 
 sub listener{
 	my ($read_set,$request_s,$request,$sock,$protover);
@@ -226,15 +247,26 @@ sub listener{
                                 my $ns = $rh->accept();
                                 $read_set->add($ns);
                         } else {
+				my $client_ip=$rh->peerhost;		
+				wlog("$client_ip Connected");
                                 #$protover=<$rh>;
+				my $hello;
+				print "Waiting for hello\n";
+				sysread $rh, $hello, 20, 0; 	# HELLO 
+				print "Got $hello Sending banner: \n";
+				print $rh "OFPC READY\n";
+				print "Waiting for client version\n";
 				sysread $rh, $protover, 20, 0; 	# TODO Input validation on len
+				print "got ver $protover\n";
                                 if ($protover) { 		# Get protocol version from client
+					chomp($protover);
 					chomp($protover);
 					print "-L Got version ->$protover<-\n" if ($debug);
 					if ($protover eq "OFPC-v1") { 	# V1 event - In case this changes over time maintain compatibility
 						my ($result, $message) = ofpcv1($rh);
 						if ($result) {
-								print $rh "OK||GOOD TO PROCESS\n";
+								my $qlen=@queue;
+								print $rh "OK||QUEUE $qlen\n";
 						} else {
 							print $rh "$message\n";
 						}
@@ -276,8 +308,8 @@ sub runqueue{
 	} else { # End of master code
 		print "R- $erid Slave device performing extraction\n";
 		# Depending on the log type, we may have all constraints, or possibly only a couple
-		push(@cmdargs,"ofpc-extract.pl -m a");
-		if ($debug) { push (@cmdargs,"--debug"); }
+		push(@cmdargs,"./ofpc-extract.pl -m a");
+	#	if ($debug) { push (@cmdargs,"--debug"); }
 		if ($debug) { push (@cmdargs,"--http"); }
 		if ($eventh->{'sip'}) { push (@cmdargs,"--src-addr $eventh->{'sip'}") ; }
 		if ($eventh->{'dip'}) { push (@cmdargs,"--dst-addr $eventh->{'dip'}") ; }
@@ -295,9 +327,9 @@ sub runqueue{
 		print "Extract command is $extractcmd\n" if ($verbose);
 		my $result=`$extractcmd`;
 		if ($debug)  {
-			print "Result : $extractcmd\n"
+			print "Result : $result\n"
 		}
-
+		return(1,"FILENAME: $result");
 		
 	} # End of slave code
 	# We shouldn't get here unless something has broken
@@ -327,19 +359,17 @@ while(<$config>) {
 		unless ($key eq "USER") {
 	                $config{$key} = join '=', @value;
 		} else {
-			print "C- Adding user:$value[0]: Pass:$value[1]\n"; 
-			$userlist{$value[0]} = $value[1];
+			print "C- Adding user:$value[0]: Pass:$value[1]\n" if ($verbose); 
+			$userlist{$value[0]} = $value[1] ;
 		}
         }
 }
 close $config;
 
-if ($verbose) {
-	if ($config{'MASTER'}) { 
-		print "*  Running in MASTER mode\n"; 
-	} else {
-		print "*  Running in SLAVE mode\n"; 
-	}
+if ($config{'MASTER'}) { 
+	wlog("Starting in MASTER mode"); 
+} else {
+	wlog("Starting in SLAVE mode"); 
 }
 
 my $ipthread = threads->create(\&listener);
@@ -355,15 +385,14 @@ while (1) {
 	my $rqlen=@rqueue;		# Length of retry queue
 	if ($qlen >= 1) {
 		my %request=();
-		print "Q- $qlen Found extract request in queue\n" if ($verbose);
-		print "Q- $qlen Qlen: $qlen\n" if ($verbose);
+		print "Q- $qlen Found extract request in queue\n" if ($debug);
+		print "Q- $qlen Qlen: $qlen\n" if ($debug);
 		$rid++;
 		my $request=shift(@queue);
-		print "Q- $qlen Calling extract for rid $rid $request\n";
+		wlog("Current queue length: $qlen");
+		wlog("Request: $rid Found in queue: $request");
 		my ($result,$message) = runqueue($request,$rid);
-		if ($verbose) {
-			print "Q- Result: $result\nQ-  Message: $message\n";	
-		}
+		wlog("Request: $rid Result: $result  Message: $message");	
 	}
 
 }

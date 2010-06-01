@@ -57,7 +57,7 @@ my $sf=0;
 
 my ($debug,$quiet,$http,$event,$help,@pcaptemp);
 
-GetOptions ( 	't|time=s' => \$timestamp,
+GetOptions ( 	't|time|timestamp=s' => \$timestamp,
 		's|src-addr=s' => \$cmdargs{'sip'},
 		'd|dst-addr=s' => \$cmdargs{'dip'}, 
 		'u|src-port=s' => \$cmdargs{'spt'},
@@ -393,9 +393,6 @@ sub doExtract{
 
 	my $filesize=`ls -lh $config{'SAVE_PATH'}/$cmdargs{'outputFile'} |awk '{print \$5}'`;                # Breaking out to a shell rather than stat for a human readable filesize
 	chomp $filesize;
-	if ($filesize eq 24) {
-		print "EMPTY\n";
-	}
 
 	if ($http) {
         	print "<a href=\"$config{'HYPERLINK_PATH'}/$cmdargs{'outputFile'}\">Download $cmdargs{'outputFile'} ($filesize Bytes)</a>";
@@ -449,6 +446,7 @@ sub doEvent{
 
 	# Work through a list of file-parsers until we get a hit	
 	while (1) {
+		%eventdata=ofpcParse::OFPC1Event($logline); if ($eventdata{'parsed'} ) { last; }
         	%eventdata=ofpcParse::SF49IPS($logline); if ($eventdata{'parsed'} ) { last; }
         	%eventdata=ofpcParse::Exim4($logline); if ($eventdata{'parsed'} ) { last; }
         	%eventdata=ofpcParse::SnortSyslog($logline); if ($eventdata{'parsed'} ) { last; }
