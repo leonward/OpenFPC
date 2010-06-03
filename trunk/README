@@ -20,4 +20,12 @@ OpenFPC-v1\n
 
 UserID = 20chars
 
+S->OFPC READY
+C->OFPC-<version>
+S->OFPC-<version> OK
+C->USER <username>
+S->CHALLENGE:<data>
+C->RESPONSE:<data>
+S->AUTH OK / AUTH BAD
 
+FETCH,SAVE,QUEUE,STATUS||
