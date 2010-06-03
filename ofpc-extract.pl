@@ -31,7 +31,7 @@ use ofpcParse;
 my @CONFIG_FILES=("openfpc.conf", "/etc/openfpc/openfpc.conf","/opt/openfpc/openfpc.conf");
 my $CONFIG_FILE;
 my %config;
-my $openfpcver="0.1a";
+my $openfpcver="0.1b";
 my $eachway=1;
 my $now=time();
 my $verbose=0;
@@ -55,7 +55,7 @@ my $mode=0;
 my $currentRun=0;		# suffix of buffer filename for current running process
 my $sf=0;
 
-my ($debug,$quiet,$http,$event,$help,@pcaptemp);
+my ($debug,$quiet,$ofpc,$event,$help,@pcaptemp);
 
 GetOptions ( 	't|time|timestamp=s' => \$timestamp,
 		's|src-addr=s' => \$cmdargs{'sip'},
@@ -65,7 +65,7 @@ GetOptions ( 	't|time|timestamp=s' => \$timestamp,
 		'p|proto=s' => \$cmdargs{'proto'},
 		'w|write=s' => \$cmdargs{'outputFile'},
 		'h|help' => \$help,
-		'l|http' => \$http,
+		'o|ofpc' => \$ofpc,
 		'b|start|starttime=s' => \$cmdargs{'startTime'},
 		'j|end|endtime=s' => \$cmdargs{'endTime'},
 		'e|eachway=i' => \$eachway,
@@ -91,7 +91,7 @@ sub usage()
   --proto    or -p <PROTOCOL>		Protocol 
   --write    or -w <FILENAME>		Output file
 
-  --http     or -l		        Output in HTML for download
+  --ofpc     or -o		        Called via OFPC slave
   --verbose  or -v                      Verbose output
   --debug				Debug output 
   --quiet				Return only a filename or an error
@@ -281,7 +281,7 @@ sub findBuffers {
 		foreach (@TARGET_PCAPS) {
 			print "$_ \n";
 		}
-		print "\n";
+	unless ($ofpc)	{print "\n";}
 	}
         return(@TARGET_PCAPS);
 }
@@ -354,10 +354,10 @@ sub doExtract{
 	if ($verbose) {
 		print "* Doing Extraction with BPF $bpf\n";
 	}
-	unless ($http or $quiet) { print " - Searching for traffic"; }
+	unless ($ofpc or $quiet) { print " - Searching for traffic"; }
 	foreach (@filelist){
         	(my $pcappath, my $pcapid)=split(/-/, $_);
-        	unless ($http or $verbose or $quiet) { print "."; }
+        	unless ($ofpc or $verbose or $quiet) { print "."; }
         	chomp $_;
         	my $filename="$config{'SAVE_PATH'}/output-$pcapid.pcap";
         	push(@outputpcaps,$filename);
@@ -368,10 +368,10 @@ sub doExtract{
 
 		`$exec`;
 	}
-	unless ($quiet) { print "\n"; }
+	unless ($quiet or $ofpc) { print "\n"; }
 
 	# Now that we have some pcaps, lets concatinate them into a single file
-	unless ($http or $quiet) {
+	unless ($ofpc or $quiet) {
         	print " - Merging ...\n";
 	}
 
@@ -394,8 +394,8 @@ sub doExtract{
 	my $filesize=`ls -lh $config{'SAVE_PATH'}/$cmdargs{'outputFile'} |awk '{print \$5}'`;                # Breaking out to a shell rather than stat for a human readable filesize
 	chomp $filesize;
 
-	if ($http) {
-        	print "<a href=\"$config{'HYPERLINK_PATH'}/$cmdargs{'outputFile'}\">Download $cmdargs{'outputFile'} ($filesize Bytes)</a>";
+	if ($ofpc) {
+        	print "$cmdargs{'outputFile'}";
 	} elsif ($quiet) {
 		print "$config{'SAVE_PATH'}/$cmdargs{'outputFile'}\n";
 	} else {
@@ -518,10 +518,11 @@ sub doInit{
 
 ################# Start processing here ####################
 
-print STDERR "
-* ofpc-extract.pl  - Part of the OpenFPC Project *
+unless ($ofpc) {
+	print " * ofpc-extract.pl  - Part of the OpenFPC Project *
   Leon Ward - leon\@rm-rf.co.uk 
 -------------------------------------------------- \n\n";
+}
 
 if ($debug) { $verbose=1; }
 # Some "sane" defaults to work with in case there isn't a config file
