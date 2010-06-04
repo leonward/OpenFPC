@@ -18,6 +18,7 @@ my ($queuelen,$debug,$verbose,$rid,$CONFIG_FILE,%config,%userlist);
 #my @rqueue : shared =1; @rqueue=();     # Shared retry queue array (for extracts that have failed)
 my $queue = Thread::Queue->new();	# Queue shared over all threads
 my $mrid : shared =1; $mrid=1;	# Master request counter. Quick way to identify  requests
+my %pcaps: shared =1;
 my $daemon=0;
 #$debug=1;
 $verbose=1;
@@ -68,6 +69,7 @@ sub decoderequest($){
 			rid	 =>	0,
                         device   =>     0,
                         filename =>     0,
+			tempfile =>	0,
                         locatoin =>     0,
                         logtype  =>     0,
                         logline  =>     0,
@@ -82,7 +84,6 @@ sub decoderequest($){
 			etime	=>	0,
         );
         my @requestarray = split(/\|\|/, $rawrequest);
-
         my $argnum=@requestarray;
         unless ($argnum == 7 ) {
                 if ($debug) {
@@ -97,7 +98,7 @@ sub decoderequest($){
 	my ($eventdata, $error)=parselog($request{'logline'});
 	unless ($eventdata) {
 		wlog("ERROR: Cannot parse logline-> $error");
-		return(0,"Invalid action $request{'action'}");
+		return(0,"Unable to parse logline. Corrupt or not supported format $request{'logline'}");
 	} else {
 		# Append the session that is being requested to the hash that is the request itself
 		$request{'sip'} = $eventdata->{'sip'};
@@ -110,6 +111,7 @@ sub decoderequest($){
 		$request{'etime'} = $eventdata->{'etime'};
 		$request{'proto'} = $eventdata->{'proto'};
 	}
+	$request{'tempfile'}=time() . "-" . $request{'rid'} . ".pcap";
 
 	if ($debug) {
                 print "   ---Decoded Request---\n" .
@@ -118,6 +120,7 @@ sub decoderequest($){
                 "   Action: 	$request{'action'}\n" .
                 "   Devide: 	$request{'device'}\n" .
                 "   Filename: 	$request{'filename'}\n" .
+		"   Tempfile:	$request{'tempfile'}\n" .
                 "   Location: 	$request{'location'}\n" .
                 "   Type: 	$request{'logtype'}\n" .
                 "   LogLine: 	$request{'logline'}\n" .
@@ -240,6 +243,27 @@ sub comms{
 							$queue->enqueue($request);
 							wlog("COMMS: $client_ip: RID: $request->{'rid'} Request OK -> WAIT!\n");
 							print $client "WAIT: $position\n";
+							$pcaps{$request->{'rid'}} = "WAITING";
+							while ($pcaps{$request->{'rid'}} eq "WAITING") {
+								print "State is $pcaps{$request->{'rid'}}\n";
+								sleep(1);
+								print "Waiting for $request->{'rid'}\n";
+							}
+							print "No longer waiting on $request->{'rid'} state is $pcaps{$request->{'rid'}}\n";
+							my $pcapfile = "$config{'SAVEDIR'}/$pcaps{$request->{'rid'}}";
+							open(PCAP, $pcapfile) or die("cant open pcap file $pcapfile");
+							binmode(PCAP);
+							binmode($client);
+							my $md5=Digest::MD5->new->addfile(*PCAP)->hexdigest;
+							wlog("PCAP $pcapfile md5=$md5");
+							print $client "PCAP MD5: $md5\n";
+							my $data;
+							while (read (PCAP, $data, 1024)) {
+								send($client,$data,0);
+								print "data $data\n";
+							}
+							close(PCAP);
+	                        			shutdown($client,2);
 						}
 					} else {
 						wlog("COMMS: $client_ip: BAD request $error");
@@ -299,7 +323,7 @@ sub doslave{
         if ($request->{'dpt'}) { push (@cmdargs,"--dst-port $request->{'dpt'}") ; } 
         if ($request->{'proto'}) { push (@cmdargs,"--proto $request->{'proto'}") ; } 
         if ($request->{'timestamp'}) { push (@cmdargs,"--timestamp $request->{'timestamp'}") ; } 
-        if ($request->{'filename'}) { push (@cmdargs,"--write $request->{'filename'}") ; } 
+        if ($request->{'filename'}) { push (@cmdargs,"--write $request->{'tempfile'}") ; } 
 
         foreach(@cmdargs) {
  	       $extractcmd=$extractcmd . "$_ ";
@@ -310,7 +334,7 @@ sub doslave{
         if ($debug)  {
 	        print "Result : $result\n"
         }   
-        return(1,"FILENAME: $result");
+        return(1,"$result");
 }
 
 #
@@ -331,7 +355,8 @@ sub runq {
 			} else {
 				my ($result,$message) = doslave($request,$rid);
 				if ($result) {
-                			wlog("QUEUE: Request: $request->{'rid'} Result: Success: Filename: $message");    
+                			wlog("QUEUE: Request: $request->{'rid'} Result: Success: Filename: $message"); 
+					$pcaps{$request->{'rid'}}=$message;
 				} else {
                 			wlog("QUEUE: Request: $request->{'rid'} Result: Failed: $message");    
 				}

@@ -1,6 +1,9 @@
 OpenFPC Project.
 
 Still under dev, not ready for usage yet. 
+TODO:
+- Add VLAN to create 7-tuple 
+- Access limitation for users/vlan/CIDR
 
 Protocol notes for ofpc-queued
 
