@@ -249,21 +249,30 @@ sub comms{
 								sleep(1);
 								print "Waiting for $request->{'rid'}\n";
 							}
-							print "No longer waiting on $request->{'rid'} state is $pcaps{$request->{'rid'}}\n";
+							wlog("Request: $request->{'rid'} Complete: state is $pcaps{$request->{'rid'}}");
 							my $pcapfile = "$config{'SAVEDIR'}/$pcaps{$request->{'rid'}}";
-							open(PCAP, $pcapfile) or die("cant open pcap file $pcapfile");
+
+							# Best to take a MD5 to check xfer is Okay
+							open(PCAPMD5, '<', "$pcapfile") or die("cant open pcap file $pcapfile");
+							my $md5=Digest::MD5->new->addfile(*PCAPMD5)->hexdigest;
+							close(PCAPMD5);
+							wlog("PCAP md5sum $pcapfile $md5");
+							# Get client ready to recieve binary PCAP file
+							print $client "PCAP: $md5\n";
+							
+							open(PCAP, '<', "$pcapfile") or die("cant open pcap file $pcapfile");
 							binmode(PCAP);
 							binmode($client);
-							my $md5=Digest::MD5->new->addfile(*PCAP)->hexdigest;
-							wlog("PCAP $pcapfile md5=$md5");
-							print $client "PCAP MD5: $md5\n";
+
 							my $data;
-							while (read (PCAP, $data, 1024)) {
+							# Read and send pcap data to client
+							while(read(PCAP, $data, 1024)) {
 								send($client,$data,0);
-								print "data $data\n";
 							}
-							close(PCAP);
-	                        			shutdown($client,2);
+							close(PCAP);		# Close file
+	                        			shutdown($client,2);	# CLose client
+
+							wlog("Transfer complete");
 						}
 					} else {
 						wlog("COMMS: $client_ip: BAD request $error");
