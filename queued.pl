@@ -20,46 +20,56 @@ my $queue = Thread::Queue->new();	# Queue shared over all threads
 my $mrid : shared =1; $mrid=1;	# Master request counter. Quick way to identify  requests
 my %pcaps: shared =1;
 my $daemon=0;
-#$debug=1;
+$debug=1;
 $verbose=1;
 my $TCPPORT=4242;
-if ($debug) { $verbose=1;}
+if ($debug) { 
+	$verbose=1;
+	print "DEBUG = ON!\n"
+}
+
+sub pipeHandler {
+    my $sig = shift @_;
+    print "SIGPIPE -> Bad client went away! $sig \n\n" if ($verbose);
+}
+$SIG{PIPE} = \&pipeHandler;
+
 
 sub getrequestid{
 	$mrid++;	
 	return($mrid);
 }
 
-sub parselog{
-        # Recieve a logline, and return a ref to a hash that contains its data if valid
-        my $logline=shift;
-        if ($debug) { print "   Parsing a logline :$logline\n"; }
-        my %eventdata = ();     # Hash of decoded event
-
-        # Work through a list of file-parsers until we get a hit        
-        while (1) {
-                %eventdata=ofpcParse::OFPC1Event($logline); if ($eventdata{'parsed'} ) { last; }
-                %eventdata=ofpcParse::SF49IPS($logline); if ($eventdata{'parsed'} ) { last; }
-                %eventdata=ofpcParse::Exim4($logline); if ($eventdata{'parsed'} ) { last; }
-                %eventdata=ofpcParse::SnortSyslog($logline); if ($eventdata{'parsed'} ) { last; }
-                %eventdata=ofpcParse::SnortFast($logline); if ($eventdata{'parsed'} ) { last; }
-                return(0,"Unable to parse log message");
-        }
- 
-        if ($debug) {
-                print "   ---Decoded Event---\n" .
-                       "   Type: $eventdata{'type'}\n" .
-                       "   Timestamp: $eventdata{'timestamp'} (" . localtime($eventdata{'timestamp'}) . ")\n" .
-                       "   SIP: $eventdata{'sip'}\n" .
-                       "   DIP: $eventdata{'dip'}\n" .
-                       "   SPT: $eventdata{'spt'}\n" .
-                       "   DPT: $eventdata{'dpt'}\n" .
-                       "   Protocol: $eventdata{'proto'}\n" .
-                       "   Message: $eventdata{'msg'}\n" ;
-        }
-
-        return(\%eventdata,"Success");
-}
+#sub parselog{
+#        # Recieve a logline, and return a ref to a hash that contains its data if valid
+#        my $logline=shift;
+#        if ($debug) { print "   Parsing a logline :$logline\n"; }
+#        my %eventdata = ();     # Hash of decoded event
+#
+#        # Work through a list of file-parsers until we get a hit        
+#        while (1) {
+#                %eventdata=ofpcParse::OFPC1Event($logline); if ($eventdata{'parsed'} ) { last; }
+#                %eventdata=ofpcParse::SF49IPS($logline); if ($eventdata{'parsed'} ) { last; }
+#                %eventdata=ofpcParse::Exim4($logline); if ($eventdata{'parsed'} ) { last; }
+#                %eventdata=ofpcParse::SnortSyslog($logline); if ($eventdata{'parsed'} ) { last; }
+#                %eventdata=ofpcParse::SnortFast($logline); if ($eventdata{'parsed'} ) { last; }
+#                return(0, "Unable to parse log message");
+#        }
+# 
+#        if ($debug) {
+#                print "   ---Decoded Event---\n" .
+#                       "   Type: $eventdata{'type'}\n" .
+#                       "   Timestamp: $eventdata{'timestamp'} (" . localtime($eventdata{'timestamp'}) . ")\n" .
+#                       "   SIP: $eventdata{'sip'}\n" .
+#                       "   DIP: $eventdata{'dip'}\n" .
+#                       "   SPT: $eventdata{'spt'}\n" .
+#                       "   DPT: $eventdata{'dpt'}\n" .
+#                       "   Protocol: $eventdata{'proto'}\n" .
+#                       "   Message: $eventdata{'msg'}\n" ;
+#        }
+#
+#        return(\%eventdata,"Success");
+#}
 
 sub decoderequest($){
         # Take a rawrequest from a user and return a ref to a hash of event data
@@ -95,7 +105,7 @@ sub decoderequest($){
         
 
 	# Check logline is valid
-	my ($eventdata, $error)=parselog($request{'logline'});
+	my ($eventdata, $error)=ofpcParse::parselog($request{'logline'});
 	unless ($eventdata) {
 		wlog("ERROR: Cannot parse logline-> $error");
 		return(0,"Unable to parse logline. Corrupt or not supported format $request{'logline'}");
@@ -210,7 +220,7 @@ sub comms{
 						print $client "AUTH OK\n";
 					} else {
 						print "DEBUG: $client_ip: Pass bad\n";
-						print $client_ip "AUTH FAIL\n";
+						print $client "ERROR: AUTH FAIL\n";
 					}
 				} else {
 					print "DEBUG $client_ip: Bad USER: request $buf\n " if ($debug);
