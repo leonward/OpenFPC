@@ -1,4 +1,4 @@
-package ofpcRequest;
+package ofpc::Request;
 
 #########################################################################################
 # Copyright (C) 2009 Leon Ward 
@@ -22,7 +22,7 @@ package ofpcRequest;
 #########################################################################################
 
 use strict;
-use ofpcParse;
+use ofpc::Parse;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
 require Exporter;
 use Switch;
@@ -34,14 +34,12 @@ sub request{
 	# Take a request hash, and a socket, do as asked and return success and a filename, or fail error
 	my $socket=shift;
 	my $request=shift;
-	my $debug=1;
+	my $debug=0;
 	my ($protover);
-	if ($debug) {
-		print Dumper $request;	
-	}
+	print Dumper $request if ($debug);
 	my $protover="OFPC-v1";
 	
-	my ($event,$result)=ofpcParse::parselog($request->{'logline'});
+	my ($event,$result)=ofpc::Parse::parselog($request->{'logline'});
 	unless ($event) {
 		return (0,$result);
 	}
@@ -81,7 +79,6 @@ sub request{
         }   
 
 	# It is expected that any request will have already been sanity checked, but we do it again incase
-
 	# The following are required to make any type of request:
 	unless ($request->{'user'}) { return(0,"No user specified"); }
 	unless ($request->{'action'} =~ m/(queue|fetch)/) { return(0,"Invalid action $request->{'action'}"); }
@@ -103,7 +100,7 @@ sub request{
 
                 switch($data) {
                         case /OFPC READY/ { 
-                                print "DEBUG: Got banner: Sending my protover $protover\n" if ($debug);
+                                print "DEBUG: Got banner: $data: Sending my protover $protover\n" if ($debug);
                                 print $socket "$protover\n";
                         }
                         case /OFPC-v1 OK/ { 
@@ -119,22 +116,22 @@ sub request{
                                         print $socket "RESPONSE:$response\n";
                                 } else {
                                         print "DEBUG: CHALLENGE ERROR\n" if ($debug);
-                                        print $socket "ERROR\n";
+                                        print $socket "ERROR Problem with challenge\n";
                                 }
                         } case /WAIT/ {
                                         if ($data =~ /^WAIT:*\s*(\d+)/) {
                                                 my $position=$1;
-                                                print "DEBUG: Request accepted. Queue position $position. Waiting.....\n";
+                                                print "DEBUG: Request accepted. Queue position $position. Waiting.....\n" if ($debug);
                                         } else {
-                                                print "DEBUG: Request accepted. Queue position problem Waiting.....\n";
+                                                print "DEBUG: Request accepted. Queue position problem Waiting.....\n" if ($debug);
                                         }
                         } case /PCAP/ {
-                                        print "DEBUG: Incomming PCAP\n";
+                                        print "DEBUG: Incomming PCAP\n" if ($debug);
                                         my $md5;
                                         if ($data =~ /^PCAP:\s*(.*)/) {
                                                 $md5=$1;
                                         }
-                                        print "GOT MD5 $md5\n";
+                                        print "GOT MD5 $md5\n" if ($debug);
 
                                         open (PCAP,'>',"$request->{'filename'}");
                                         binmode(PCAP);
@@ -148,19 +145,26 @@ sub request{
                                         open(PCAPMD5, '<', "$request->{'filename'}") or die("cant open pcap file $request->{'filename'}");
                                         my $xfermd5=Digest::MD5->new->addfile(*PCAPMD5)->hexdigest;
                                         close(PCAPMD5);
-                                        print "Epxect: $md5\n Got   : $xfermd5\n";
+                                        print "Expected: $md5\nGot   : $xfermd5\n" if ($debug);
+					if ($md5 eq $xfermd5) {
+						return(1,"Pcap saved");
+					} else {
+						return(0,"Error: MD5 sum misatch during copy");
+					}
+					shutdown($socket,2);
+
      			} case /QUEUED/ {
                                         if ($data =~ /^QUEUE:*\s*(\d+)/) {
                                                 my $position=$1;
-                                                print "DEBUG: Request accepted. Queue postion $position. Disconnecting\n";
+                                                print "DEBUG: Request accepted. Queue postion $position. Disconnecting\n" if ($debug);
                                                 shutdown($socket,2);
                                         } else {
-                                                print "DEBUG: Request accepted. Queueposition unknown. Disconnection\n";
+                                                print "DEBUG: Request accepted. Queueposition unknown. Disconnection\n" if ($debug);
                                                 shutdown($socket,2);
                                         }
                         } case /ERROR/ {
 					if ($data =~ m/^ERROR:(.*)/) {
-	                                        print "DEBUG: Got error: $1 :closing connection\n";
+	                                        print "DEBUG: Got error: $1 :closing connection\n" if ($debug);
 					}
                                         shutdown($socket,2);
                         } case /AUTH OK/ {
@@ -170,7 +174,7 @@ sub request{
                         }
                         case /AUTH FAIL/ {
                                 print "DEBUG: Password BAD\n" if ($debug);
-                                print "Bad password\n";
+				return(0,"Auth failed");
                         #} else {
                         #        die("Unknown server response $data") ;
                         }

@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -I .
 use strict;
 use warnings;
 use Switch;
@@ -9,23 +9,31 @@ use IO::Socket;
 use Digest::MD5(qw(md5_hex));
 use Getopt::Long;
 use Data::Dumper;
-use ofpcParse;
+use ofpc::Parse;
 
 my $openfpcver="0.1a";
 
-my ($queuelen,$debug,$verbose,$rid,$CONFIG_FILE,%config,%userlist);
-#my @queue : shared =1; @queue=();       # Shared queue array
-#my @rqueue : shared =1; @rqueue=();     # Shared retry queue array (for extracts that have failed)
+my ($queuelen,$debug,$verbose,$rid,%config,%userlist,$help);
 my $queue = Thread::Queue->new();	# Queue shared over all threads
 my $mrid : shared =1; $mrid=1;	# Master request counter. Quick way to identify  requests
-my %pcaps: shared =1;
-my $daemon=0;
-$debug=1;
-$verbose=1;
+my %pcaps: shared =();
+my $CONFIG_FILE=0;
+my $daemon=0;		# NOT DONE YET
+$verbose=0;
 my $TCPPORT=4242;
-if ($debug) { 
-	$verbose=1;
-	print "DEBUG = ON!\n"
+
+
+sub showhelp{
+	print <<EOF
+
+   * ofpc-queued.pl *
+   Part of the OpenFPC project.
+
+   --darmon or -D		Daemon mode (NOT DONE YET)
+   --config or -c <config file>	Config file  
+   --help   or -h		Show help
+   --debug  or -d 		Show debug data
+EOF
 }
 
 sub pipeHandler {
@@ -40,36 +48,6 @@ sub getrequestid{
 	return($mrid);
 }
 
-#sub parselog{
-#        # Recieve a logline, and return a ref to a hash that contains its data if valid
-#        my $logline=shift;
-#        if ($debug) { print "   Parsing a logline :$logline\n"; }
-#        my %eventdata = ();     # Hash of decoded event
-#
-#        # Work through a list of file-parsers until we get a hit        
-#        while (1) {
-#                %eventdata=ofpcParse::OFPC1Event($logline); if ($eventdata{'parsed'} ) { last; }
-#                %eventdata=ofpcParse::SF49IPS($logline); if ($eventdata{'parsed'} ) { last; }
-#                %eventdata=ofpcParse::Exim4($logline); if ($eventdata{'parsed'} ) { last; }
-#                %eventdata=ofpcParse::SnortSyslog($logline); if ($eventdata{'parsed'} ) { last; }
-#                %eventdata=ofpcParse::SnortFast($logline); if ($eventdata{'parsed'} ) { last; }
-#                return(0, "Unable to parse log message");
-#        }
-# 
-#        if ($debug) {
-#                print "   ---Decoded Event---\n" .
-#                       "   Type: $eventdata{'type'}\n" .
-#                       "   Timestamp: $eventdata{'timestamp'} (" . localtime($eventdata{'timestamp'}) . ")\n" .
-#                       "   SIP: $eventdata{'sip'}\n" .
-#                       "   DIP: $eventdata{'dip'}\n" .
-#                       "   SPT: $eventdata{'spt'}\n" .
-#                       "   DPT: $eventdata{'dpt'}\n" .
-#                       "   Protocol: $eventdata{'proto'}\n" .
-#                       "   Message: $eventdata{'msg'}\n" ;
-#        }
-#
-#        return(\%eventdata,"Success");
-#}
 
 sub decoderequest($){
         # Take a rawrequest from a user and return a ref to a hash of event data
@@ -105,7 +83,7 @@ sub decoderequest($){
         
 
 	# Check logline is valid
-	my ($eventdata, $error)=ofpcParse::parselog($request{'logline'});
+	my ($eventdata, $error)=ofpc::Parse::parselog($request{'logline'});
 	unless ($eventdata) {
 		wlog("ERROR: Cannot parse logline-> $error");
 		return(0,"Unable to parse logline. Corrupt or not supported format $request{'logline'}");
@@ -198,10 +176,13 @@ sub comms{
                         			print "DEBUG: $client_ip: Waiting for response to challenge\n" if ($debug);
                         			#my $expResp="$challenge$userlist{$reqh->{'user'}}";
                         			$state{'response'}=md5_hex("$challenge$userlist{$state{'user'}}");
+					} else {
+						wlog("COMMS: $client_ip: Bad user $state{'user'}");
+						print $client "AUTH FAIL: Bad user $state{'user'}\n";
 					}
 				} else {
 					wlog("COMMS: $client_ip: Bad USER: request $buf. Sending ERROR");
-					print $client "ERROR: Bad user request\n";
+					print $client "AUTH FAIL: Bad user $state{'user'}\n";
 				}
 
 			} case /RESPONSE/ {
@@ -219,8 +200,8 @@ sub comms{
 						$state{'auth'}=1;		# Mark as authed
 						print $client "AUTH OK\n";
 					} else {
-						print "DEBUG: $client_ip: Pass bad\n";
-						print $client "ERROR: AUTH FAIL\n";
+						wlog("COMMS: $client_ip: Pass Bad");
+						print $client "AUTH FAIL\n";
 					}
 				} else {
 					print "DEBUG $client_ip: Bad USER: request $buf\n " if ($debug);
@@ -374,7 +355,8 @@ sub runq {
 			} else {
 				my ($result,$message) = doslave($request,$rid);
 				if ($result) {
-                			wlog("QUEUE: Request: $request->{'rid'} Result: Success: Filename: $message"); 
+					my $filesize=`ls -lh $message |awk '{print \$5}'`;
+                			wlog("QUEUE: Request: $request->{'rid'} Result: Success: Filename: $message $filesize"); 
 					$pcaps{$request->{'rid'}}=$message;
 				} else {
                 			wlog("QUEUE: Request: $request->{'rid'} Result: Failed: $message");    
@@ -394,13 +376,26 @@ $config{'MASTER'}=0;
 $config{'SAVEDIR'}="/tmp";
 
 GetOptions (    'c|conf=s' => \$CONFIG_FILE,
+		'D|daemon' => \$daemon,
+		'h|help' => \$help,
+		'd|debug' => \$debug,
+		'v|verbose' => \$verbose,
                 );
+if ($debug) { 
+	$verbose=1;
+	print "DEBUG = ON!\n"
+}
+
+if ($help) { 
+	showhelp();
+	exit;
+}
 
 if ($verbose) {
         print "*  Reading config file $CONFIG_FILE\n";
 }
 
-unless ($CONFIG_FILE) { die "Unable to find a config file"; }
+unless ($CONFIG_FILE) { die "Unable to find a config file. See help (--help)"; }
 open my $config, '<', $CONFIG_FILE or die "Unable to open config file $CONFIG_FILE $!";
 while(<$config>) {
         chomp;
@@ -439,7 +434,7 @@ while (my $sock = $listenSocket->accept) {
 	ioctl($sock, 0x8004667e, \\$nonblocking);
 	$sock->autoflush(1);
 	my $client_ip=$sock->peerhost;
-	wlog("Accepted new connection from $client_ip") ;
+	wlog("COMMS: Accepted new connection from $client_ip") ;
 
 	# start new thread and listen on the socket
 	threads->create("comms", $sock);

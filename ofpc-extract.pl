@@ -25,7 +25,7 @@ use strict;
 use warnings;
 use Data::Dumper;
 use Getopt::Long;
-use ofpcParse;
+use ofpc::Parse;
 
 # List of config files to look for, first one wins 
 my @CONFIG_FILES=("openfpc.conf", "/etc/openfpc/openfpc.conf","/opt/openfpc/openfpc.conf");
