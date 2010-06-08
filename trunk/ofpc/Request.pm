@@ -34,7 +34,7 @@ sub request{
 	# Take a request hash, and a socket, do as asked and return success and a filename, or fail error
 	my $socket=shift;
 	my $request=shift;
-	my $debug=0;
+	my $debug=1;
 	my ($protover);
 	print Dumper $request if ($debug);
 	my $protover="OFPC-v1";
@@ -59,6 +59,7 @@ sub request{
 	if ($debug) {
                 print "   ---ofpcRequest---\n" .
                 "   User        $request->{'user'}\n" .
+                "   Password    $request->{'password'}\n" .
                 "   RID         $request->{'rid'}\n".
                 "   Action:     $request->{'action'}\n" .
                 "   Device:     $request->{'device'}\n" .
@@ -81,7 +82,7 @@ sub request{
 	# It is expected that any request will have already been sanity checked, but we do it again incase
 	# The following are required to make any type of request:
 	unless ($request->{'user'}) { return(0,"No user specified"); }
-	unless ($request->{'action'} =~ m/(queue|fetch)/) { return(0,"Invalid action $request->{'action'}"); }
+	unless ($request->{'action'} =~ m/(store|fetch)/) { return(0,"Invalid action $request->{'action'}"); }
 	
 	# Make request from Socket
 	my $reqstring="$request->{'user'}||" .
@@ -121,7 +122,7 @@ sub request{
                         } case /WAIT/ {
                                         if ($data =~ /^WAIT:*\s*(\d+)/) {
                                                 my $position=$1;
-                                                print "DEBUG: Request accepted. Queue position $position. Waiting.....\n" if ($debug);
+						print "- In Queue. Position: $position\n";
                                         } else {
                                                 print "DEBUG: Request accepted. Queue position problem Waiting.....\n" if ($debug);
                                         }
@@ -131,7 +132,7 @@ sub request{
                                         if ($data =~ /^PCAP:\s*(.*)/) {
                                                 $md5=$1;
                                         }
-                                        print "GOT MD5 $md5\n" if ($debug);
+                                        print "Expecting MD5 $md5\n" if ($debug);
 
                                         open (PCAP,'>',"$request->{'filename'}");
                                         binmode(PCAP);
@@ -145,32 +146,38 @@ sub request{
                                         open(PCAPMD5, '<', "$request->{'filename'}") or die("cant open pcap file $request->{'filename'}");
                                         my $xfermd5=Digest::MD5->new->addfile(*PCAPMD5)->hexdigest;
                                         close(PCAPMD5);
+					print "$request->{'filename'} on disk is has md5 $xfermd5\n";
                                         print "Expected: $md5\nGot   : $xfermd5\n" if ($debug);
 					if ($md5 eq $xfermd5) {
-						return(1,"Pcap saved");
+						return(1,"Pcap saved: $request->{'filename'}");
 					} else {
 						return(0,"Error: MD5 sum misatch during copy");
 					}
 					shutdown($socket,2);
 
      			} case /QUEUED/ {
-                                        if ($data =~ /^QUEUE:*\s*(\d+)/) {
+                                        if ($data =~ /^QUEUED:*\s*(\d+)/) {
                                                 my $position=$1;
                                                 print "DEBUG: Request accepted. Queue postion $position. Disconnecting\n" if ($debug);
                                                 shutdown($socket,2);
+						return(1,"Request Queued. Position: $position");
                                         } else {
                                                 print "DEBUG: Request accepted. Queueposition unknown. Disconnection\n" if ($debug);
+						return(1,"Request Queued. Position: unknown");
                                                 shutdown($socket,2);
                                         }
                         } case /ERROR/ {
+					my $error;
 					if ($data =~ m/^ERROR:(.*)/) {
+						$error=$1;
 	                                        print "DEBUG: Got error: $1 :closing connection\n" if ($debug);
 					}
+					return(0,"ERROR $error");
                                         shutdown($socket,2);
                         } case /AUTH OK/ {
                                 print "DEBUG: Password OK\n" if ($debug);
                                 print $socket "REQ:$reqstring\n";
-                                print "Data submitted\n";
+                                print "- Data submitted\n";
                         }
                         case /AUTH FAIL/ {
                                 print "DEBUG: Password BAD\n" if ($debug);

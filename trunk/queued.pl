@@ -10,6 +10,7 @@ use Digest::MD5(qw(md5_hex));
 use Getopt::Long;
 use Data::Dumper;
 use ofpc::Parse;
+use ofpc::Request;
 
 my $openfpcver="0.1a";
 
@@ -20,7 +21,6 @@ my %pcaps: shared =();
 my $CONFIG_FILE=0;
 my $daemon=0;		# NOT DONE YET
 $verbose=0;
-my $TCPPORT=4242;
 
 
 sub showhelp{
@@ -125,14 +125,14 @@ sub decoderequest($){
 
 	# Check action: Valid actions are:
 	# fetch 	Fetch pcap and return to client/server
-	# save		Store session and return success/fail message to requestor
+	# store		Store session and return success/fail message to requestor
 	# queue		Queue session for extracion, and disconnect
 	# replay	Replay traffic (FUTURE)
 
 	$request{'action'} = lc $request{'action'};
 	$request{'rid'} = getrequestid();
 
-	if (($request{'action'} eq "fetch" ) or ($request{'action'} eq "save" ) or ($request{'action'} eq "replay") or ($request{'action'} eq "queue")) {
+	if (($request{'action'} eq "fetch" ) or ($request{'action'} eq "store" ) or ($request{'action'} eq "replay") or ($request{'action'} eq "queue")) {
 		wlog("DECODE: Recieved valid action $request{'action'}");
         	return(\%request,"Okay");
 	} else {
@@ -223,31 +223,31 @@ sub comms{
 						# Generate a rid (request ID for this.... request!).
 						# Unless action is something we need to wait for, lets close connection
 						my $position=$queue->pending();
-						if ("$request->{'action'}" eq "queue") {
+						if ("$request->{'action'}" eq "store") {
 							$queue->enqueue($request);
 							#Say thanks and disconnect
 							print "DEBUG: $client_ip: RID: $request->{'rid'}: Queue actin requested -> disconnecting\n" if ($debug);
 							print $client "QUEUED: $position\n";
 							shutdown($client,2);
-							
 						} else {
 							$queue->enqueue($request);
 							wlog("COMMS: $client_ip: RID: $request->{'rid'} Request OK -> WAIT!\n");
 							print $client "WAIT: $position\n";
 							$pcaps{$request->{'rid'}} = "WAITING";
 							while ($pcaps{$request->{'rid'}} eq "WAITING") {
-								print "State is $pcaps{$request->{'rid'}}\n";
+								# Wait for our request to be complete"
+								print "State is $pcaps{$request->{'rid'}}\n" if ($debug);
+								print "Waiting for $request->{'rid'}\n" if ($debug);
 								sleep(1);
-								print "Waiting for $request->{'rid'}\n";
 							}
-							wlog("Request: $request->{'rid'} Complete: state is $pcaps{$request->{'rid'}}");
+							wlog("Request: $request->{'rid'} Complete: state is $pcaps{$request->{'rid'}}<-");
 							my $pcapfile = "$config{'SAVEDIR'}/$pcaps{$request->{'rid'}}";
 
 							# Best to take a MD5 to check xfer is Okay
 							open(PCAPMD5, '<', "$pcapfile") or die("cant open pcap file $pcapfile");
 							my $md5=Digest::MD5->new->addfile(*PCAPMD5)->hexdigest;
 							close(PCAPMD5);
-							wlog("PCAP md5sum $pcapfile $md5");
+							wlog("PCAP $client_ip Request: $request->{'rid'} PCAP MD5 $pcapfile $md5");
 							# Get client ready to recieve binary PCAP file
 							print $client "PCAP: $md5\n";
 							
@@ -263,7 +263,7 @@ sub comms{
 							close(PCAP);		# Close file
 	                        			shutdown($client,2);	# CLose client
 
-							wlog("Transfer complete");
+							wlog("COMMS: $client_ip Request: $request->{'rid'} Transfer complete");
 						}
 					} else {
 						wlog("COMMS: $client_ip: BAD request $error");
@@ -304,14 +304,42 @@ sub wlog{
 
 sub domaster{
 	my $request=shift;
-	die("Not done yet");
+	print "---- for the moment, lets only request data from our one host\n";
+	# Create socket
+	# Request data (store)
+	#Disconnect
+
+	my $slavesock = IO::Socket::INET->new(
+                                PeerAddr => 'localhost',
+                                PeerPort => '4242',
+                                Proto => 'tcp',
+                                );
+	unless ($slavesock) { die("Unable to create socket to slave "); }
+	$request->{'user'} = "ofpc";
+	$request->{'password'} = "ofpc";
+	$request->{'tempfile'}="M" . time() . "-" . $request->{'rid'} . ".pcap";
+	# This is a master request, we don't want the user to control what file we will
+	# write on the master. Create our own tempfile.
+	$request->{'filename'}="$config{'SAVEDIR'}/$request->{'tempfile'}";	
+	print Dumper $request;
+	my ($result, $message)=ofpc::Request::request($slavesock,$request);
+	print "Master Result: $result\n";
+	print "Master got MEssage: $message\n";
+	# Return the name of the file that we have been passed by the slave
+	if ($result) {
+		# Looks good
+		return(1,$request->{'tempfile'});
+	} else {
+		return(0,"Unknown problem");
+
+	}
 }
 
 sub doslave{
 	my $extractcmd;
 	my $request=shift;
 	my @cmdargs=();
-	wlog("SLAVE: Request: $request->{'rid'} Performing slave action");
+	wlog("SLAVE: Request: $request->{'rid'} User: $request->{'user'} Action: $request->{'action'}");
 
         # Depending on the log type, we may have all constraints, or possibly only a couple
         push(@cmdargs,"./ofpc-extract.pl -m a");
@@ -330,10 +358,13 @@ sub doslave{
         }   
 
         print "DEBUG: Extract command is $extractcmd\n" if ($debug);
+	# The "result" of extractcmd should be the filename, or 0.
+
         my $result=`$extractcmd`;
         if ($debug)  {
 	        print "Result : $result\n"
         }   
+	# Return the name of the file that we have extracted
         return(1,"$result");
 }
 
@@ -347,19 +378,20 @@ sub runq {
         	my $qlen=$queue->pending();     # Length of extract queue
         	if ($qlen >= 1) {
 			my $request=$queue->dequeue();
-                	wlog("QUEUE: Found request : Queue length: $qlen");
-                	wlog("QUEUE Request: $request->{'rid'} User: $request->{'user'} Found in queue:");
+                	wlog("QUEUE: Found request: $request->{'rid'} Queue length: $qlen");
+                	wlog("QUEUE: Request: $request->{'rid'} User: $request->{'user'} Found in queue:");
 			if ($config{'MASTER'}) {
 				my ($result,$message)=domaster($request,$rid);
-                		wlog("QUEUE: Request: $request->{'rid'} Result: $result  Message: $message");    
+                		wlog("QUEUE: MASTER: Request: $request->{'rid'} Result: $result Message: $message");    
+				$pcaps{$request->{'rid'}}=$message; # Report done
 			} else {
 				my ($result,$message) = doslave($request,$rid);
 				if ($result) {
-					my $filesize=`ls -lh $message |awk '{print \$5}'`;
-                			wlog("QUEUE: Request: $request->{'rid'} Result: Success: Filename: $message $filesize"); 
+					my $filesize=`ls -lh $config{'SAVEDIR'}/$message |awk '{print \$5}'`;
+                			wlog("QUEUE: SLAVE: Request: $request->{'rid'} Result: Success: Filename: $message $filesize"); 
 					$pcaps{$request->{'rid'}}=$message;
 				} else {
-                			wlog("QUEUE: Request: $request->{'rid'} Result: Failed: $message");    
+                			wlog("QUEUE: SLAVE: Request: $request->{'rid'} Result: Failed: $message");    
 				}
 			}
         	}
@@ -418,9 +450,9 @@ if ($config{'MASTER'}) {
 }
 
 # Start listener
-print "*  Starting listener \n" if ($debug);
+print "*  Starting listener on TCP:$config{'PORT'}\n" if ($debug);
 my $listenSocket = IO::Socket::INET->new(
-                                LocalPort => $TCPPORT,
+                                LocalPort => $config{'PORT'},
                                 Proto => 'tcp',
                                 Listen => '10',
                                 Reuse => 1,
@@ -439,4 +471,3 @@ while (my $sock = $listenSocket->accept) {
 	# start new thread and listen on the socket
 	threads->create("comms", $sock);
 }
-
