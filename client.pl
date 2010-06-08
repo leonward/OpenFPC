@@ -17,6 +17,7 @@ sub showhelp{
 
   --------   General   -------
   --server or -s <ofpc server IP>	ofpc server to connect to
+  --port or -o <TCP PORT>		Port to connect to (default 4242)
   --user or -u <username>		Username	
   --password or -p <password>		Password (if not supplied, it will be prompted for)
   --action or -a  <action>		OFPC action to take, e.g. fetch, store, status, status, ctx
@@ -93,7 +94,7 @@ if ($debug) {
 	"Action:		$request{'action'}\n" .
 	"Logtype:	$request{'logtype'}\n" .
 	"Logline:	$request{'logline'}\n" .
-	"Filename:	$config{'filename'}\n" .
+	"Filename:	$cmdargs{'filename'}\n" .
 	"\n";
 }
 
@@ -118,7 +119,7 @@ my $sock = IO::Socket::INET->new(
                                 PeerPort => $config{'port'},
                                 Proto => 'tcp',
                                 );  
-unless ($sock) { die("Unable to create socket to server $config{'server'} on TCP:$config{'port'}"); }
+unless ($sock) { die("Unable to create socket to server $config{'server'} on TCTP:$config{'port'}"); }
 
 unless ($request{'password'}) {
 	print "Password for user $request{'user'} : ";
@@ -128,10 +129,15 @@ unless ($request{'password'}) {
 }
 
 my ($result, $message)=ofpc::Request::request($sock,\%request);
-
 if ($result == 1) {
-	my $filesize=`ls -lh $request{'filename'} |awk '{print \$5}'`;
-	print "$request{'filename'} Saved, $filesize\n";
+	if ($request{'action'} eq "fetch") {
+		# As we have the file locally, lets provide some metadata
+		my $filesize=`ls -lh $request{'filename'} |awk '{print \$5}'`;
+		chomp $filesize;
+		print "$request{'filename'} Saved, $filesize\n";
+	} else {
+		print "Result: $message\n";
+	}
 } else {
 	print "Problem processing request : $message\n";
 }
