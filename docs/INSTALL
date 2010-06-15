@@ -1,0 +1,20 @@
+
+
+
+## Notes on session indexing with cxtracker data into DB
+
+To have access to search through connection data (If you want to,
+and you dont have any other connection tracking software like NetFlow etc.)
+you can enable cxtracker to extract metadata of the connections, which
+then will store it to disk where a perl agent will load the sessions into a DB.
+
+Session data will take up a lot of space in the DB, but its not necessary
+or the job of OpenFPC to retain session data beyond the time of the last pcap data.
+
+For session data to be present in OpenFPC, cxtracker and fpc-session-loader.pl
+needs to be running.
+
+You can now use the OpenFPC webgui to search connection, click on the connection
+of choice, and have the pcap served to your webbrowser, where you probably want 
+to save it to disk or open it in wireshark etc.
+
