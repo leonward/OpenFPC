@@ -1,4 +1,26 @@
 #!/usr/bin/perl -I .
+
+#########################################################################################
+# Copyright (C) 2010 Leon Ward 
+# openfpc-queued.pl - Part of the OpenFPC - (Full Packet Capture) project
+#
+# Contact: leon@rm-rf.co.uk
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#########################################################################################
+
 use strict;
 use warnings;
 use Switch;
@@ -58,7 +80,7 @@ sub decoderequest($){
                         device   =>     0,
                         filename =>     0,
 			tempfile =>	0,
-                        locatoin =>     0,
+                        location =>     0,
                         logtype  =>     0,
                         logline  =>     0,
 			sip	=>	0,
@@ -102,38 +124,24 @@ sub decoderequest($){
 	$request{'tempfile'}=time() . "-" . $request{'rid'} . ".pcap";
 
 	if ($debug) {
-                print "   ---Decoded Request---\n" .
-                "   User	: $request{'user'}\n" .
-		"   RID		: $request{'rid'}\n".
-                "   Action: 	$request{'action'}\n" .
-                "   Devide: 	$request{'device'}\n" .
-                "   Filename: 	$request{'filename'}\n" .
-		"   Tempfile:	$request{'tempfile'}\n" .
-                "   Location: 	$request{'location'}\n" .
-                "   Type: 	$request{'logtype'}\n" .
-                "   LogLine: 	$request{'logline'}\n" .
-		"   SIP:		$request{'sip'}\n" .
-		"   DIP:		$request{'dip'}\n" .
-		"   Proto:	$request{'proto'}\n".
-		"   SPT:		$request{'spt'}\n" .
-		"   DPT:		$request{'dpt'}\n" .
-		"   MSG:		$request{'msg'}\n" .
-		"   Timestamp	$request{'timestamp'}\n" .
-		"   StartTime	$request{'stime'}\n" .
-		"   EndTime	$request{'etime'}\n" ;
+		print "DEBUG Dumping request in decoderequest\n";
+		print Dumper %request;
         }
 
 	# Check action: Valid actions are:
+
 	# fetch 	Fetch pcap and return to client/server
-	# store		Store session and return success/fail message to requestor
-	# queue		Queue session for extracion, and disconnect
+	# store		Request data for extraction, and disconnect.
+	# status	Provide status of slave device
+	# ctxsum	Get traffic/connection summary between starttime/endtime
+	# ctxall	Get traffic/connection tables between starttime/endtime
 	# replay	Replay traffic (FUTURE)
 
 	$request{'action'} = lc $request{'action'};
 	$request{'rid'} = getrequestid();
 
-	if (($request{'action'} eq "fetch" ) or ($request{'action'} eq "store" ) or ($request{'action'} eq "replay") or ($request{'action'} eq "queue")) {
-		wlog("DECODE: Recieved valid action $request{'action'}");
+	if ($request{'action'} =~ m/(fetch|store|status)/) {
+		wlog("DECODE: Recieved action $request{'action'}");
         	return(\%request,"Okay");
 	} else {
 		wlog("DECODE: Recieved invalid action $request{'action'}");
@@ -177,7 +185,7 @@ sub comms{
                         			#my $expResp="$challenge$userlist{$reqh->{'user'}}";
                         			$state{'response'}=md5_hex("$challenge$userlist{$state{'user'}}");
 					} else {
-						wlog("COMMS: $client_ip: Bad user $state{'user'}");
+						wlog("COMMS: $client_ip: AUTH FAIL: Bad user: $state{'user'}");
 						print $client "AUTH FAIL: Bad user $state{'user'}\n";
 					}
 				} else {
@@ -208,11 +216,13 @@ sub comms{
 					print $client "ERROR: Bad password request\n";
 				}
 
-			} case /ERROR/ {
+			} 
+			case /ERROR/ {
                                 print "DEBUG $client_ip: Got error closing connection\n";
                                 shutdown($client,2);
 
-			} case /^REQ/ {	
+			} 
+			case /^REQ/ {	
 				my $reqcmd;
 				# OFPC request. Made up of ACTION||
 				if ($buf =~ /REQ:\s*(.*)/) {
@@ -229,7 +239,7 @@ sub comms{
 							print "DEBUG: $client_ip: RID: $request->{'rid'}: Queue actin requested -> disconnecting\n" if ($debug);
 							print $client "QUEUED: $position\n";
 							shutdown($client,2);
-						} else {
+						} elsif ($request->{'action'} eq "fetch") {
 							$queue->enqueue($request);
 							wlog("COMMS: $client_ip: RID: $request->{'rid'} Request OK -> WAIT!\n");
 							print $client "WAIT: $position\n";
@@ -264,6 +274,8 @@ sub comms{
 	                        			shutdown($client,2);	# CLose client
 
 							wlog("COMMS: $client_ip Request: $request->{'rid'} Transfer complete");
+						} elsif ($request->{'action'} eq "status") {
+							wlog ("COMMS: $client_ip Recieved Status Request");	
 						}
 					} else {
 						wlog("COMMS: $client_ip: BAD request $error");
@@ -311,7 +323,7 @@ sub domaster{
 
 	my $slavesock = IO::Socket::INET->new(
                                 PeerAddr => 'localhost',
-                                PeerPort => '4242',
+                                PeerPort => '4241',
                                 Proto => 'tcp',
                                 );
 	unless ($slavesock) { die("Unable to create socket to slave "); }
@@ -363,7 +375,8 @@ sub doslave{
         my $result=`$extractcmd`;
         if ($debug)  {
 	        print "Result : $result\n"
-        }   
+        }
+	wlog("SLAVE: Extraction complete: Result: $result");   
 	# Return the name of the file that we have extracted
         return(1,"$result");
 }
@@ -371,7 +384,7 @@ sub doslave{
 #
 sub runq {
 	while (1) {
-        	sleep(1);                       # Pause between polls of queues
+        	sleep(1);                       # Pause between polls of queue
         	if ($debug) { 
 #               	print "Waiting.\n" ;
         	}
@@ -385,13 +398,13 @@ sub runq {
                 		wlog("QUEUE: MASTER: Request: $request->{'rid'} Result: $result Message: $message");    
 				$pcaps{$request->{'rid'}}=$message; # Report done
 			} else {
-				my ($result,$message) = doslave($request,$rid);
+				my ($result,$filename) = doslave($request,$rid);
 				if ($result) {
-					my $filesize=`ls -lh $config{'SAVEDIR'}/$message |awk '{print \$5}'`;
-                			wlog("QUEUE: SLAVE: Request: $request->{'rid'} Result: Success: Filename: $message $filesize"); 
-					$pcaps{$request->{'rid'}}=$message;
+					my $filesize=`ls -lh $config{'SAVEDIR'}/$filename |awk '{print \$5}'`;
+                			wlog("QUEUE: SLAVE: Request: $request->{'rid'} Success. File: $filename $filesize now cached on SLAVE in $config{'SAVEDIR'}"); 
+					$pcaps{$request->{'rid'}}=$filename;
 				} else {
-                			wlog("QUEUE: SLAVE: Request: $request->{'rid'} Result: Failed: $message");    
+                			wlog("QUEUE: SLAVE: Request: $request->{'rid'} Result: Failed, $filename.");    
 				}
 			}
         	}
@@ -401,11 +414,9 @@ sub runq {
 
 ########### Start here ############
 
-
-
 # Some config defaults
-$config{'MASTER'}=0;
-$config{'SAVEDIR'}="/tmp";
+$config{'MASTER'}=0;		# Default is slave mode
+$config{'SAVEDIR'}="/tmp";	# Where to save cached PCAP files.
 
 GetOptions (    'c|conf=s' => \$CONFIG_FILE,
 		'D|daemon' => \$daemon,

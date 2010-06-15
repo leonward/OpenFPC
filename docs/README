@@ -1,34 +1,19 @@
 OpenFPC Project.
 
 Still under dev, not ready for usage yet. 
-TODO:
-- Add VLAN to create 7-tuple 
-- Access limitation for users/vlan/CIDR
 
-Protocol notes for ofpc-queued
+Notes on actions that can be sent by client to master or slave devices.
 
-OFPC-Protocol Version 1
-
-Fileld			Type		Len
-# Proto version		4		
-# userid      		15		
-# wait			1 (1/0)
-# filename		20
-# storagelocation	50
-# capture-device	20
-# Request data		500
+fetch         Fetch pcap and return to client/server
+store         Request data for extraction, and disconnect.
+status        Provide status of slave device
+ctxsum        Get traffic/connection summary between starttime/endtime
+ctxall        Get traffic/connection tables between starttime/endtime
+replay        Replay traffic (FUTURE)
 
 OpenFPC-v1\n
 <userid>||<action>||<device>||<filename>||<location>||<logformat>||<data>
 
-UserID = 20chars
 
-S->OFPC READY
-C->OFPC-<version>
-S->OFPC-<version> OK
-C->USER <username>
-S->CHALLENGE:<data>
-C->RESPONSE:<data>
-S->AUTH OK / AUTH BAD
+Status format
 
-FETCH,SAVE,QUEUE,STATUS||
