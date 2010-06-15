@@ -11,10 +11,18 @@ then will store it to disk where a perl agent will load the sessions into a DB.
 Session data will take up a lot of space in the DB, but its not necessary
 or the job of OpenFPC to retain session data beyond the time of the last pcap data.
 
-For session data to be present in OpenFPC, cxtracker and fpc-session-loader.pl
+For session data to be present in OpenFPC, cxtracker and cxtracker2db.pl
 needs to be running.
 
 You can now use the OpenFPC webgui to search connection, click on the connection
 of choice, and have the pcap served to your webbrowser, where you probably want 
 to save it to disk or open it in wireshark etc.
+
+Installing cxtracker:
+$ git clone git://github.com/gamelinux/cxtracker.git
+$ less cxtracker/doc/INSTALL
+# Follow the INSTALL instructions
+
+Also remember to edit openfpc/www/index.php and set the DB configuration and
+edit "Settings" to fit your needs.
 
