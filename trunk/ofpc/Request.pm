@@ -32,6 +32,14 @@ $VERSION = '0.01';
 
 sub request{
 	# Take a request hash, and a socket, do as asked and return success and a filename, or fail error
+	# Success returns (1,"<data requested>)
+	# Fail returns (0,"<Reason for fail>")
+	# E.g
+
+	# Fetch action: (1,"/tmp/foo.pcap")
+	# Queue action: (1,"Queued: Position, 2")
+	# Status action: (1,"x,x,x,x,x,x,x,x,x,x,x,x,x")  Note: See README for status CSV format
+
 	my $socket=shift;
 	my $request=shift;
 	my $debug=1;
@@ -82,7 +90,7 @@ sub request{
 	# It is expected that any request will have already been sanity checked, but we do it again incase
 	# The following are required to make any type of request:
 	unless ($request->{'user'}) { return(0,"No user specified"); }
-	unless ($request->{'action'} =~ m/(store|fetch)/) { return(0,"Invalid action $request->{'action'}"); }
+	unless ($request->{'action'} =~ m/(store|fetch|status)/) { return(0,"Invalid action $request->{'action'}"); }
 	
 	# Make request from Socket
 	my $reqstring="$request->{'user'}||" .
