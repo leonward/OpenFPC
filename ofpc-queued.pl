@@ -43,7 +43,7 @@ my %pcaps: shared =();
 my $CONFIG_FILE=0;
 my $daemon=0;		# NOT DONE YET
 $verbose=0;
-
+$debug=1;
 
 sub showhelp{
 	print <<EOF
@@ -315,6 +315,10 @@ sub wlog{
 
 
 sub domaster{
+	# OUT OF SCOPE FOR INITIAL RELEASE
+	# I had this working in a few tests, so theory is Okay, but needs some more planing before
+	# release.
+
 	my $request=shift;
 	print "---- for the moment, lets only request data from our one host\n";
 	# Create socket

@@ -40,25 +40,35 @@ my %config=(
                 saveconfig => "./myofpc.conf",
 		SAVEDIR => "/tmp",
 		VERBOSE => "1",
+		PORT => "4242",
+		MASTER => 0,
+		BUFFER_PATH => "/var/tmp/openfpc",
+		FILE_SIZE => "10",
+		DISK_SPACE => "50",	
                 );  
 
 # Rather than dupe questions for different operation modes and setup styles, these are a list of questions to ask for slave/simple, slave/advanced, and in the future master/simple, master/advanced.
 
 my @slavesimple=(
+	"BUFFER_PATH",
 	"SAVEDIR");
 my @slaveadvanced=(
 	"OFPCUSER",
+	"BUFFER_PATH",
 	"SAVEDIR",
+	"PORT",
 	"VERBOSE",);
 
 # This is a hash of things we need to configure. It contains the variable, and the question to present to the user
 $question{'OFPCUSER'} = "What User ID would you like to run the ofpc process as?";
 $question{'VERBOSE'} = "Run in verbose mode (WARNING this disables daemon mode (not done yet!)) \n (1=on 0=off)";
 $question{'SAVEDIR'} = "Location to save extracted sessions to";
-
+$question{'BUFFER_PATH'} = "Path to store traffic buffer, this is where you want to throw a large quantity of storage.\n";
+$question{'PORT'} = "TCP port for openfpc to listen on";
 # Input validations to make sure we get valid data as part of the setup questions.
 # Format is a key, and then a pcre to m/$stuff/.
 $validation{'VERBOSE'} = "(1|0)";
+$validation{'PORT'} = "\d{1,5}";
 
 sub askq{
 	# Ask a question, return an answer

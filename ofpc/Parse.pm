@@ -31,8 +31,8 @@ $VERSION = '0.01';
 sub parselog{
         # Recieve a logline, and return a ref to a hash that contains its data if valid
         my $logline=shift;
-	my $debug=0;
-        if ($debug) { print "   Parsing a logline :$logline\n"; }
+	my $debug=1;
+        if ($debug) { print "   Parsing the logline :$logline\n"; }
         my %eventdata = ();     # Hash of decoded event
 
         # Work through a list of file-parsers until we get a hit        
@@ -42,6 +42,7 @@ sub parselog{
                 %eventdata=ofpc::Parse::Exim4($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=ofpc::Parse::SnortSyslog($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=ofpc::Parse::SnortFast($logline); if ($eventdata{'parsed'} ) { last; }
+		print Dumper %eventdata;
                 return(0, "Unable to parse log message");
         }   
  
@@ -117,7 +118,7 @@ sub OFPC1Event{
 		$event{'parsed'}=1;
 	
 	}
-
+	print Dumper %event;
 	return(%event);
 
 }

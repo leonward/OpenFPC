@@ -49,6 +49,7 @@ sub request{
 	
 	my ($event,$result)=ofpc::Parse::parselog($request->{'logline'});
 	unless ($event) {
+		print "Failed local request validation. Not passing this request to server" if ($debug);
 		return (0,$result);
 	}
 
