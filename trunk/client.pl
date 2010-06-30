@@ -133,7 +133,11 @@ if ($request{'action'} =~ m/(fetch|store)/)  {
 		print "Error: This action requres a request line or session identifiers\n\n";
 		exit;
 	}
-} 
+} else {
+	die("Action $request{'action'} invalid, or not implemented yet");
+}
+
+
 
 my $sock = IO::Socket::INET->new(
 				PeerAddr => $config{'server'},
