@@ -44,27 +44,41 @@ my %config=(
 		MASTER => 0,
 		BUFFER_PATH => "/var/tmp/openfpc",
 		FILE_SIZE => "10",
-		DISK_SPACE => "50",	
+		DISK_SPACE => "50",
+		SESSION_DB_NAME => "openfpc",
+		SESSION_DB_PASS => "openfpc",
+		SESSION_DIR => "/var/tmp/ofpc_session",	
                 );  
 
 # Rather than dupe questions for different operation modes and setup styles, these are a list of questions to ask for slave/simple, slave/advanced, and in the future master/simple, master/advanced.
 
 my @slavesimple=(
 	"BUFFER_PATH",
-	"SAVEDIR");
+	"SAVEDIR",
+	"SESSION_DIR",
+	"SESSION_DB_NAME",
+	"SESSION_DB_PASS");
+
 my @slaveadvanced=(
 	"OFPCUSER",
 	"BUFFER_PATH",
 	"SAVEDIR",
-	"PORT",
-	"VERBOSE",);
+	"SESSIONDIR",
+	"SESSION_DB_NAME",
+	"SESSION_DB_PASS",
+	"SESSOIN_DB_PORT",
+	"OFPC_PORT",
+	"VERBOSE");
 
 # This is a hash of things we need to configure. It contains the variable, and the question to present to the user
-$question{'OFPCUSER'} = "What User ID would you like to run the ofpc process as?";
+$question{'OFPCUSER'} = "What system User ID would you like to run the ofpc process as?";
 $question{'VERBOSE'} = "Run in verbose mode (WARNING this disables daemon mode (not done yet!)) \n (1=on 0=off)";
 $question{'SAVEDIR'} = "Location to save extracted sessions to";
 $question{'BUFFER_PATH'} = "Path to store traffic buffer, this is where you want to throw a large quantity of storage.\n";
 $question{'PORT'} = "TCP port for openfpc to listen on";
+$question{'SESSION_DIR'} =  "Path to store session data (Text flow records)"; 
+$question{'SESSION_DB_NAME'} = "Name of the session database (MYSQL)";
+$question{'SESSION_DB_PASS'} = "Enter the password for the Database user";
 # Input validations to make sure we get valid data as part of the setup questions.
 # Format is a key, and then a pcre to m/$stuff/.
 $validation{'VERBOSE'} = "(1|0)";
@@ -189,7 +203,9 @@ close($config{'saveconfig'});
 
 # Backup existing config, and replace it with our new file.
 my $epoch=time();
-move($file,"$file.backup.$epoch") or die ("Unable to backup $file to $file.backup.$epoch!");
+if ( -f $file) {
+	move($file,"$file.backup.$epoch") or die ("Unable to backup $file to $file.backup.$epoch");
+}
 move($config{'saveconfig'},$file) or die ("Unable to save config to file $file");
 
 print "\n\n* Backed up old config as $file.backup.$epoch\n";
