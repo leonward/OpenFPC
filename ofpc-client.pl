@@ -1,4 +1,4 @@
-#!/usr/bin/perl -I .
+#!/usr/bin/perl -I /home/lward/code/openfpc/
 
 #########################################################################################
 # Copyright (C) 2010 Leon Ward 
@@ -23,6 +23,7 @@
 
 use strict;
 use warnings;
+use Data::Dumper;
 use IO::Socket::INET;
 use ofpc::Request; 
 use ofpc::Parse;
@@ -41,11 +42,12 @@ sub showhelp{
   --port or -o <TCP PORT>		Port to connect to (default 4242)
   --user or -u <username>		Username	
   --password or -p <password>		Password (if not supplied, it will be prompted for)
-  --action or -a  <action>		OFPC action to take, e.g. fetch, store, status, status, ctx
+  --action or -a <action>		OFPC action to take, e.g. fetch, store, status, status, ctx
   --verbose or -v 			Run in verbose mode
   --debug or -d				Run in debug mode (very verbose)
   --write or -w				Output PCAP file to write to
   --quiet or -q				Quiet, shhhhhhh please. Only print saved filename||error
+  --gui	of -g				Output that's parseable via OpenFPC's gui (or other tool)
 
   -------- Constraints -------
 
@@ -72,6 +74,7 @@ my %cmdargs=( user => "ofpc",
 		filename => "/tmp/foo.pcap",
 		logline => 0,
 		quiet => 0,
+		gui => 0,
 		);
 
 my (%request, %config,$verbose,$debug);
@@ -86,9 +89,10 @@ GetOptions (    'u|user=s' => \$cmdargs{'user'},
 		'w|write=s'=> \$cmdargs{'filename'},
 		'v|verbose' => \$cmdargs{'verbose'},
 		't|logtype=s' => \$cmdargs{'logtype'},
-		'l|event=s' => \$cmdargs{'logline'},
+		'e|logline=s' => \$cmdargs{'logline'},
 		'a|action=s' => \$cmdargs{'action'},
 		'p|password=s' => \$cmdargs{'password'},
+		'g|gui'	=> \$cmdargs{'gui'},
                 );
 
 # Set some default values
@@ -112,15 +116,18 @@ if ($debug) {
 	"Server:		$config{'server'}\n" .
 	"Port:		$config{'port'}\n" .
 	"User: 		$request{'user'}\n" .
-	"Action:		$request{'action'}\n" .
+	"Action:	$request{'action'}\n" .
 	"Logtype:	$request{'logtype'}\n" .
 	"Logline:	$request{'logline'}\n" .
 	"Filename:	$cmdargs{'filename'}\n" .
 	"\n";
 }
 
-print "\n   * ofpc-client.pl $version * \n   Part of the OpenFPC project\n\n" unless($cmdargs{'quiet'});
-# Check we have what we need for a connection, if not show help
+# Provide a banner and queue position if were not in GUI or quiet mode
+unless( ($cmdargs{'quiet'} or $cmdargs{'gui'})) {
+	print "\n   * ofpc-client.pl $version * \n   Part of the OpenFPC project\n\n" ;
+	$request{'showposition'} = 1;
+}
 
 if ($cmdargs{'help'}) {
 	showhelp;
@@ -153,31 +160,24 @@ unless ($request{'password'}) {
 	$request{'password'} = $userpass;
 }
 
-my ($result, $message)=ofpc::Request::request($sock,\%request);
-if ($result == 1) {
-	if ($request{'action'} eq "fetch") {
-		# As we have the file locally, lets provide some metadata
-		my $filesize=`ls -lh $request{'filename'} |awk '{print \$5}'`;
-		chomp $filesize;
-		print "$request{'filename'} Saved, $filesize\n";
-	} else {
-		print "Result: $message\n";
-	}
-} else {
-	print "Problem processing request : $message\n";
-}
+my %result=ofpc::Request::request($sock,\%request);
 close($sock);
 
-
-
-	#my $file="/tmp/bar.txt";
-	#open(FILE,'>', "$file") or die ("unable to open file for write");
-	#binmode(FILE);
-	#my $data;
-	#while (sysread($sock,$data, 1024,0)) {
-#		syswrite(FILE, $data,1024,0);
-#		print ".";
-	#}
-	#print "Done\n";
-	#close(FILE);
-	#close($sock);
+if ($result{'success'} == 1) { 			# Request is Okay and being processed
+	unless ($cmdargs{'gui'}) {  	# Command line output
+		if ($request{'action'} eq "fetch") {
+			print "$result{'filename'} size:$result{'size'}\n";
+		} else {
+			print 	"Queue Position: $result{'position'} \n".
+				"Remote File   : $result{'filename'}\n" .
+				"Result        : $result{'message'}\n";
+		}
+	} else {			# GUI firendly output
+					# Provide output that is easy to parse
+					# action,filename,size,md5,expected_md5,position,message
+		print "$request{'action'},$result{'filename'},$result{'size'},$result{'md5'},$result{'expected_md5'}," .
+			"$result{'position'},$result{'message'}\n";
+	}
+} else {					# Problem with request
+	print "Problem processing request: $result{'message'}\n";
+}
