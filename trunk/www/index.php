@@ -23,6 +23,10 @@ $dbuser = "openfpc";
 $dbpass = "openfpc";
 $dbname = "openfpc";
 
+//OFPC Queue Daemon Settings
+$ofpcuser = "ofpc";
+$ofpcpass = "ofpc";
+
 // Settings
 $maxRows = 20;
 $openfpcdir = "/nsm_data/hostname/dailylogs";
@@ -42,6 +46,7 @@ $dstport    = sanitize("dstport");    if (empty($dstport))    $dstport = "";
 $start_date = sanitize("start_date"); if (!valdate($start_date)) $start_date = date("Y-m-d 00:00:00");
 $end_date   = sanitize("end_date");   if (!valdate($end_date))   $end_date   = date("Y-m-d H:i:s");
 $protocol   = sanitize("protocol");   if (empty($protocol))   $protocol = "any";
+$logline	 	= sanitize("logline");	  if (empty($logline))    $logline = "NoneSet";
 
 $notsrcip = 0; if (is_not_set($srcip)) $notsrcip = 1;
 $notdstip = 0; if (is_not_set($dstip)) $notdstip = 1;
@@ -67,6 +72,11 @@ switch ($op) {
 
         $out = dumpDisplay();   
         break;
+
+    case "logline":
+
+	$out = extractPcapFromLog();
+	break;
 
     default:
 
@@ -145,6 +155,15 @@ function mainDisplay() {
     $out .= "</div></td>";
     
     $out .= "</font></td></tr></table></form></div>";
+
+    // Extract PCAP from log line
+    $out .= "<div class=titleDisplay><table border=0 width=100% cellpadding=0 cellspacing=0>";
+    $out .= "<form METHOD=\"GET\" NAME=\"logline\" ACTION=\"\">";
+    $out .= "<tr>";
+    $out .= "<td width=250 valign=middle align=center><div style=\"font-size: 10px; color: #DEDEDE\">";
+    $out .= "Event <input type=text size=250 bgcolor=\"#2299bb\" name=\"logline\" value=\"ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp time:1274864808 msg:Some freeform text\"";
+	 $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"logline\">";
+	 $out .= "</table><div>";
     
     $out .= "<div class=edwardTest>";
     $out .= "<table border=0 width=100% cellpadding=0 cellspacing=0><tr>";
@@ -156,6 +175,37 @@ function mainDisplay() {
 
     return $out;
 }
+
+function extractPcapFromLog() {
+	global $logline, $ofpcuser, $ofpcpass;
+	#$dump = "";
+	# Shell out to ofpc-client here. Note the --gui option.
+	$exec .= "/home/lward/code/openfpc/ofpc-client.pl ";
+	$exec .= "--gui -u $ofpcuser -p $ofpcpass "; 
+	$exec .= "--logline \"$logline\"";
+
+	# Clean up command before we exec it.
+	$e = escapeshellcmd($exec);
+	$out .= "$e <br>";
+	$result = shell_exec($e);
+	#$out .= $result;
+
+	# These are defined in ofpc-client.pl
+	# This is the "friendly parseable" output
+	list($action,$filename,$size,$md5,$expected_md5,$position,$message) = explode(",",$result);
+	$pathfile=explode("/",$filename);	# Break path and filename from filename
+	$file=array_pop($pathfile);		# Pop last element of path/file array
+
+	#$out .= "<br>Filename is $file<br>";	
+	#$out .= "<br>Action is $action<br>";
+	$out .= "<a href=$file> Download pcap</a>";
+	#$out .= "<br>Done<br>";
+	$out .= mainDisplay();
+	#$out .= "Hello";
+	#$out="Hello";
+	return $out;
+}
+
 
 function dumpDisplay() {
     global $openfpcdir, $tcpdump, $ipv, $mergecap, $mrgtmpdir;
