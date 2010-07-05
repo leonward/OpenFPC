@@ -43,7 +43,7 @@ my %pcaps: shared =();
 my $CONFIG_FILE=0;
 my $daemon=0;		# NOT DONE YET
 $verbose=0;
-$debug=1;
+$debug=0;
 
 sub showhelp{
 	print <<EOF
@@ -121,7 +121,8 @@ sub decoderequest($){
 		$request{'etime'} = $eventdata->{'etime'};
 		$request{'proto'} = $eventdata->{'proto'};
 	}
-	$request{'tempfile'}=time() . "-" . $request{'rid'} . ".pcap";
+	# We need to decide a filename earlier so we can tell the user what it will be
+	#$request{'tempfile'}=time() . "-" . $request{'rid'} . ".pcap";
 
 	if ($debug) {
 		print "DEBUG Dumping request in decoderequest\n";
@@ -132,9 +133,7 @@ sub decoderequest($){
 
 	# fetch 	Fetch pcap and return to client/server
 	# store		Request data for extraction, and disconnect.
-	# status	Provide status of slave device
-	# ctxsum	Get traffic/connection summary between starttime/endtime
-	# ctxall	Get traffic/connection tables between starttime/endtime
+	# status	Provide status of slave device (FUTURE)
 	# replay	Replay traffic (FUTURE)
 
 	$request{'action'} = lc $request{'action'};
@@ -234,9 +233,12 @@ sub comms{
 						# Unless action is something we need to wait for, lets close connection
 						my $position=$queue->pending();
 						if ("$request->{'action'}" eq "store") {
+							# Create a tempfilename for this store request
+							$request->{'tempfile'}=time() . "-" . $request->{'rid'} . ".pcap";\
+							print $client "FILENAME: $request->{'tempfile'}\n";
 							$queue->enqueue($request);
 							#Say thanks and disconnect
-							print "DEBUG: $client_ip: RID: $request->{'rid'}: Queue actin requested -> disconnecting\n" if ($debug);
+							print "DEBUG: $client_ip: RID: $request->{'rid'}: Queue action requested. Position $position. Disconnecting\n" if ($debug);
 							print $client "QUEUED: $position\n";
 							shutdown($client,2);
 						} elsif ($request->{'action'} eq "fetch") {
@@ -352,6 +354,9 @@ sub domaster{
 }
 
 sub doslave{
+	# A slave action is one that will be processed on this device.
+	# It will perform the action itself rather than pass it on to another device.
+
 	my $extractcmd;
 	my $request=shift;
 	my @cmdargs=();
@@ -360,6 +365,7 @@ sub doslave{
         # Depending on the log type, we may have all constraints, or possibly only a couple
         push(@cmdargs,"./ofpc-extract.pl -m a");
         push (@cmdargs,"--ofpc");
+
 #        if ($debug) { push (@cmdargs,"--debug"); }
         if ($request->{'sip'}) { push (@cmdargs,"--src-addr $request->{'sip'}") ; } 
         if ($request->{'dip'}) { push (@cmdargs,"--dst-addr $request->{'dip'}") ; } 
@@ -374,8 +380,8 @@ sub doslave{
         }   
 
         print "DEBUG: Extract command is $extractcmd\n" if ($debug);
-	# The "result" of extractcmd should be the filename, or 0.
 
+	# The "result" of extractcmd should be the filename, or 0.
         my $result=`$extractcmd`;
         if ($debug)  {
 	        print "Result : $result\n"
