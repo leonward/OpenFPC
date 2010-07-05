@@ -31,26 +31,29 @@ use Digest::MD5(qw(md5_hex));
 $VERSION = '0.01';
 
 sub request{
-	# Take a request hash, and a socket, do as asked and return success and a filename, or fail error
-	# Success returns (1,"<data requested>)
-	# Fail returns (0,"<Reason for fail>")
-	# E.g
-
-	# Fetch action: (1,"/tmp/foo.pcap")
-	# Queue action: (1,"Queued: Position, 2")
-	# Status action: (1,"x,x,x,x,x,x,x,x,x,x,x,x,x")  Note: See README for status CSV format
+	# Take a request hash, and a socket, do as asked and return 
+	# a hash of the result
 
 	my $socket=shift;
 	my $request=shift;
-	my $debug=1;
+	my %result=(
+			'success' => 0,
+			'message' => 'none',
+			'md5'	=> 0,
+			'expected_md5'	=> 0,
+			'filename' => 0,
+			'size' => 0,
+		);					# This is the hash we provide back to the calling function.
+	my $debug=0;
 	my ($protover);
 	print Dumper $request if ($debug);
-	my $protover="OFPC-v1";
+	my $protover="OFPC-v1";		# For future use.
 	
-	my ($event,$result)=ofpc::Parse::parselog($request->{'logline'});
+	my ($event,$foo)=ofpc::Parse::parselog($request->{'logline'});
 	unless ($event) {
+		$result{'success'} = 0;
 		print "Failed local request validation. Not passing this request to server" if ($debug);
-		return (0,$result);
+		return %result;
 	}
 
 	if ($event->{'sip'}) { $request->{'sip'} = $event->{'sip'} ;}
@@ -85,13 +88,22 @@ sub request{
                 "   MSG:        $request->{'msg'}\n" .
                 "   Timestamp   $request->{'timestamp'}\n" .
                 "   StartTime   $request->{'stime'}\n" .
-                "   EndTime     $request->{'etime'}\n" ;
+                "   EndTime     $request->{'etime'}\n" .
+		"   ShowPos	$request->{'showposition'}" .
+		"\n";
         }   
 
 	# It is expected that any request will have already been sanity checked, but we do it again incase
 	# The following are required to make any type of request:
-	unless ($request->{'user'}) { return(0,"No user specified"); }
-	unless ($request->{'action'} =~ m/(store|fetch|status)/) { return(0,"Invalid action $request->{'action'}"); }
+	unless ($request->{'user'}) { 
+		$result{'success'} = 0;
+		$result{'message'} = "No user specified";
+		return %result; 
+	}
+	unless ($request->{'action'} =~ m/(store|fetch|status)/) { 
+		$result{'success'} = 0;
+		$result{'message'} = "Invalid action $request->{'action'}";
+	}
 	
 	# Make request from Socket
 	my $reqstring="$request->{'user'}||" .
@@ -130,18 +142,21 @@ sub request{
                                 }
                         } case /WAIT/ {
                                         if ($data =~ /^WAIT:*\s*(\d+)/) {
-                                                my $position=$1;
-						print "- In Queue. Position: $position\n";
+						$result{'position'} = $1;
+                                                #my $position=$1;
+						if ( $request->{'showposition'} ){
+							print "Queue position $result{'position'}. Wait...\n";
+						}
+						print "DEBUG: Position: $result{'position'}\n" if ($debug);
                                         } else {
-                                                print "DEBUG: Request accepted. Queue position problem Waiting.....\n" if ($debug);
+                                                print "DEBUG: Request accepted. Queue position $result{'position'}  Waiting.....\n" if ($debug);
                                         }
                         } case /PCAP/ {
                                         print "DEBUG: Incomming PCAP\n" if ($debug);
-                                        my $md5;
                                         if ($data =~ /^PCAP:\s*(.*)/) {
-                                                $md5=$1;
+						$result{'expected_md5'} = $1;
                                         }
-                                        print "Expecting MD5 $md5\n" if ($debug);
+                                        print "Expecting MD5 $result{'expected_md5'}\n" if ($debug);
 
                                         open (PCAP,'>',"$request->{'filename'}");
                                         binmode(PCAP);
@@ -153,51 +168,73 @@ sub request{
                                         close($socket);
                                         close(PCAP);
                                         open(PCAPMD5, '<', "$request->{'filename'}") or die("cant open pcap file $request->{'filename'}");
-                                        my $xfermd5=Digest::MD5->new->addfile(*PCAPMD5)->hexdigest;
+				        $result{'size'}=`ls -lh $request->{'filename'} |awk '{print \$5}'`;
+					chomp $result{'size'};
+					print "DEBUG $request->{'filename'} size:$result{'size'}\n" if ($debug);
+                                        # XXX
+					#my $xfermd5=Digest::MD5->new->addfile(*PCAPMD5)->hexdigest;
+					$result{'md5'}=Digest::MD5->new->addfile(*PCAPMD5)->hexdigest;
                                         close(PCAPMD5);
-					print "$request->{'filename'} on disk is has md5 $xfermd5\n";
-                                        print "Expected: $md5\nGot   : $xfermd5\n" if ($debug);
-					if ($md5 eq $xfermd5) {
-						return(1,"Pcap saved: $request->{'filename'}");
+					print "$request->{'filename'} on disk is has md5 $result{'md5'}\n" if ($debug);
+                                        print "Expected: $result{'expected_md5'}\nGot   : $result{'md5'}\n" if ($debug);
+					if ($result{'md5'} eq $result{'expected_md5'}) {
+						$result{'success'} = 1;
+						$result{'filename'} = $request->{'filename'};
 					} else {
-						return(0,"Error: MD5 sum misatch during copy");
+						$result{'success'} = 0;
+						$result{'filename'} = $request->{'filename'};
+						$result{'error'} = "MD5 sum mismatch";
 					}
 					shutdown($socket,2);
-
+					return %result;
+			} case /FILENAME/ {
+					if ($data =~ /^FILENAME:\s*(.*)/) {
+						$result{'filename'} = $1;
+						print "DEBUG: Got Filename: $result{'filename'}\n" if ($debug);
+					}
      			} case /QUEUED/ {
                                         if ($data =~ /^QUEUED:*\s*(\d+)/) {
-                                                my $position=$1;
-                                                print "DEBUG: Request accepted. Queue postion $position. Disconnecting\n" if ($debug);
+						# XXX	
+                                                #my $position=$1;
+						$result{'position'} = $1;
+                                                print "DEBUG: Request accepted. Queue postion $result{'position'}. Disconnecting\n" if ($debug);
                                                 shutdown($socket,2);
-						return(1,"Request Queued. Position: $position");
+						$result{'message'} = "In Queue";
+						$result{'success'} = 1;
+						return %result;
                                         } else {
-                                                print "DEBUG: Request accepted. Queueposition unknown. Disconnection\n" if ($debug);
-						return(1,"Request Queued. Position: unknown");
+                                                print "DEBUG: Request accepted. Queue position unknown. Disconnecting\n" if ($debug);
+						#return(1,"Request Queued. Position: unknown");
+						$result{'success'} = 1;
+						$result{'postion'} = "unknown";
                                                 shutdown($socket,2);
+						return %result;
                                         }
                         } case /ERROR/ {
 					my $error;
 					if ($data =~ m/^ERROR:(.*)/) {
-						$error=$1;
-	                                        print "DEBUG: Got error: $1 :closing connection\n" if ($debug);
+						$result{'message'} = $1;
+	                                        print "DEBUG: Got error: $result{'message'} :closing connection\n" if ($debug);
 					}
-					return(0,"ERROR $error");
                                         shutdown($socket,2);
+					return %result;
                         } case /AUTH OK/ {
                                 print "DEBUG: Password OK\n" if ($debug);
                                 print $socket "REQ:$reqstring\n";
-                                print "- Data submitted\n";
+                                print "- Data submitted\n" if ($debug);
                         }
                         case /AUTH FAIL/ {
                                 print "DEBUG: Password BAD\n" if ($debug);
-				return(0,"Auth failed");
+				$result{'success'} = 0;
+				$result{'message'} = "Authentication Failed";
                         #} else {
                         #        die("Unknown server response $data") ;
                         }
                 }
 	}
-	
-	return(0,"Not complete");
+
+	$result{'message'} = "Something has gone wrong. You should never see this message - Leon";	
+	return %result;
 }
 
 1;
