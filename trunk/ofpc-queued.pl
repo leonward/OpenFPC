@@ -30,6 +30,7 @@ use Thread::Queue;
 use IO::Socket;
 use Digest::MD5(qw(md5_hex));
 use Getopt::Long;
+use POSIX qw(setsid);		# Required for daemon mode
 use Data::Dumper;
 use ofpc::Parse;
 use ofpc::Request;
@@ -51,18 +52,24 @@ sub showhelp{
    * ofpc-queued.pl *
    Part of the OpenFPC project.
 
-   --darmon or -D		Daemon mode (NOT DONE YET)
+   --daemon or -D		Daemon mode (NOT DONE YET)
    --config or -c <config file>	Config file  
    --help   or -h		Show help
    --debug  or -d 		Show debug data
 EOF
 }
 
-sub pipeHandler {
+sub pipeHandler{
     my $sig = shift @_;
     print "SIGPIPE -> Bad client went away! $sig \n\n" if ($verbose);
 }
-$SIG{PIPE} = \&pipeHandler;
+
+sub closedown{
+	my $sig=shift;
+	wlog("Shuting down by request via $sig\n");
+	unlink($config{'PIDFILE'});
+	exit 0;
+}
 
 
 sub getrequestid{
@@ -382,7 +389,7 @@ sub doslave{
         print "DEBUG: Extract command is $extractcmd\n" if ($debug);
 
 	# The "result" of extractcmd should be the filename, or 0.
-        my $result=`$extractcmd`;
+        my $result=`$extractcmd` or return(0,"Problem with extraction");
         if ($debug)  {
 	        print "Result : $result\n"
         }
@@ -422,11 +429,17 @@ sub runq {
 }
 
 
-########### Start here ############
+########### End of subs ############
+########### Start Here  ############
+$SIG{PIPE} = \&pipeHandler;
 
 # Some config defaults
 $config{'MASTER'}=0;		# Default is slave mode
 $config{'SAVEDIR'}="/tmp";	# Where to save cached PCAP files.
+$config{'LOGFILE'}="/tmp/ofpc-queued.log"; 	# Log file
+$config{'PIDFILE'}="/tmp/ofpc-queued.pid";
+$SIG{"TERM"}  = sub { closedown("TERM") };
+$SIG{"KILL"}  = sub { closedown("KILL") };
 
 GetOptions (    'c|conf=s' => \$CONFIG_FILE,
 		'D|daemon' => \$daemon,
@@ -469,6 +482,9 @@ if ($config{'MASTER'}) {
 } else {
         wlog("Starting in SLAVE mode");
 }
+# Now that we have opened/closed the config file
+# Daemonising if requested/required.
+
 
 # Start listener
 print "*  Starting listener on TCP:$config{'PORT'}\n" if ($debug);
@@ -479,6 +495,25 @@ my $listenSocket = IO::Socket::INET->new(
                                 Reuse => 1,
                                 );
 unless ($listenSocket) { die("Problem creating socket!"); }
+
+if ($daemon) {
+	print "[*] OpenFPC Queued - Daemonizing\n";
+	chdir '/' or die "Can't chdir to /: $!";
+	umask 0;
+	open STDIN, '/dev/null'   or die "Can't read /dev/null: $!";
+	open (STDOUT, "> $config{'LOGFILE'}") or die "Can't open Log for STDOUT  $config{'LOGFILE'}: $!\n";
+	defined(my $pid = fork)   or die "Can't fork: $!";
+	if ($pid) {
+		open (PID, "> $config{'PIDFILE'}") or die "Unable write to pid file $config{'PIDFILE'}: $!\n";
+      		print PID $pid, "\n";
+      		close (PID);
+		exit 0;
+	}
+	# Redirect STDERR Last to catch any error in the fork() process.
+	open (STDERR, "> $config{'LOGFILE'}") or die "Can't open Log for STDERR $config {'LOGFILE'}: $!\n";
+	setsid or die "Can't start a new session: $!";
+}
+
 threads->create("runq");
 
 while (my $sock = $listenSocket->accept) {
