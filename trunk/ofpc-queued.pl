@@ -32,8 +32,20 @@ use Digest::MD5(qw(md5_hex));
 use Getopt::Long;
 use POSIX qw(setsid);		# Required for daemon mode
 use Data::Dumper;
+use File::Temp(qw(tempdir));
 use ofpc::Parse;
 use ofpc::Request;
+
+=head1 NAME
+
+ofpc-queued.pl - Queue and process extract requests from local and remote PCAP storage devices
+
+=head1 VERSION 
+
+0.1
+
+=cut
+
 
 my $openfpcver="0.1a";
 
@@ -59,27 +71,45 @@ sub showhelp{
 EOF
 }
 
+=head2 pipeHandler
+	Deal with clients that disappear rather than have perl die.
+=cut
+
 sub pipeHandler{
     my $sig = shift @_;
     print "SIGPIPE -> Bad client went away! $sig \n\n" if ($verbose);
 }
 
+=head2 closedown
+	Shutdown in a clean way.
+=cut
+
 sub closedown{
 	my $sig=shift;
 	wlog("Shuting down by request via $sig\n");
+	File::Temp::cleanup();
 	unlink($config{'PIDFILE'});
 	exit 0;
 }
 
+=head2 getrequestid
+	Generate a "unique" request ID for the extraction request
+	It's pretty basic right now, but it's here in case I want
+	to make each rid unique over program restarts
+=cut
 
 sub getrequestid{
 	$mrid++;	
 	return($mrid);
 }
 
+=head2 decoderequest
+	Take the OFPC request, and provide a hash(ref) to the decoded data.
+	Example of a OFPC request:
+	ofpc||fetch||||/tmp/foo.pcap||||auto||ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp time:1274864808 msg:Some freeform text
+=cut
 
 sub decoderequest($){
-        # Take a rawrequest from a user and return a ref to a hash of event data
         my $rawrequest=shift;
         my %request=(   user     =>     0,
                         action   =>     0,
@@ -100,6 +130,7 @@ sub decoderequest($){
 			stime	=>	0,
 			etime	=>	0,
         );
+
         my @requestarray = split(/\|\|/, $rawrequest);
         my $argnum=@requestarray;
         unless ($argnum == 7 ) {
@@ -109,7 +140,6 @@ sub decoderequest($){
                 return(0,"Expected 7 args, got $argnum");
         }
         ($request{'user'},$request{'action'},$request{'device'},$request{'filename'},$request{'location'},$request{'logtype'},$request{'logline'}) = split(/\|\|/, $rawrequest);
-        
 
 	# Check logline is valid
 	my ($eventdata, $error)=ofpc::Parse::parselog($request{'logline'});
@@ -128,13 +158,11 @@ sub decoderequest($){
 		$request{'etime'} = $eventdata->{'etime'};
 		$request{'proto'} = $eventdata->{'proto'};
 	}
-	# We need to decide a filename earlier so we can tell the user what it will be
-	#$request{'tempfile'}=time() . "-" . $request{'rid'} . ".pcap";
 
-	if ($debug) {
-		print "DEBUG Dumping request in decoderequest\n";
-		print Dumper %request;
-        }
+	#if ($debug) {
+	#	print "DEBUG Dumping request in decoderequest\n";
+	#	print Dumper %request;
+        #}
 
 	# Check action: Valid actions are:
 
@@ -154,6 +182,10 @@ sub decoderequest($){
 		return(0,"Invalid action $request{'action'}");
 	}
 }
+
+=head2 comms
+	Communicate with the client, and if a valid request is made add it on to the processqueue
+=cut
 
 sub comms{
 	my ($client) = @_;
@@ -249,6 +281,8 @@ sub comms{
 							print $client "QUEUED: $position\n";
 							shutdown($client,2);
 						} elsif ($request->{'action'} eq "fetch") {
+							# Create a tempfilename for this store request
+							$request->{'tempfile'}=time() . "-" . $request->{'rid'} . ".pcap";\
 							$queue->enqueue($request);
 							wlog("COMMS: $client_ip: RID: $request->{'rid'} Request OK -> WAIT!\n");
 							print $client "WAIT: $position\n";
@@ -311,6 +345,11 @@ sub comms{
 	close $client;
 
 }
+
+=head2 wlog
+	Write the string passed to the function as a log
+	e.g. wlog("Something just went down");
+=cut
                         
 sub wlog{
         my $logdata=shift;
@@ -321,12 +360,16 @@ sub wlog{
         }
 }
 
+=head2 domaster
+	The OFPC "Master" action.
+	A Master device proxies the request from the client to a slave, and sends the data back to the client.
+	The Master action allows ofpc to scale out rather than up, and hopefully be pretty scalable (to be confirmed!)
 
+	Master mode is OUT OF SCOPE for the initial release, but I wanted to make sure that it could function sooner rather than later.
+	I had this working in a few tests, so theory is Okay, but needs some more planing before release.
+=cut
 
 sub domaster{
-	# OUT OF SCOPE FOR INITIAL RELEASE
-	# I had this working in a few tests, so theory is Okay, but needs some more planing before
-	# release.
 
 	my $request=shift;
 	print "---- for the moment, lets only request data from our one host\n";
@@ -360,6 +403,11 @@ sub domaster{
 	}
 }
 
+=head2 doslave
+	The slave action is where the real extraction work takes place.
+	It takes a decoded request as it's input, and returns a filename when the extraction has been done.
+=cut
+
 sub doslave{
 	# A slave action is one that will be processed on this device.
 	# It will perform the action itself rather than pass it on to another device.
@@ -368,43 +416,27 @@ sub doslave{
 	my $request=shift;
 	my @cmdargs=();
 	wlog("SLAVE: Request: $request->{'rid'} User: $request->{'user'} Action: $request->{'action'}");
+	my $bpf=mkBPF($request);
+	print "DEBUG: BPF is $bpf\n" if ($debug);
 
-        # Depending on the log type, we may have all constraints, or possibly only a couple
-        push(@cmdargs,"./ofpc-extract.pl -m a");
-        push (@cmdargs,"--ofpc");
+	my @pcaproster=findBuffers($request->{'timestamp'}, 5);
 
-#        if ($debug) { push (@cmdargs,"--debug"); }
-        if ($request->{'sip'}) { push (@cmdargs,"--src-addr $request->{'sip'}") ; } 
-        if ($request->{'dip'}) { push (@cmdargs,"--dst-addr $request->{'dip'}") ; } 
-        if ($request->{'spt'}) { push (@cmdargs,"--src-port $request->{'spt'}") ; } 
-        if ($request->{'dpt'}) { push (@cmdargs,"--dst-port $request->{'dpt'}") ; } 
-        if ($request->{'proto'}) { push (@cmdargs,"--proto $request->{'proto'}") ; } 
-        if ($request->{'timestamp'}) { push (@cmdargs,"--timestamp $request->{'timestamp'}") ; } 
-        if ($request->{'filename'}) { push (@cmdargs,"--write $request->{'tempfile'}") ; } 
+	print "DEBUG: Got buffers @pcaproster\n" if ($debug);
 
-        foreach(@cmdargs) {
- 	       $extractcmd=$extractcmd . "$_ ";
-        }   
+	(my $filename, my $size, my $md5) = doExtract($bpf,\@pcaproster,$request->{'tempfile'});
+	wlog("SLAVE: Extraction complete: Result: $filename, $size, $md5");   
 
-        print "DEBUG: Extract command is $extractcmd\n" if ($debug);
-
-	# The "result" of extractcmd should be the filename, or 0.
-        my $result=`$extractcmd` or return(0,"Problem with extraction");
-        if ($debug)  {
-	        print "Result : $result\n"
-        }
-	wlog("SLAVE: Extraction complete: Result: $result");   
 	# Return the name of the file that we have extracted
-        return(1,"$result");
+        return(1,"$filename");
 }
 
-#
+=head2 runq
+	Runq waits for an entry to appear in the extraction queue, and then takes action on it.
+=cut
+
 sub runq {
 	while (1) {
         	sleep(1);                       # Pause between polls of queue
-        	if ($debug) { 
-#               	print "Waiting.\n" ;
-        	}
         	my $qlen=$queue->pending();     # Length of extract queue
         	if ($qlen >= 1) {
 			my $request=$queue->dequeue();
@@ -418,6 +450,7 @@ sub runq {
 				my ($result,$filename) = doslave($request,$rid);
 				if ($result) {
 					my $filesize=`ls -lh $config{'SAVEDIR'}/$filename |awk '{print \$5}'`;
+					chomp $filesize;
                 			wlog("QUEUE: SLAVE: Request: $request->{'rid'} Success. File: $filename $filesize now cached on SLAVE in $config{'SAVEDIR'}"); 
 					$pcaps{$request->{'rid'}}=$filename;
 				} else {
@@ -428,6 +461,230 @@ sub runq {
 	}
 }
 
+sub mkBPF($) {
+        # Give me an event hash, and ill give you a bpf
+	my $request=shift;
+        my @eventbpf=();
+        my $bpfstring;
+
+        if ($request->{'proto'}) {
+                $request->{'proto'} = lc $request->{'proto'}; # In case the tool provides a protocol in upper case
+        }   
+
+        if ( $request->{'sip'} xor $request->{'dip'} ) { # One sided bpf
+                if ($request->{'sip'} ) { push(@eventbpf, "host $request->{'sip'}" ) } 
+                if ($request->{'dip'} ) { push(@eventbpf, "host $request->{'dip'}" ) } 
+        }   
+
+        if ( $request->{'sip'} and $request->{'dip'} ) { 
+                 push(@eventbpf, "host $request->{'sip'}" );
+                 push(@eventbpf, "host $request->{'dip'}" );
+        }   
+    
+        if ( $request->{'spt'} xor $request->{'dpt'} ) { 
+                if ($request->{'spt'} ) { push(@eventbpf, "$request->{'proto'} port $request->{'spt'}" ) } 
+                if ($request->{'dpt'} ) { push(@eventbpf, "$request->{'proto'} port $request->{'dpt'}" ) } 
+        }   
+
+        if ( $request->{'spt'} and $request->{'dpt'} ) { 
+                 push(@eventbpf, "$request->{'proto'} port $request->{'spt'}" );
+                 push(@eventbpf, "$request->{'proto'} port $request->{'dpt'}" );
+        }   
+
+        # cat the eventbpf array into a string
+        foreach (@eventbpf) {
+                if ($bpfstring) { 
+                        $bpfstring = $bpfstring . " and "; 
+                } else {
+                        $bpfstring = $_ ;
+                        next;
+                }   
+                $bpfstring = $bpfstring . $_ . " ";
+        }   
+        return($bpfstring);
+}
+
+
+=head2 findBuffers
+        Rather than search over ALL pcap files on a slave, if we know the timestamp(s) that we want to focus on,
+	why no narrow down the search scope. Much more speedy extraction!!!!!
+
+	Takes a timestamp and a number of files, returns an array of files.
+
+=cut
+
+sub findBuffers {
+
+        my $targetTimeStamp=shift;
+        my $numberOfFiles=shift;
+        my @TARGET_PCAPS=();
+        my %timeHash=();
+        my @timestampArray=();
+	my @pcaps;
+	my $vdebug=0;	# Enable this to debug the pcap selection process
+			# It's verbose, so it's off even when debugging is enabled
+
+	print "DEBUG: WARNING vdebug not enabled to inspect pcap filename selection\n" if ($debug and not $vdebug);
+
+	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-pcap.*`;
+        foreach(@pcaptemp) {
+                chomp $_;
+                push(@pcaps,$_);
+        }
+
+        print "DEBUG: $numberOfFiles requested each side of target timestamp \n" if ($debug);
+
+        $targetTimeStamp=$targetTimeStamp-0.5;                  # Remove risk of TARGET conflict with file timestamp.   
+        push(@timestampArray, $targetTimeStamp);                # Add target timestamp to an array of all file timestamps
+        $timeHash{$targetTimeStamp} = "TARGET";                 # Method to identify our target timestamp in the hash
+
+        foreach my $pcap (@pcaps) {
+                (my $fileprefix, my $timestamp)  = split(/\./,$pcap);
+                print " - Adding file $pcap with timestamp $timestamp (" . localtime($timestamp) . ") to hash of timestamps \n" if ($vdebug and $debug);
+                $timeHash{$timestamp} = $pcap;
+                push(@timestampArray,$timestamp);
+        }
+
+        my $location=0;
+        my $count=0;
+        if ($debug and $vdebug) {           			# Yes I do this twice, but it helps me debug timestamp pain!
+                print "-----------------Array----------------\n";
+                foreach (sort @timestampArray) {
+                        print "DEBUG  $count";
+                        print " - $_ $timeHash{$_}\n";
+                        $count++;
+                }
+                print "-------------------------------------\n";
+        }
+
+        $location=0;
+        $count=0;
+        foreach (sort @timestampArray){                 # Sort our array of timetsamps (including
+               $count++;                               # our target timestamp)
+               print " + $count - $_ $timeHash{$_}\n" if ($debug and $vdebug);
+               if ( "$timeHash{$_}" eq "TARGET" ) {
+                        $location=$count - 1;
+                        if ($debug and $vdebug) {
+                                print "DEBUG: Got TARGET match of $_ in array location $count\n";
+                                print "DEBUG: Pcap file at previous to TARGET is in location $location -> filename $timeHash{$timestampArray[$location]} \n";
+                        }
+                        last;
+                } elsif ( "$_" == "$targetTimeStamp" ) {     # If the timestamp of the pcap file is identical to the timestamp
+                        $location=$count;               # we are looking for (corner case), store its place
+                        if ($debug and $vdebug) {
+                                print " - Got TIMESTAMP match of $_ in array location $count\n";
+                                print "   Pcap file associated with $_ is $timeHash{$timestampArray[$location]}\n";
+                        }
+                        last;
+                }
+        }
+
+        if ($debug) {
+                if (my $expectedts = ((stat($timeHash{$timestampArray[$location]}))[9])) {
+                        my $lexpectedts = localtime($expectedts);
+                        print " - Target PCAP filename is $timeHash{$timestampArray[$location]} : $lexpectedts\n" if ($debug and $vdebug);
+                }
+        }
+
+        # Find what pcap files are eachway of target timestamp
+        my $precount=$numberOfFiles;
+        my $postcount=$numberOfFiles;
+        unless ( $timeHash{$timestampArray[$location]} eq "TARGET" ) {
+                push(@TARGET_PCAPS,$timeHash{$timestampArray[$location]});
+        } else {
+                print "Skipping got target\n" if ($verbose);
+        }
+
+        while($precount >= 1) {
+                my $file=$location-$precount;
+                if ($file < 0 ){        # I the range to search is out of bounds
+                	print " - Eachway generated an OOB earch at location $file in array. Thats le 0!\n" if ($debug and $vdebug);
+                } else {
+                        if ($timeHash{$timestampArray[$file]}) {
+                                unless ( "$timeHash{$timestampArray[$file]}" eq "TARGET" ) {
+                                        push(@TARGET_PCAPS,$timeHash{$timestampArray[$file]});
+                                }
+                        }
+                }
+                $precount--;
+        }
+        while($postcount >= 1) {
+                my $file=$location+$postcount;
+                if ($file > (@timestampArray - 1) ) {       # I the range to search is out of bounds
+                	print " - Eachway generated an OOB search at location $file in array. Skipping each way value too high \n" if ($debug and $vdebug);
+                } else {
+                        if ($timeHash{$timestampArray[$file]}) {
+                                unless ( "$timeHash{$timestampArray[$file]}" eq "TARGET" ) {
+                                        push(@TARGET_PCAPS,$timeHash{$timestampArray[$file]});
+                                }
+                        }
+                }
+                $postcount--;
+        }
+        return(@TARGET_PCAPS);
+}
+
+=head2 doExtract
+	Performs an  "extraction" of session(s) from pacp(s) using tcpdump.
+	Pass me a bpf, list of pcaps(ref), and a filename and it returns a filesize and a MD5 of the extracted file
+	e.g.
+	doExtract($bpf, \@array_of_files, $requested_filename);
+	return($filename,$filesize,$md5);
+
+	Note, doExtract also expected a few globals to exist.
+		$tempdir
+		$config{'TCPDUMP'}
+		$confgi{'MERGECAP'}
+		$debug
+=cut
+
+sub doExtract{
+        my $bpf=shift;
+	my $filelistref=shift;
+	my $mergefile=shift;
+	my @filelist=@{$filelistref};
+	my $tempdir=tempdir();
+	
+        my @outputpcaps=();
+        print "DEBUG: Doing Extraction with BPF $bpf into tempdir $tempdir\n" if ($debug);
+
+        foreach (@filelist){
+                (my $pcappath, my $pcapid)=split(/\./, $_);
+                chomp $_;
+                my $filename="$tempdir/$mergefile-$pcapid.pcap";
+                push(@outputpcaps,$filename);
+                my $exec="$config{'TCPDUMP'} -r $_ -w $filename $bpf > /dev/null 2>&1";
+		print "DEBUG: Exec: $exec\n" if ($debug);
+                `$exec`;
+        }
+
+        #Now that we have some pcaps, lets concatinate them into a single file
+        unless ( -d "$tempdir" ) {
+                die("Tempdir $tempdir not found!")
+	}
+
+        print " - Merge command is \"$config{'MERGECAP'} -w $config{'SAVEDIR'}/$mergefile  @outputpcaps\" \n" if ($debug);
+
+        if (system("$config{'MERGECAP'} -w $config{'SAVEDIR'}/$mergefile @outputpcaps")) {
+                die("Problem merging pcap file!\n Run in verbose mode to debug\n");
+        }
+
+	# Calculate a filesize (in human readable format), and a MD5
+        my $filesize=`ls -lh $config{'SAVEDIR'}/$mergefile |awk '{print \$5}'`; 
+        chomp $filesize;
+	open(PCAPMD5, '<', "$config{'SAVEDIR'}/$mergefile") or die("cant open pcap file $config{'SAVEDIR'}/$mergefile to create MD5");
+	my $md5=Digest::MD5->new->addfile(*PCAPMD5)->hexdigest;
+	close(PCAPMD5);
+
+
+	wlog("SLAVE: Extracted to $mergefile, $filesize, $md5\n");
+
+        # Clean up temp files that have been merged...
+	print "DEBUG: Cleaning tempdir $tempdir\n" if ($debug);
+	File::Temp::cleanup();
+
+	return($mergefile,$filesize,$md5);
+}
 
 ########### End of subs ############
 ########### Start Here  ############
@@ -438,8 +695,12 @@ $config{'MASTER'}=0;		# Default is slave mode
 $config{'SAVEDIR'}="/tmp";	# Where to save cached PCAP files.
 $config{'LOGFILE'}="/tmp/ofpc-queued.log"; 	# Log file
 $config{'PIDFILE'}="/tmp/ofpc-queued.pid";
+$config{'TCPDUMP'} = "/usr/sbin/tcpdump";
+$config{'MERGECAP'} = "/usr/bin/mergecap";
+
 $SIG{"TERM"}  = sub { closedown("TERM") };
 $SIG{"KILL"}  = sub { closedown("KILL") };
+
 
 GetOptions (    'c|conf=s' => \$CONFIG_FILE,
 		'D|daemon' => \$daemon,
