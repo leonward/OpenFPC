@@ -44,7 +44,7 @@ sub request{
 			'filename' => 0,
 			'size' => 0,
 		);					# This is the hash we provide back to the calling function.
-	my $debug=1;
+	my $debug=0;
 	my $event=0;
 	my ($protover);
 	print Dumper $request if ($debug);

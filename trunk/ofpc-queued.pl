@@ -57,7 +57,7 @@ my %pcaps: shared =();
 my $CONFIG_FILE=0;
 my $daemon=0;		# NOT DONE YET
 $verbose=0;
-$debug=1;
+$debug=0;
 
 sub showhelp{
 	print <<EOF

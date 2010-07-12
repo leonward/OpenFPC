@@ -85,7 +85,6 @@ sub sessionToLogline{
 		$logline .= "timestamp:$req->{'timestamp'} ";
 	}
 
-	print "LOGLINE IS $logline\n";
 	return($logline);
 }
 
@@ -196,7 +195,6 @@ if ($request{'action'} =~ m/(fetch|store)/)  {
 # Convert session info into a "logline" to make a request.
 unless ($cmdargs{'logline'}) {
 	my $logline=sessionToLogline(\%cmdargs);
-	print "logline is now $logline\n";
 	$request{'logline'} = $logline;	
 }
 
