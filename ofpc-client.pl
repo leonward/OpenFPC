@@ -31,7 +31,7 @@ use Getopt::Long;
 use Switch;
 use Digest::MD5(qw(md5_hex));
 
-# Hint: "ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp time:1274864808 msg:Some freeform text";
+# Hint: "ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp timestamp:1274864808 msg:Some freeform text";
 
 sub showhelp{
 	print <<EOF 
@@ -63,6 +63,33 @@ sub showhelp{
 EOF
 }
 
+sub sessionToLogline{
+	# ofpc-v1 type:event sip:1.1.1.1 dip:1.1.1.1 spt:3432 dpt:1234 proto:tcp time:246583 msg:Some freeform text
+	# Take in a hash of session data, and return a "ofpc-v1" log format
+
+	my $req=shift;
+	my $logline = "ofpc-v1 ";
+	
+	if ($req->{'stime'} or $req->{'etime'}) {
+		$logline .= "type:search ";
+	} else {
+		$logline .= "type:event ";
+	}
+	$logline .= "sip:$req->{'sip'} " if ($req->{'sip'});
+	$logline .= "dip:$req->{'dip'} " if ($req->{'dip'});
+	$logline .= "dpt:$req->{'dpt'} " if ($req->{'dpt'});
+	$logline .= "spt:$req->{'spt'} " if ($req->{'spt'});
+
+	if ($req->{'timestamp'}) {
+		#my $epoch=`date --date='$req->{'timestamp'}' +%s` or die "Cant make sense of timestamp $req->{'timestamp'}";
+		$logline .= "timestamp:$req->{'timestamp'} ";
+	}
+
+	print "LOGLINE IS $logline\n";
+	return($logline);
+}
+
+
 my %cmdargs=( user => "ofpc",
 	 	password => 0, 
 		server => "localhost",
@@ -77,7 +104,23 @@ my %cmdargs=( user => "ofpc",
 		gui => 0,
 		);
 
-my (%request, %config,$verbose,$debug);
+my %request=(	user => 0,
+		password => 0,
+		action => 0,
+		device => 0,
+		logtype => 0,
+		logline => 0,
+		sip => 0,
+		dip => 0,
+		spt => 0,
+		dpt => 0,
+		proto => 0,
+		timestamp => 0,
+		stime => 0,
+		etime => 0,
+		);
+
+my (%config,$verbose,$debug);
 my $version=0.1;
 
 GetOptions (    'u|user=s' => \$cmdargs{'user'},
@@ -93,9 +136,13 @@ GetOptions (    'u|user=s' => \$cmdargs{'user'},
 		'a|action=s' => \$cmdargs{'action'},
 		'p|password=s' => \$cmdargs{'password'},
 		'g|gui'	=> \$cmdargs{'gui'},
+		't|time|timestamp=s' => \$cmdargs{'timestamp'},
+		'src-addr=s' => \$cmdargs{'sip'},
+                'dst-addr=s' => \$cmdargs{'dip'}, 
+                'src-port=s' => \$cmdargs{'spt'},
+                'dst-port=s' => \$cmdargs{'dpt'},
+                'proto=s' => \$cmdargs{'proto'},
                 );
-
-# Set some default values
 
 if ($cmdargs{'user'}) { $request{'user'} = $cmdargs{'user'}; }
 if ($cmdargs{'server'}) { $config{'server'} = $cmdargs{'server'}; }
@@ -134,8 +181,10 @@ if ($cmdargs{'help'}) {
 	exit;
 }
 
+# Check we have enough constraints to make an extraction with.
+
 if ($request{'action'} =~ m/(fetch|store)/)  {
-	unless ($request{'logline'}) {
+	unless ($request{'logline'} or ($cmdargs{'sip'} or $cmdargs{'dip'} or $cmdargs{'spt'} or $cmdargs{'dpt'} )) {
 		showhelp;
 		print "Error: This action requres a request line or session identifiers\n\n";
 		exit;
@@ -144,6 +193,12 @@ if ($request{'action'} =~ m/(fetch|store)/)  {
 	die("Action $request{'action'} invalid, or not implemented yet");
 }
 
+# Convert session info into a "logline" to make a request.
+unless ($cmdargs{'logline'}) {
+	my $logline=sessionToLogline(\%cmdargs);
+	print "logline is now $logline\n";
+	$request{'logline'} = $logline;	
+}
 
 
 my $sock = IO::Socket::INET->new(
