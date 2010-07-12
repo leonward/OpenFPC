@@ -33,6 +33,7 @@ use Getopt::Long;
 use POSIX qw(setsid);		# Required for daemon mode
 use Data::Dumper;
 use File::Temp(qw(tempdir));
+use Sys::Syslog;
 use ofpc::Parse;
 use ofpc::Request;
 
@@ -89,6 +90,7 @@ sub closedown{
 	wlog("Shuting down by request via $sig\n");
 	File::Temp::cleanup();
 	unlink($config{'PIDFILE'});
+	closelog;
 	exit 0;
 }
 
@@ -273,7 +275,7 @@ sub comms{
 						my $position=$queue->pending();
 						if ("$request->{'action'}" eq "store") {
 							# Create a tempfilename for this store request
-							$request->{'tempfile'}=time() . "-" . $request->{'rid'} . ".pcap";\
+							$request->{'tempfile'}=time() . "-" . $request->{'rid'} . ".pcap";
 							print $client "FILENAME: $request->{'tempfile'}\n";
 							$queue->enqueue($request);
 							#Say thanks and disconnect
@@ -282,7 +284,7 @@ sub comms{
 							shutdown($client,2);
 						} elsif ($request->{'action'} eq "fetch") {
 							# Create a tempfilename for this store request
-							$request->{'tempfile'}=time() . "-" . $request->{'rid'} . ".pcap";\
+							$request->{'tempfile'}=time() . "-" . $request->{'rid'} . ".pcap";
 							$queue->enqueue($request);
 							wlog("COMMS: $client_ip: RID: $request->{'rid'} Request OK -> WAIT!\n");
 							print $client "WAIT: $position\n";
@@ -357,7 +359,8 @@ sub wlog{
         my $gmtime=gmtime();
         unless ($daemon) {
                 print "LOG: $gmtime GMT: $logdata\n";
-        }
+        } 
+	syslog("info",$logdata);
 }
 
 =head2 domaster
@@ -701,6 +704,9 @@ $config{'MERGECAP'} = "/usr/bin/mergecap";
 $SIG{"TERM"}  = sub { closedown("TERM") };
 $SIG{"KILL"}  = sub { closedown("KILL") };
 
+# Open and start syslog
+openlog("OpenfpcQ","pid", "daemon");
+
 
 GetOptions (    'c|conf=s' => \$CONFIG_FILE,
 		'D|daemon' => \$daemon,
@@ -759,6 +765,9 @@ unless ($listenSocket) { die("Problem creating socket!"); }
 
 if ($daemon) {
 	print "[*] OpenFPC Queued - Daemonizing\n";
+
+
+
 	chdir '/' or die "Can't chdir to /: $!";
 	umask 0;
 	open STDIN, '/dev/null'   or die "Can't read /dev/null: $!";
