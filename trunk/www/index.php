@@ -64,6 +64,7 @@ switch ($op) {
     case "search":
 
         $out = mainDisplay();
+	$out .= showResults();
         //$data = doSessionQuery();
         //pollParse($data);
         break;
@@ -73,9 +74,14 @@ switch ($op) {
         $out = dumpDisplay();   
         break;
 
-    case "logline":
+    case "Store pcap":
+	$out = mainDisplay();
+	$out .= extractPcapFromLog("store");
+	break;
 
-	$out = extractPcapFromLog();
+    case "Fetch pcap":
+
+	$out = extractPcapFromLog("fetch");
 	break;
 
     default:
@@ -93,11 +99,11 @@ function mainDisplay() {
     global $srcip, $dstip, $srcport, $dstport, $ipv, $protocol;
     global $notdstip, $notsrcip, $notsrcport, $notdstport;
 
-    $out .= "<div class=titleDisplay><table border=0 width=100% cellpadding=0 cellspacing=0>";
-    $out .= "<form METHOD=\"GET\" NAME=\"search\" ACTION=\"\">";
+    $out .= "<div class=titleDisplay><table border=0 width=100% cellpadding=0 cellspacing=0>\n";
+    $out .= "<form METHOD=\"GET\" NAME=\"search\" ACTION=\"\">\n";
     $out .= "<tr>";
 
-        $out .= "<td width=250 valign=middle align=center><div style=\"font-size: 10px; color: #DEDEDE\">";
+    $out .= "<td width=250 valign=middle align=center><div style=\"font-size: 10px; color: #DEDEDE\">\n";
     $out .= "SRC <input type=text size=34 maxlength=39 bgcolor=\"#2299bb\" name=\"srcip\" value=\"";
     if ($notsrcip) $out .= "!";
     if (!empty($srcip) && isip4($srcip)) $out .= $srcip;
@@ -106,7 +112,7 @@ function mainDisplay() {
     if ($notsrcport) $out .= "!";
     if (!empty($srcport) && isport($srcport)) $out .= $srcport;
     $out .= "\">";
-    $out .= "</div>";
+    $out .= "</div>\n";
     $out .= "<div style=\"font-size: 10px; color: #DEDEDE\">";
     $out .= "DST <input type=text size=34 maxlength=39 bgcolor=\"#2299bb\" name=\"dstip\" value=\"";
     if ($notdstip) $out .= "!";
@@ -118,17 +124,17 @@ function mainDisplay() {
     $out .= "\">";
     $out .= "</div></td>";
 
-    $out .= "<td width=60 valign=middle align=center><div style=\"font-size: 10px; color: #DEDEDE\">";
+    $out .= "<td width=60 valign=middle align=center><div style=\"font-size: 10px; color: #DEDEDE\">\n";
     $out .= "<SELECT NAME=\"ipv\"> <OPTION VALUE=\"2\" ";
     if ($ipv == 2) $out .= "SELECTED";
     $out .= ">IPv4</OPTION><OPTION VALUE=\"10\" ";
     if ($ipv == 10) $out .= "SELECTED";
     $out .= ">IPv6</OPTION>";
-        $out .= "<OPTION VALUE=\"12\" "; 
+    $out .= "<OPTION VALUE=\"12\" "; 
     if ($ipv == 12) $out .= "SELECTED";
     $out .= ">IPv4/6</OPTION></SELECT>";
-    $out .= "</div>";
-    $out .= "<div style=\"font-size: 10px; color: #DEDEDE\">";
+    $out .= "</div>\n";
+    $out .= "<div style=\"font-size: 10px; color: #DEDEDE\">\n";
     $out .= "<SELECT NAME=\"protocol\"><OPTION VALUE=\"any\"";
     if ($protocol == "any") $out .= "SELECTED";
     $out .= ">Any</OPTION><OPTION VALUE=\"6\" ";
@@ -139,16 +145,16 @@ function mainDisplay() {
     if ($protocol == "1" || $protocol == "58") $out .= "SELECTED";
     $out .= ">ICMP</OPTION>";
     $out .= "</SELECT>";
-    $out .= "</div></td>";
+    $out .= "</div>\n</td>\n";
 
-        $out .= "<td width=250 valign=middle align=center><div style=\"font-size: 10px; color: #DEDEDE\">";
+    $out .= "<td width=250 valign=middle align=center><div style=\"font-size: 10px; color: #DEDEDE\">\n";
     $out .= "From date<input type=text size=20 maxlength=21 bgcolor=\"#2299bb\" name=\"start_date\" value=";
-    $out .= "\"" . $start_date . "\">";
-    $out .= "</div>";
-        $out .= "<div style=\"font-size: 10px; color: #DEDEDE\">";
-        $out .= "To date <input type=text size=20 maxlength=21 bgcolor=\"#2299bb\" name=\"end_date\" value=";
-    $out .= "\"" . $end_date . "\">";
-        $out .= "</div></td>";
+    $out .= "\"" . $start_date . "\">\n";
+    $out .= "</div>\n";
+    $out .= "<div style=\"font-size: 10px; color: #DEDEDE\">\n";
+    $out .= "To date <input type=text size=20 maxlength=21 bgcolor=\"#2299bb\" name=\"end_date\" value=";
+    $out .= "\"" . $end_date . "\">\n";
+    $out .= "</div></td>";
 
     $out .= "<td width=40 valign=middle align=center><div style=\"font-size: 10px; color: #DEDEDE\">";
     $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"search\">";
@@ -161,10 +167,15 @@ function mainDisplay() {
     $out .= "<form METHOD=\"GET\" NAME=\"logline\" ACTION=\"\">";
     $out .= "<tr>";
     $out .= "<td width=250 valign=middle align=center><div style=\"font-size: 10px; color: #DEDEDE\">";
-    $out .= "Event <input type=text size=250 bgcolor=\"#2299bb\" name=\"logline\" value=\"ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp time:1274864808 msg:Some freeform text\"";
-	 $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"logline\">";
-	 $out .= "</table><div>";
-    
+    $out .= "Event <input type=text size=100 bgcolor=\"#2299bb\" name=\"logline\" value=\"ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp timestamp:1274864808 msg:Some freeform text\"\n";
+    $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"Fetch pcap\">\n";
+    $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"Store pcap\">\n";
+    $out .= "</table><div>\n";
+    return $out;
+}
+
+function showResults() {
+    // Show results    
     $out .= "<div class=edwardTest>";
     $out .= "<table border=0 width=100% cellpadding=0 cellspacing=0><tr>";
     $out .= "<td valign=top>";
@@ -176,36 +187,66 @@ function mainDisplay() {
     return $out;
 }
 
-function extractPcapFromLog() {
+
+function infoBox($infomsg) {
+	$out .= "<!-- infoBox -->\n";
+	$out .= "<div class=infoDisplay><table border=0 width=500 cellpadding=0 cellspacing=0>\n";
+	$out .= "<tr>\n";
+	$out .= "<td width=500 valign=middle align=center><div style=\"font-size: 10px; color: #DEDEDE\">\n";
+	$out .= "$infomsg";
+	$out .= "</td></tr></table>\n";
+	$out .= "<!-- /infoBox -->\n";
+	return $out;
+}
+
+function extractPcapFromLog($action) {
 	global $logline, $ofpcuser, $ofpcpass;
-	#$dump = "";
+	$out .= "<!-- extractPcapFromLog -->\n";
+	
 	# Shell out to ofpc-client here. Note the --gui option.
 	$exec .= "/home/lward/code/openfpc/ofpc-client.pl ";
 	$exec .= "--gui -u $ofpcuser -p $ofpcpass "; 
+	$exec .= "-a $action ";
 	$exec .= "--logline \"$logline\"";
 
 	# Clean up command before we exec it.
 	$e = escapeshellcmd($exec);
-	$out .= "$e <br>";
-	$result = shell_exec($e);
+	#$out .= "$e <br>";
 	#$out .= $result;
 
 	# These are defined in ofpc-client.pl
 	# This is the "friendly parseable" output
+	$result = shell_exec($e);
 	list($action,$filename,$size,$md5,$expected_md5,$position,$message) = explode(",",$result);
+
 	$pathfile=explode("/",$filename);	# Break path and filename from filename
 	$file=array_pop($pathfile);		# Pop last element of path/file array
 
-	#$out .= "<br>Filename is $file<br>";	
-	#$out .= "<br>Action is $action<br>";
-	$out .= "<a href=$file> Download pcap</a>";
-	#$out .= "<br>Done<br>";
-	$out .= mainDisplay();
-	#$out .= "Hello";
-	#$out="Hello";
+	if ($action == "store" ) {
+		$infomsg .= "Extract in queue position $position.<br>\n";
+		$infomsg .= "Expected filename: $file.<br>\n";
+		$out .= infoBox($infomsg);	
+	} elseif ( $action == "fetch") {
+		serv_pcap("$pathfile","$file");
+	} else {
+		$out .= "Unknown action $action<br>\n";
+	}
+	$out .= "<!-- /extractPcapFromLog -->\n";
+	$out .= showResults();
 	return $out;
 }
 
+function extractPcapFromSession() {
+	array=doSessionQuery();
+	$sddate = dirdate($array["start_time"]);
+	$eddate = dirdate($array["end_time"]);
+	$sudate = dd2unix($sddate);
+	$eudate = dd2unix($eddate);
+
+	$msg .= "ofpc-client.pl -u $ofpcuser -p $ofpcuser ";
+	$msg .= "";
+
+}
 
 function dumpDisplay() {
     global $openfpcdir, $tcpdump, $ipv, $mergecap, $mrgtmpdir;
@@ -290,6 +331,17 @@ function mainHeading() {
             height: 15px;
             font-size: 12px;
         }
+
+	.infoDisplay table {
+            background: #fff url(./bluegrade.png) repeat-x;
+            border: 1px solid #454545;
+            padding: 2px;
+	    margin-left: auto;
+	    margin-right: auto;
+            margin: 3px;
+            height: 15px;
+            font-size: 12px;
+	}
 
         .edwardTest table {
             padding: 1px;
@@ -387,7 +439,7 @@ function doSessionQuery() {
 
 function doSearchQuery() {
         global $maxRows, $srcip, $dstip, $srcport, $dstport, $start_date, $end_date;
-    global $protocol, $ipv, $notsrcip, $notdstip, $notsrcport, $notdstport;
+        global $protocol, $ipv, $notsrcip, $notdstip, $notsrcport, $notdstport;
 
         $siteDB = new siteDB();
 
@@ -473,7 +525,7 @@ function doSearchQuery() {
                         $array[mysql_field_name($siteQ, $p)] = $row[$p];
                 }
 
-                $out .= "<div class=eventBox \">" . eventRowFormat($array) . "</div>";
+                $out .= "<div class=eventBox \">" . eventRowFormat($array) . "</div>\n";
 
                 unset($array);
         }
@@ -890,7 +942,7 @@ function serv_pcap($filepath,$cxid) {
     header('Content-Type: application/pcap-capture');
     header("Content-Disposition: attachment; filename=\"$cxid.pcap\"");
     readfile("$filepath");
-    exit(0);
+    #exit(0);
 }
 
 class siteDB {
