@@ -83,7 +83,7 @@ sub OFPC1Event{
 		'parsed' => 0
 		);
 
-	# ofpc-v1 type:event sip:1.1.1.1 dip:1.1.1.1 spt:3432 dpt:1234 proto:tcp time:246583 msg:Some freeform text
+	# ofpc-v1 type:event sip:1.1.1.1 dip:1.1.1.1 spt:3432 dpt:1234 proto:tcp timestamp:246583 msg:Some freeform text
 	my $logline=shift;
 
 	if ($logline =~ m/msg:(.*)/) {
@@ -93,8 +93,8 @@ sub OFPC1Event{
 	if ($logline =~ m/proto:(tcp|udp|icmp)\s/i) {
                 $event{'proto'} = $1; 
         }
-
-	if ($logline =~ m/time:(\d*)\s/ ) { 
+	if ($logline =~ m/timestamp:\s*(\d{1,20})/) { 
+		#m/timestamp:\s*(\d*)\s/ ) { 
         	$event{'timestamp'}=$1;
 	} 
 
