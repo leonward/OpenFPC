@@ -57,7 +57,7 @@ my %pcaps: shared =();
 my $CONFIG_FILE=0;
 my $daemon=0;		# NOT DONE YET
 $verbose=0;
-$debug=0;
+$debug=1;
 
 sub showhelp{
 	print <<EOF
@@ -483,15 +483,19 @@ sub mkBPF($) {
                  push(@eventbpf, "host $request->{'sip'}" );
                  push(@eventbpf, "host $request->{'dip'}" );
         }   
-    
+   
+        if ( $request->{'proto'} ) { 
+                 push(@eventbpf, "$request->{'proto'}" );
+	}
+ 
         if ( $request->{'spt'} xor $request->{'dpt'} ) { 
-                if ($request->{'spt'} ) { push(@eventbpf, "$request->{'proto'} port $request->{'spt'}" ) } 
-                if ($request->{'dpt'} ) { push(@eventbpf, "$request->{'proto'} port $request->{'dpt'}" ) } 
+                if ($request->{'spt'} ) { push(@eventbpf, "port $request->{'spt'}" ) } 
+                if ($request->{'dpt'} ) { push(@eventbpf, "port $request->{'dpt'}" ) } 
         }   
 
         if ( $request->{'spt'} and $request->{'dpt'} ) { 
-                 push(@eventbpf, "$request->{'proto'} port $request->{'spt'}" );
-                 push(@eventbpf, "$request->{'proto'} port $request->{'dpt'}" );
+                 push(@eventbpf, "port $request->{'spt'}" );
+                 push(@eventbpf, "port $request->{'dpt'}" );
         }   
 
         # cat the eventbpf array into a string
