@@ -44,27 +44,35 @@ sub request{
 			'filename' => 0,
 			'size' => 0,
 		);					# This is the hash we provide back to the calling function.
-	my $debug=0;
+	my $debug=1;
+	my $event=0;
 	my ($protover);
 	print Dumper $request if ($debug);
 	my $protover="OFPC-v1";		# For future use.
-	
-	my ($event,$foo)=ofpc::Parse::parselog($request->{'logline'});
-	unless ($event) {
-		$result{'success'} = 0;
-		print "Failed local request validation. Not passing this request to server" if ($debug);
-		return %result;
-	}
 
-	if ($event->{'sip'}) { $request->{'sip'} = $event->{'sip'} ;}
-	if ($event->{'dip'}) { $request->{'dip'} = $event->{'dip'} ;}
-	if ($event->{'dpt'}) { $request->{'dpt'} = $event->{'dpt'} ;}
-	if ($event->{'spt'}) { $request->{'spt'} = $event->{'spt'} ;}
-	if ($event->{'proto'}) { $request->{'proto'} = $event->{'proto'} ;}
-	if ($event->{'timestamp'}) { $request->{'timestamp'} = $event->{'timestamp'} ;}
-	if ($event->{'type'}) { $request->{'type'} = $event->{'type'} ;}
-	if ($event->{'msg'}) { $request->{'msg'} = $event->{'msg'} ;}
-	
+	if ($request->{'logline'}) {
+		($event, my $err)=ofpc::Parse::parselog($request->{'logline'});
+		unless ($event) {
+			$result{'success'} = 0;
+			unless ($err) {
+				$result{'message'} = "Failed local request validation. Not passing this request to server";
+			} else {
+				$result{'message'} = $err;
+			}
+			# Return a fail message
+			return %result;
+		}
+
+		if ($event->{'sip'}) { $request->{'sip'} = $event->{'sip'} ;}
+		if ($event->{'dip'}) { $request->{'dip'} = $event->{'dip'} ;}
+		if ($event->{'dpt'}) { $request->{'dpt'} = $event->{'dpt'} ;}
+		if ($event->{'spt'}) { $request->{'spt'} = $event->{'spt'} ;}
+		if ($event->{'proto'}) { $request->{'proto'} = $event->{'proto'} ;}
+		if ($event->{'timestamp'}) { $request->{'timestamp'} = $event->{'timestamp'} ;}
+		if ($event->{'type'}) { $request->{'type'} = $event->{'type'} ;}
+		if ($event->{'msg'}) { $request->{'msg'} = $event->{'msg'} ;}
+	}	
+
 	# Selecting buffer device related to event src isn't dont yet.
 	print "WARNING: Device selection not done yet -> Using all\n" if ($debug);
 
