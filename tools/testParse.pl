@@ -1,4 +1,4 @@
-#!/usr/bin/perl -I .
+#!/usr/bin/perl -I ..
 
 # leon@rm-rf.co.uk
 # Quick script to test event parsing. Nothing to see here. Move on.
@@ -6,7 +6,7 @@
 
 use strict;
 use warnings;
-use ofpcParse;
+use ofpc::Parse;
 use Switch;
 
 my $auto=1;
@@ -18,25 +18,26 @@ my $auto=1;
 #my $input="05/14-09:01:49.390801  [**] [1:12628:2] RPC portmap Solaris sadmin port query udp portmapper sadmin port query attempt [**] [Classification: Decode of an RPC Query] [Priority: 2] {UDP} 192.168.133.50:666 -> 192.168.10.90:32772";
 
 #my $input="ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 spt:3432 dpt:1234 proto:tcp time:246583 msg:Some freeform text";
-my $input="ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp time:1274864808 msg:Some freeform text";
-
+#my $input="ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp time:1274864808 msg:Some freeform text";
+#my $input="ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 spt:222 timestamp:1274864808";
+my $input="ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 spt:222 timestamp:1274864808";
 my %eventdata = ();
 
 
 if ($auto) {
 	print "* Autodetect type\n";
 	while (1) {
-		%eventdata=ofpcParse::OFPC1Event($input); if ($eventdata{'parsed'} ) { last; }
-		%eventdata=ofpcParse::SF49IPS($input); if ($eventdata{'parsed'} ) { last; }
-		%eventdata=ofpcParse::Exim4($input); if ($eventdata{'parsed'} ) { last; }
-		%eventdata=ofpcParse::SnortSyslog($input); if ($eventdata{'parsed'} ) { last; }
-		%eventdata=ofpcParse::SnortFast($input); if ($eventdata{'parsed'} ) { last; }
+		%eventdata=ofpc::Parse::OFPC1Event($input); if ($eventdata{'parsed'} ) { last; }
+		%eventdata=ofpc::Parse::SF49IPS($input); if ($eventdata{'parsed'} ) { last; }
+		%eventdata=ofpc::Parse::Exim4($input); if ($eventdata{'parsed'} ) { last; }
+		%eventdata=ofpc::Parse::SnortSyslog($input); if ($eventdata{'parsed'} ) { last; }
+		%eventdata=ofpc::Parse::SnortFast($input); if ($eventdata{'parsed'} ) { last; }
 		die("Unable to parse log. Doesn't match anything")
 	}
 } else { # Manual 
 	print "* Manual type set\n";
 
-	%eventdata=ofpcParse::OFPC1($input);
+	%eventdata=ofpc::Parse::OFPC1Event($input);
 }
 	if ($eventdata{'type'}) {
 		print "\nGot event type $eventdata{'type'}\n";
