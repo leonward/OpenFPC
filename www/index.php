@@ -70,8 +70,10 @@ switch ($op) {
         break;
         
     case "dump":
-
-        $out = dumpDisplay();   
+	$out = mainDisplay();
+	$out .= extractPcapFromSession();
+	$out .= showResults();
+        #$out = dumpDisplay();   
         break;
 
     case "Store pcap":
@@ -190,11 +192,11 @@ function showResults() {
 
 function infoBox($infomsg) {
 	$out .= "<!-- infoBox -->\n";
-	$out .= "<div class=infoDisplay><table border=0 width=500 cellpadding=0 cellspacing=0>\n";
-	$out .= "<tr>\n";
-	$out .= "<td width=500 valign=middle align=center><div style=\"font-size: 10px; color: #DEDEDE\">\n";
-	$out .= "$infomsg";
-	$out .= "</td></tr></table>\n";
+	$out .= "</p><div class=infoDisplay><table align=center border=1 width=300 cellpadding=0 cellspacing=0>\n";
+	#$out .= "</p><div class=infoDisplay><table align=center border=0 width=500 cellpadding=0 cellspacing=0>\n";
+	$out .= "<td width=100 valign=middle align=center> <div style=\"font-size: 10px; color: #DEDEDE\">\n";
+	$out .= "<center>$infomsg</center>";
+	$out .= "</td></table>\n";
 	$out .= "<!-- /infoBox -->\n";
 	return $out;
 }
@@ -229,7 +231,8 @@ function extractPcapFromLog($action) {
 	} elseif ( $action == "fetch") {
 		serv_pcap("$pathfile","$file");
 	} else {
-		$out .= "Unknown action $action<br>\n";
+		$err .= "Problem with Extraction<br>$action<br>$e";
+		$out .= infoBox("$err");
 	}
 	$out .= "<!-- /extractPcapFromLog -->\n";
 	$out .= showResults();
@@ -237,15 +240,36 @@ function extractPcapFromLog($action) {
 }
 
 function extractPcapFromSession() {
-	array=doSessionQuery();
+	global $ofpcuser, $ofpcpass;
+	$array=doSessionQuery();
 	$sddate = dirdate($array["start_time"]);
 	$eddate = dirdate($array["end_time"]);
 	$sudate = dd2unix($sddate);
 	$eudate = dd2unix($eddate);
 
-	$msg .= "ofpc-client.pl -u $ofpcuser -p $ofpcuser ";
-	$msg .= "";
+	$exec = "/home/lward/code/openfpc/ofpc-client.pl -u $ofpcuser -p $ofpcuser " . 
+		" --gui " .
+		" --timestamp " . $sudate .
+		" --src-addr " . $array["src_ip"] .
+		" --dst-addr " . $array["dst_ip"] .
+		" --src-port " . $array["src_port"] .
+		" --dst-port " . $array["dst_port"] .
+		" --proto " . $array["ip_proto"];
 
+	#$out .= infoBox($exec);
+	$e = escapeshellcmd($exec);
+	$result = shell_exec($e);
+
+	list($action,$filename,$size,$md5,$expected_md5,$position,$message) = explode(",",$result);
+	$pathfile=explode("/",$filename);       # Break path and filename from filename 
+	$file=array_pop($pathfile);             # Pop last element of path/file array
+
+	$inbox ="Extracted: $filename, $size<br>" .
+		"Slave MD5: $expected_md5<br>" .
+		"Queue postion: $position<br>" .
+		"Error: $message";
+	$out .= infoBox($inbox);	
+	return $out;
 }
 
 function dumpDisplay() {
