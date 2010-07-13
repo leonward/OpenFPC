@@ -218,21 +218,23 @@ function extractPcapFromLog($action) {
 
 	# These are defined in ofpc-client.pl
 	# This is the "friendly parseable" output
-	$result = shell_exec($e);
-	list($action,$filename,$size,$md5,$expected_md5,$position,$message) = explode(",",$result);
+	$cmdresult = shell_exec($e);
+	list($result,$action,$filename,$size,$md5,$expected_md5,$position,$message) = explode(",",$cmdresult);
 
 	$pathfile=explode("/",$filename);	# Break path and filename from filename
 	$file=array_pop($pathfile);		# Pop last element of path/file array
 
-	if ($action == "store" ) {
-		$infomsg .= "Extract in queue position $position.<br>\n";
-		$infomsg .= "Expected filename: $file.<br>\n";
-		$out .= infoBox($infomsg);	
-	} elseif ( $action == "fetch") {
-		serv_pcap("$pathfile","$file");
+	if ($result) {
+		if ($action == "store" ) {
+			$infomsg .= "Extract in queue position $position.<br>\n";
+			$infomsg .= "Expected filename: $file.<br>\n";
+			$out .= infoBox($infomsg);	
+		} elseif ( $action == "fetch") {
+			serv_pcap("$pathfile","$file");
+		}
 	} else {
-		$err .= "Problem with Extraction<br>$action<br>$e";
-		$out .= infoBox("$err");
+		$infomsg = "Error: $message<br>";
+		$out .= infoBox($infomsg);
 	}
 	$out .= "<!-- /extractPcapFromLog -->\n";
 	$out .= showResults();
@@ -258,17 +260,22 @@ function extractPcapFromSession() {
 
 	#$out .= infoBox($exec);
 	$e = escapeshellcmd($exec);
-	$result = shell_exec($e);
+	$shellresult = shell_exec($e);
 
-	list($action,$filename,$size,$md5,$expected_md5,$position,$message) = explode(",",$result);
+	list($result,$action,$filename,$size,$md5,$expected_md5,$position,$message) = explode(",",$shellresult);
 	$pathfile=explode("/",$filename);       # Break path and filename from filename 
 	$file=array_pop($pathfile);             # Pop last element of path/file array
 
-	$inbox ="Extracted: $filename, $size<br>" .
-		"Slave MD5: $expected_md5<br>" .
-		"Queue postion: $position<br>" .
-		"Error: $message";
-	$out .= infoBox($inbox);	
+	if ($result) {
+		$infobox ="Extracted: $filename, $size<br>" .
+		  "Slave MD5: $expected_md5<br>" .
+		  "Queue postion: $position<br>" .
+		  "Msg: $message";
+	} else {
+		$infobox ="Error: $message <br>";
+	}
+
+	$out .= infoBox($infobox);	
 	return $out;
 }
 
@@ -365,6 +372,7 @@ function mainHeading() {
             margin: 3px;
             height: 15px;
             font-size: 12px;
+	    align: center;
 	}
 
         .edwardTest table {

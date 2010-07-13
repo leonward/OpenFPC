@@ -32,6 +32,46 @@ use Switch;
 use Digest::MD5(qw(md5_hex));
 
 # Hint: "ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp timestamp:1274864808 msg:Some freeform text";
+my %cmdargs=( user => "ofpc",
+	 	password => 0, 
+		server => "localhost",
+		port => "4242",
+		action => "fetch",
+		logtype => "auto",
+		debug => 0,
+		verbose => 0,
+		filename => "/tmp/foo.pcap",
+		logline => 0,
+		quiet => 0,
+		gui => 0,
+		);
+
+my %request=(	user => 0,
+		password => 0,
+		action => 0,
+		device => 0,
+		logtype => 0,
+		logline => 0,
+		sip => 0,
+		dip => 0,
+		spt => 0,
+		dpt => 0,
+		proto => 0,
+		timestamp => 0,
+		stime => 0,
+		etime => 0,
+		);
+
+my %result=(
+		success => 0,
+		filename => 0,
+		position => 0,
+		md5 => 0,
+		expected_md5 => 0,
+		message => 0,
+		size => 0,
+	);
+
 
 sub showhelp{
 	print <<EOF 
@@ -88,36 +128,34 @@ sub sessionToLogline{
 	return($logline);
 }
 
+sub displayResult{
+	if ($result{'success'} == 1) { 			# Request is Okay and being processed
+		unless ($cmdargs{'gui'}) {  		# Command line output
+			if ($request{'action'} eq "fetch") {
+				print "$result{'filename'} size:$result{'size'}\n";
+			} else {
+				print 	"Queue Position: $result{'position'} \n".
+					"Remote File   : $result{'filename'}\n" .
+					"Result        : $result{'message'}\n";
+			}
+		} else {			# GUI firendly output
+						# Provide output that is easy to parse
+						# result=0   	Fail
+						# result=1	success
+						# result,action,filename,size,md5,expected_md5,position,message
+			print "1,$request{'action'},$result{'filename'},$result{'size'},$result{'md5'},$result{'expected_md5'}," .
+				"$result{'position'},$result{'message'}\n";
+		}
+	} else {				# Problem with request, provide fail info
+		if ($cmdargs{'gui'}) {
+			print "0,$request{'action'},$result{'filename'},$result{'size'},$result{'md5'},$result{'expected_md5'}," .
+				"$result{'position'},$result{'message'}\n";
+		} else {
+			print "Problem processing request: $result{'message'}\n" ;
+		}
+	}
+}
 
-my %cmdargs=( user => "ofpc",
-	 	password => 0, 
-		server => "localhost",
-		port => "4242",
-		action => "fetch",
-		logtype => "auto",
-		debug => 0,
-		verbose => 0,
-		filename => "/tmp/foo.pcap",
-		logline => 0,
-		quiet => 0,
-		gui => 0,
-		);
-
-my %request=(	user => 0,
-		password => 0,
-		action => 0,
-		device => 0,
-		logtype => 0,
-		logline => 0,
-		sip => 0,
-		dip => 0,
-		spt => 0,
-		dpt => 0,
-		proto => 0,
-		timestamp => 0,
-		stime => 0,
-		etime => 0,
-		);
 
 my (%config,$verbose,$debug);
 my $version=0.1;
@@ -181,7 +219,6 @@ if ($cmdargs{'help'}) {
 }
 
 # Check we have enough constraints to make an extraction with.
-
 if ($request{'action'} =~ m/(fetch|store)/)  {
 	unless ($request{'logline'} or ($cmdargs{'sip'} or $cmdargs{'dip'} or $cmdargs{'spt'} or $cmdargs{'dpt'} )) {
 		showhelp;
@@ -198,13 +235,16 @@ unless ($cmdargs{'logline'}) {
 	$request{'logline'} = $logline;	
 }
 
-
 my $sock = IO::Socket::INET->new(
 				PeerAddr => $config{'server'},
                                 PeerPort => $config{'port'},
                                 Proto => 'tcp',
                                 );  
-unless ($sock) { die("Unable to create socket to server $config{'server'} on TCTP:$config{'port'}"); }
+unless ($sock) { 
+	$result{'message'} = "Unable to create socket to server $config{'server'} on TCP:$config{'port'}\n"; 
+	displayResult($cmdargs{'gui'});
+	exit 1;
+}
 
 unless ($request{'password'}) {
 	print "Password for user $request{'user'} : ";
@@ -213,24 +253,10 @@ unless ($request{'password'}) {
 	$request{'password'} = $userpass;
 }
 
-my %result=ofpc::Request::request($sock,\%request);
+%result=ofpc::Request::request($sock,\%request);
+print Dumper %result;
 close($sock);
 
-if ($result{'success'} == 1) { 			# Request is Okay and being processed
-	unless ($cmdargs{'gui'}) {  	# Command line output
-		if ($request{'action'} eq "fetch") {
-			print "$result{'filename'} size:$result{'size'}\n";
-		} else {
-			print 	"Queue Position: $result{'position'} \n".
-				"Remote File   : $result{'filename'}\n" .
-				"Result        : $result{'message'}\n";
-		}
-	} else {			# GUI firendly output
-					# Provide output that is easy to parse
-					# action,filename,size,md5,expected_md5,position,message
-		print "$request{'action'},$result{'filename'},$result{'size'},$result{'md5'},$result{'expected_md5'}," .
-			"$result{'position'},$result{'message'}\n";
-	}
-} else {					# Problem with request
-	print "Problem processing request: $result{'message'}\n";
-}
+displayResult($cmdargs{'gui'});
+
+# provide output back to the user / gui

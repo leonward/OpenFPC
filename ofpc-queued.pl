@@ -650,7 +650,7 @@ sub doExtract{
 	my $filelistref=shift;
 	my $mergefile=shift;
 	my @filelist=@{$filelistref};
-	my $tempdir=tempdir();
+	my $tempdir=tempdir(CLEANUP => 1);
 	
         my @outputpcaps=();
         print "DEBUG: Doing Extraction with BPF $bpf into tempdir $tempdir\n" if ($debug);
@@ -687,7 +687,7 @@ sub doExtract{
 	wlog("SLAVE: Extracted to $mergefile, $filesize, $md5\n");
 
         # Clean up temp files that have been merged...
-	print "DEBUG: Cleaning tempdir $tempdir\n" if ($debug);
+	wlog ("DEBUG: Cleaning tempdir $tempdir\n");
 	File::Temp::cleanup();
 
 	return($mergefile,$filesize,$md5);
