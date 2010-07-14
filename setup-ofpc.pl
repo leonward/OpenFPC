@@ -43,11 +43,14 @@ my %config=(
 		PORT => "4242",
 		MASTER => 0,
 		BUFFER_PATH => "/var/tmp/openfpc",
-		FILE_SIZE => "10",
+		FILE_SIZE => "10M",
 		DISK_SPACE => "50",
 		SESSION_DB_NAME => "openfpc",
 		SESSION_DB_PASS => "openfpc",
 		SESSION_DIR => "/var/tmp/ofpc_session",	
+		DONE => "n",
+		INTERFACE => "eth1",
+		DAEMONLOGGER => "daemonlogger",
                 );  
 
 # Rather than dupe questions for different operation modes and setup styles, these are a list of questions to ask for slave/simple, slave/advanced, and in the future master/simple, master/advanced.
@@ -57,10 +60,13 @@ my @slavesimple=(
 	"SAVEDIR",
 	"SESSION_DIR",
 	"SESSION_DB_NAME",
-	"SESSION_DB_PASS");
+	"INTERFACE",
+	"SESSION_DB_PASS",
+	"DONE");
 
 my @slaveadvanced=(
 	"OFPCUSER",
+	"INTERFACE",
 	"BUFFER_PATH",
 	"SAVEDIR",
 	"SESSIONDIR",
@@ -68,10 +74,14 @@ my @slaveadvanced=(
 	"SESSION_DB_PASS",
 	"SESSOIN_DB_PORT",
 	"OFPC_PORT",
-	"VERBOSE");
+	"VERBOSE",
+	"DONE",
+	"DAEMONLOGGER"
+	"SIZE");
 
 # This is a hash of things we need to configure. It contains the variable, and the question to present to the user
 $question{'OFPCUSER'} = "What system User ID would you like to run the ofpc process as?";
+$question{'INTERFACE'} = "What interface do you want daemonlogger to run on?";
 $question{'VERBOSE'} = "Run in verbose mode (WARNING this disables daemon mode (not done yet!)) \n (1=on 0=off)";
 $question{'SAVEDIR'} = "Location to save extracted sessions to";
 $question{'BUFFER_PATH'} = "Path to store traffic buffer, this is where you want to throw a large quantity of storage.\n";
@@ -79,10 +89,14 @@ $question{'PORT'} = "TCP port for openfpc to listen on";
 $question{'SESSION_DIR'} =  "Path to store session data (Text flow records)"; 
 $question{'SESSION_DB_NAME'} = "Name of the session database (MYSQL)";
 $question{'SESSION_DB_PASS'} = "Enter the password for the Database user";
+$question{'DONE'} = "Are you happy that configuration is complete y/n";
+$question{'DAEMONLOGGER'} = "Path to daemonlogger";
+$question{'FILESIZE'} = "Size of each buffer file. E.g. \"2G\" = 2 GB, \"10M\" = 10 MB"l
 # Input validations to make sure we get valid data as part of the setup questions.
 # Format is a key, and then a pcre to m/$stuff/.
 $validation{'VERBOSE'} = "(1|0)";
 $validation{'PORT'} = "\d{1,5}";
+$validation{'DONE'} = "(y|n)";
 
 sub askq{
 	# Ask a question, return an answer

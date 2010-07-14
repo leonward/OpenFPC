@@ -167,12 +167,19 @@ sub request{
                                         print "Expecting MD5 $result{'expected_md5'}\n" if ($debug);
 
                                         open (PCAP,'>',"$request->{'filename'}");
+					PCAP->autoflush(1);	
                                         binmode(PCAP);
                                         binmode($socket);
                                         my $data;
+					my $a=0;
+					print $socket "READY:\n";
+					print "DEBUG: Sent ready marker\n" if ($debug);
+
                                         while (sysread($socket,$data,1024,0)){
                                                 syswrite(PCAP, $data,1024,0);
+						$a++;
                                         }
+
                                         close($socket);
                                         close(PCAP);
                                         open(PCAPMD5, '<', "$request->{'filename'}") or die("cant open pcap file $request->{'filename'}");
@@ -191,7 +198,7 @@ sub request{
 					} else {
 						$result{'success'} = 0;
 						$result{'filename'} = $request->{'filename'};
-						$result{'error'} = "MD5 sum mismatch";
+						$result{'message'} = "md5sum mismatch between extracted and recieved file";
 					}
 					shutdown($socket,2);
 					return %result;
