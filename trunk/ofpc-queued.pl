@@ -303,18 +303,27 @@ sub comms{
 							my $md5=Digest::MD5->new->addfile(*PCAPMD5)->hexdigest;
 							close(PCAPMD5);
 							wlog("PCAP $client_ip Request: $request->{'rid'} PCAP MD5 $pcapfile $md5");
+
 							# Get client ready to recieve binary PCAP file
 							print $client "PCAP: $md5\n";
-							
+							$client->flush();
+
+							# Wait for client to share its ready state
+							# Any data sent from the client will be fine.
+
+							my $ready=<$client>;
 							open(PCAP, '<', "$pcapfile") or die("cant open pcap file $pcapfile");
 							binmode(PCAP);
 							binmode($client);
 
 							my $data;
 							# Read and send pcap data to client
-							while(read(PCAP, $data, 1024)) {
-								send($client,$data,0);
+							my $a=0;
+							while(sysread(PCAP, $data, 1024)) {
+								syswrite($client,$data,1024);
+								$a++;
 							}
+							wlog("Sent $a KB\n");
 							close(PCAP);		# Close file
 	                        			shutdown($client,2);	# CLose client
 
@@ -687,7 +696,7 @@ sub doExtract{
 	wlog("SLAVE: Extracted to $mergefile, $filesize, $md5\n");
 
         # Clean up temp files that have been merged...
-	wlog ("DEBUG: Cleaning tempdir $tempdir\n");
+	wlog ("DISABLED DEBUG: Cleaning tempdir $tempdir\n");
 	File::Temp::cleanup();
 
 	return($mergefile,$filesize,$md5);
@@ -766,6 +775,7 @@ my $listenSocket = IO::Socket::INET->new(
                                 Reuse => 1,
                                 );
 unless ($listenSocket) { die("Problem creating socket!"); }
+$listenSocket->autoflush(1);
 
 if ($daemon) {
 	print "[*] OpenFPC Queued - Daemonizing\n";

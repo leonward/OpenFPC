@@ -24,7 +24,7 @@
 # ---------------- Nothing to do below here -------------
 # List of config files to try in order
 
-CONFIG_FILES="./openfpc.conf /etc/openfpc/openfpc.conf /opt/openfpc/openfpc.conf"
+CONFIG_FILES="./myopenfpc.conf" 
 
 for i in $CONFIG_FILES
 do
@@ -47,7 +47,7 @@ PID_FILE=openfpc-dl
 PID_PATH=/var/run
 FILENAME=openfpc-pcap
 
-if [ "$DONE_CONFIG" != 1 ]
+if [ "$DONE" != "y" ] 
 then
 	echo -e "[!] Configuration not complete, unable to read config from $CONFIG_FILES \n    Have you run ./install-opefpc ?"
 	exit 1
@@ -106,14 +106,14 @@ function start()
 	fi
 	
 	ifconfig $INTERFACE > /dev/null 2>&1 || die "[!] Unable to find device $INTERFACE."
-	# It looks like daemonlogger expects to find SOMETHING to unlink in $LOGDIR when it gets 
+	# It looks like daemonlogger expects to find SOMETHING to unlink in $BUFFER_PATH when it gets 
 	# close to -M value. Lets give it a little something, I think this will pevent a lot
 	# of questions from confused users. Strange I know, but hey.
 
-	touch $LOG/openfpc-pcap.0
+	touch $BUFFER_PATH/openfpc-pcap.0
 	CMD="$DAEMONLOGGER -d \
 		-i $INTERFACE \
-		-l $LOG \
+		-l $BUFFER_PATH \
 		-M $DISK_SPACE \
 		-s $FILE_SIZE \
 		-p $PID_FILE \
@@ -122,7 +122,7 @@ function start()
 
 	$CMD || die "Unable to start daemonlogger"
 	sleep 1
-	[ -f $LOG/openfpc-pcap.0 ] && rm $LOG/openfpc-pcap.0
+	[ -f $BUFFER_PATH/openfpc-pcap.0 ] && rm $BUFFER_PATH/openfpc-pcap.0
 	
 	if [ -f $PID_PATH/$PID_FILE ] 
 	then

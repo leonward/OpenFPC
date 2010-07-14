@@ -133,6 +133,7 @@ sub displayResult{
 		unless ($cmdargs{'gui'}) {  		# Command line output
 			if ($request{'action'} eq "fetch") {
 				print "$result{'filename'} size:$result{'size'}\n";
+				print "$result{'md5'}\n";
 			} else {
 				print 	"Queue Position: $result{'position'} \n".
 					"Remote File   : $result{'filename'}\n" .
@@ -151,7 +152,9 @@ sub displayResult{
 			print "0,$request{'action'},$result{'filename'},$result{'size'},$result{'md5'},$result{'expected_md5'}," .
 				"$result{'position'},$result{'message'}\n";
 		} else {
-			print "Problem processing request: $result{'message'}\n" ;
+			print "Problem processing request: $result{'message'}\n";
+			print "Expected: $result{'expected_md5'}\n" if ($result{'expected_md5'});
+			print "Got     : $result{'md5'}\n" if ($result{'md5'});
 		}
 	}
 }
@@ -254,7 +257,6 @@ unless ($request{'password'}) {
 }
 
 %result=ofpc::Request::request($sock,\%request);
-print Dumper %result;
 close($sock);
 
 displayResult($cmdargs{'gui'});
