@@ -89,7 +89,7 @@ sub closedown{
 	my $sig=shift;
 	wlog("Shuting down by request via $sig\n");
 	File::Temp::cleanup();
-	unlink($config{'PIDFILE'});
+	unlink($config{'OFPC_Q_PID'});
 	closelog;
 	exit 0;
 }
@@ -108,7 +108,7 @@ sub getrequestid{
 =head2 decoderequest
 	Take the OFPC request, and provide a hash(ref) to the decoded data.
 	Example of a OFPC request:
-	ofpc||fetch||||/tmp/foo.pcap||||auto||ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp time:1274864808 msg:Some freeform text
+	ofpc||fetch||||/tmp/foo.pcap||||auto||ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp time:1274864808 msg:Some freeform text||Some comment text
 =cut
 
 sub decoderequest($){
@@ -128,26 +128,39 @@ sub decoderequest($){
 			spt	=>	0,
 			dpt	=>	0,
 			msg	=>	0,
+			rtime	=>	0,
 			timestamp =>	0,
 			stime	=>	0,
 			etime	=>	0,
+			comment =>	0,
+			valid   =>	0,
         );
 
         my @requestarray = split(/\|\|/, $rawrequest);
         my $argnum=@requestarray;
-        unless ($argnum == 7 ) {
+	$request{'rtime'} = gmtime();
+
+        unless ($argnum == 8 ) {
                 if ($debug) {
-                        print "-D  Bad request, only $argnum args. Expected 7\n";
+                        print "-D  Bad request, only $argnum args. Expected 8\n";
                 }
-                return(0,"Expected 7 args, got $argnum");
+		$request{'msg'} = "Bad request. Only $argnum args. Expected 8\n";
+                return(\%request);
         }
-        ($request{'user'},$request{'action'},$request{'device'},$request{'filename'},$request{'location'},$request{'logtype'},$request{'logline'}) = split(/\|\|/, $rawrequest);
+        ($request{'user'},
+		$request{'action'},
+		$request{'device'},
+		$request{'filename'},
+		$request{'location'},
+		$request{'logtype'},
+		$request{'logline'},
+		$request{'comment'}) = split(/\|\|/, $rawrequest);
 
 	# Check logline is valid
 	my ($eventdata, $error)=ofpc::Parse::parselog($request{'logline'});
 	unless ($eventdata) {
 		wlog("ERROR: Cannot parse logline-> $error");
-		return(0,"Unable to parse logline. Corrupt or not supported format $request{'logline'}");
+		return(\%request);
 	} else {
 		# Append the session that is being requested to the hash that is the request itself
 		$request{'sip'} = $eventdata->{'sip'};
@@ -159,6 +172,9 @@ sub decoderequest($){
 		$request{'stime'} = $eventdata->{'stime'};
 		$request{'etime'} = $eventdata->{'etime'};
 		$request{'proto'} = $eventdata->{'proto'};
+	}
+	unless ($request{'comment'}) {
+		$request{'comment'} = "No comment";
 	}
 
 	#if ($debug) {
@@ -177,11 +193,14 @@ sub decoderequest($){
 	$request{'rid'} = getrequestid();
 
 	if ($request{'action'} =~ m/(fetch|store|status)/) {
-		wlog("DECODE: Recieved action $request{'action'}");
-        	return(\%request,"Okay");
+		wlog("DECOD: Recieved action $request{'action'}");
+		wlog("DECOD: User $request{'user'} assigned RID: $request{'rid'} for action $request{'action'}. Comment: $request{'comment'}");
+		$request{'valid'} = 1;
+        	return(\%request);
 	} else {
-		wlog("DECODE: Recieved invalid action $request{'action'}");
-		return(0,"Invalid action $request{'action'}");
+		wlog("DECOD: Recieved invalid action $request{'action'}");
+		$request{'msg'} = "recieved invalid action $request{'action'}";
+		return(\%request);
 	}
 }
 
@@ -268,8 +287,8 @@ sub comms{
 				if ($buf =~ /REQ:\s*(.*)/) {
 					$reqcmd=$1;
 					print "DEBUG: $client_ip: REQ -> $reqcmd\n" if ($debug);
-					my ($request,$error)=decoderequest($reqcmd);
-					unless ($request == 0) {
+					my $request=decoderequest($reqcmd);
+					if ($request->{'valid'} == 1) {					# Valid request then...		
 						# Generate a rid (request ID for this.... request!).
 						# Unless action is something we need to wait for, lets close connection
 						my $position=$queue->pending();
@@ -277,11 +296,13 @@ sub comms{
 							# Create a tempfilename for this store request
 							$request->{'tempfile'}=time() . "-" . $request->{'rid'} . ".pcap";
 							print $client "FILENAME: $request->{'tempfile'}\n";
+
 							$queue->enqueue($request);
 							#Say thanks and disconnect
 							print "DEBUG: $client_ip: RID: $request->{'rid'}: Queue action requested. Position $position. Disconnecting\n" if ($debug);
 							print $client "QUEUED: $position\n";
 							shutdown($client,2);
+
 						} elsif ($request->{'action'} eq "fetch") {
 							# Create a tempfilename for this store request
 							$request->{'tempfile'}=time() . "-" . $request->{'rid'} . ".pcap";
@@ -332,8 +353,8 @@ sub comms{
 							wlog ("COMMS: $client_ip Recieved Status Request");	
 						}
 					} else {
-						wlog("COMMS: $client_ip: BAD request $error");
-						print $client "ERROR $error\n";
+						wlog("COMMS: $client_ip: BAD request $request->{'msg'}");
+						print $client "ERROR $request->{'msg'}\n";
 	                        		shutdown($client,2);
 					}
 				} else {
@@ -437,6 +458,17 @@ sub doslave{
 
 	(my $filename, my $size, my $md5) = doExtract($bpf,\@pcaproster,$request->{'tempfile'});
 	wlog("SLAVE: Extraction complete: Result: $filename, $size, $md5");   
+	
+	# Create extraction Metadata file
+	
+	open METADATA , '>', "$config{'SAVEDIR'}/$filename.txt"  or die "Unable to open MetaFile $config{'SAVEDIR'}/$filename.txt for writing";
+	print METADATA "User: $request->{'user'}\n" .
+			"Filename: $request->{'filename'}\n" .
+			"MD5: $md5\n" .
+			"Size: $size\n" .
+			"User comment: $request->{'comment'}\n" .
+			"Time: $request->{'rtime'}\n";
+	close METDATA;
 
 	# Return the name of the file that we have extracted
         return(1,"$filename");
@@ -696,7 +728,6 @@ sub doExtract{
 	wlog("SLAVE: Extracted to $mergefile, $filesize, $md5\n");
 
         # Clean up temp files that have been merged...
-	wlog ("DISABLED DEBUG: Cleaning tempdir $tempdir\n");
 	File::Temp::cleanup();
 
 	return($mergefile,$filesize,$md5);
@@ -710,7 +741,7 @@ $SIG{PIPE} = \&pipeHandler;
 $config{'MASTER'}=0;		# Default is slave mode
 $config{'SAVEDIR'}="/tmp";	# Where to save cached PCAP files.
 $config{'LOGFILE'}="/tmp/ofpc-queued.log"; 	# Log file
-$config{'PIDFILE'}="/tmp/ofpc-queued.pid";
+$config{'OFPC_Q_PID'}="/tmp/ofpc-queued.pid";
 $config{'TCPDUMP'} = "/usr/sbin/tcpdump";
 $config{'MERGECAP'} = "/usr/bin/mergecap";
 
@@ -757,6 +788,11 @@ while(<$config>) {
 }
 close $config;
 
+my $numofusers=keys (%userlist);
+unless ($numofusers) {
+	die "No users defined in config file.\n";
+}
+
 if ($config{'MASTER'}) {
         wlog("Starting in MASTER mode");
 } else {
@@ -767,9 +803,9 @@ if ($config{'MASTER'}) {
 
 
 # Start listener
-print "*  Starting listener on TCP:$config{'PORT'}\n" if ($debug);
+print "*  Starting listener on TCP:$config{'OFPC_PORT'}\n" if ($debug);
 my $listenSocket = IO::Socket::INET->new(
-                                LocalPort => $config{'PORT'},
+                                LocalPort => $config{'OFPC_PORT'},
                                 Proto => 'tcp',
                                 Listen => '10',
                                 Reuse => 1,
@@ -788,7 +824,7 @@ if ($daemon) {
 	open (STDOUT, "> $config{'LOGFILE'}") or die "Can't open Log for STDOUT  $config{'LOGFILE'}: $!\n";
 	defined(my $pid = fork)   or die "Can't fork: $!";
 	if ($pid) {
-		open (PID, "> $config{'PIDFILE'}") or die "Unable write to pid file $config{'PIDFILE'}: $!\n";
+		open (PID, "> $config{'OFPC_Q_PID'}") or die "Unable write to pid file $config{'OFPC_Q_PID'}: $!\n";
       		print PID $pid, "\n";
       		close (PID);
 		exit 0;

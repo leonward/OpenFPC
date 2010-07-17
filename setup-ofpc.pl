@@ -53,6 +53,7 @@ my %config=(
 		INTERFACE => "eth1",
 		DAEMONLOGGER => "daemonlogger",
 		ENABLE_IP_V6 => "0",
+		OFPC_Q_PID => "/tmp/ofpc-queued.pid",
                 );  
 
 # Rather than dupe questions for different operation modes and setup styles, these are a list of questions to ask for slave/simple, slave/advanced, and in the future master/simple, master/advanced.
@@ -72,7 +73,7 @@ my @slaveadvanced=(
 	"INTERFACE",
 	"BUFFER_PATH",
 	"SAVEDIR",
-	"SESSIONDIR",
+	"SESSION_DIR",
 	"SESSION_DB_NAME",
 	"SESSION_DB_USER",
 	"SESSION_DB_PASS",
@@ -81,7 +82,9 @@ my @slaveadvanced=(
 	"DONE",
 	"DAEMONLOGGER",
 	"FILE_SIZE",
-	"ENABLE_IP_V6",);
+	"ENABLE_IP_V6",
+	"OFPC_Q_PID",
+	);
 
 # This is a hash of things we need to configure. It contains the variable, and the question to present to the user
 $question{'OFPCUSER'} = "What system User ID would you like to run the ofpc process as?";
@@ -98,6 +101,8 @@ $question{'DONE'} = "Are you happy that configuration is complete y/n";
 $question{'DAEMONLOGGER'} = "Path to daemonlogger";
 $question{'FILE_SIZE'} = "Size of each buffer file. E.g. \"2G\" = 2 GB, \"10M\" = 10 MB";
 $question{'ENABLE_IP_V6'} = "Enable IPv6 Support? \n (1=on, 0=off)";
+$question{'OFPC_Q_PID'} = "PID file location for queue daemon";
+
 # Input validations to make sure we get valid data as part of the setup questions.
 # Format is a key, and then a pcre to m/$stuff/.
 $validation{'VERBOSE'} = "(1|0)";

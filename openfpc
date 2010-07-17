@@ -194,6 +194,20 @@ function status()
 	else
 		echo "[!] No current buffers found in $BUFFER_PATH - Have you started it yet?"
 	fi
+	
+	if [ -f $OFPC_Q_PID ] 
+	then
+		echo -e "[-] Found OpenFPC Queued PID file $OFPC_Q_PID"
+		QPID=$(cat $OFPC_Q_PID)
+		if ps $QPID > /dev/null 2>&1
+		then
+			echo -e "[*] OpenFPC Queue Daemon running as Pid: $QPID"
+		else
+			echo -s "    Stale PID! $QPID Queued Not running"
+		fi
+	
+	fi	
+
 }
 
 
