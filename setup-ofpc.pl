@@ -40,17 +40,19 @@ my %config=(
                 saveconfig => "./myofpc.conf",
 		SAVEDIR => "/tmp",
 		VERBOSE => "1",
-		PORT => "4242",
+		OFPC_PORT => "4242",
 		MASTER => 0,
 		BUFFER_PATH => "/var/tmp/openfpc",
 		FILE_SIZE => "10M",
 		DISK_SPACE => "50",
 		SESSION_DB_NAME => "openfpc",
+		SESSION_DB_USER => "openfpc",
 		SESSION_DB_PASS => "openfpc",
 		SESSION_DIR => "/var/tmp/ofpc_session",	
 		DONE => "n",
 		INTERFACE => "eth1",
 		DAEMONLOGGER => "daemonlogger",
+		ENABLE_IP_V6 => "0",
                 );  
 
 # Rather than dupe questions for different operation modes and setup styles, these are a list of questions to ask for slave/simple, slave/advanced, and in the future master/simple, master/advanced.
@@ -60,8 +62,9 @@ my @slavesimple=(
 	"SAVEDIR",
 	"SESSION_DIR",
 	"SESSION_DB_NAME",
-	"INTERFACE",
+	"SESSION_DB_USER",
 	"SESSION_DB_PASS",
+	"INTERFACE",
 	"DONE");
 
 my @slaveadvanced=(
@@ -71,13 +74,14 @@ my @slaveadvanced=(
 	"SAVEDIR",
 	"SESSIONDIR",
 	"SESSION_DB_NAME",
+	"SESSION_DB_USER",
 	"SESSION_DB_PASS",
-	"SESSOIN_DB_PORT",
 	"OFPC_PORT",
 	"VERBOSE",
 	"DONE",
-	"DAEMONLOGGER"
-	"SIZE");
+	"DAEMONLOGGER",
+	"FILE_SIZE",
+	"ENABLE_IP_V6",);
 
 # This is a hash of things we need to configure. It contains the variable, and the question to present to the user
 $question{'OFPCUSER'} = "What system User ID would you like to run the ofpc process as?";
@@ -85,17 +89,20 @@ $question{'INTERFACE'} = "What interface do you want daemonlogger to run on?";
 $question{'VERBOSE'} = "Run in verbose mode (WARNING this disables daemon mode (not done yet!)) \n (1=on 0=off)";
 $question{'SAVEDIR'} = "Location to save extracted sessions to";
 $question{'BUFFER_PATH'} = "Path to store traffic buffer, this is where you want to throw a large quantity of storage.\n";
-$question{'PORT'} = "TCP port for openfpc to listen on";
+$question{'OFPC_PORT'} = "TCP port for openfpc to listen on";
 $question{'SESSION_DIR'} =  "Path to store session data (Text flow records)"; 
 $question{'SESSION_DB_NAME'} = "Name of the session database (MYSQL)";
+$question{'SESSION_DB_USER'} = "Enter the username for the Database user";
 $question{'SESSION_DB_PASS'} = "Enter the password for the Database user";
 $question{'DONE'} = "Are you happy that configuration is complete y/n";
 $question{'DAEMONLOGGER'} = "Path to daemonlogger";
-$question{'FILESIZE'} = "Size of each buffer file. E.g. \"2G\" = 2 GB, \"10M\" = 10 MB"l
+$question{'FILE_SIZE'} = "Size of each buffer file. E.g. \"2G\" = 2 GB, \"10M\" = 10 MB";
+$question{'ENABLE_IP_V6'} = "Enable IPv6 Support? \n (1=on, 0=off)";
 # Input validations to make sure we get valid data as part of the setup questions.
 # Format is a key, and then a pcre to m/$stuff/.
 $validation{'VERBOSE'} = "(1|0)";
-$validation{'PORT'} = "\d{1,5}";
+$validation{'ENABLE_IP_V6'} = "(1|0)";
+$validation{'PORT'} = "\\d{1,5}";
 $validation{'DONE'} = "(y|n)";
 
 sub askq{
@@ -188,6 +195,8 @@ if (defined $cmdargs{'advanced'}) { 				# Advanced requested
 #print Dumper %config if ($debug);
 my $qcount=@qlist;
 my $qnum=0;
+
+# Ask questions to user and save the answer in a hash
 foreach my $key (@qlist) {
 	$qnum++;
 	# If there is a value already set in the config file, provide it as
@@ -201,6 +210,50 @@ foreach my $key (@qlist) {
 	print "Setting $key to $config{$key}\n" if ($debug);
 }
 
+# Add users for ofpc-queued
+# Here
+print "\n------ OpenFPC User definition ------\n";
+foreach my $user (keys %userlist){
+	print "* Found existing user - $user\n";
+	print "  Keep user? (y/n) : ";
+	my $tmpin=<STDIN>;
+	unless ($tmpin =~ m/(n|N|no)/i) {
+		print "  Change password for $user? (y/n) : ";
+		$tmpin=<STDIN>;
+		if ($tmpin =~ m/(y|yes)/i) {
+			print "Enter new password for user $user : ";
+			$userlist{$user}=<STDIN>;
+			print "Pass set to $userlist{$user}\n";
+		}
+	}
+}
+
+my $moreusers=0;
+print "\n------ New Users ------\n";
+print "*  Add a new OpenFPC user? (y/n)";
+my $tmpin=<STDIN>;
+if ($tmpin =~ m/(y|yes)/i ) {
+	$moreusers=1;
+}
+
+while ($moreusers) {
+	print "Enter name for new user :";
+	my $user = <STDIN>;
+	chomp $user;
+	print "\nEnter password for user $user :";
+	my $pass = <STDIN>;
+	chomp $pass;
+	print "User $user has pass $pass\n";
+	print "Add another user? (y/n) :";
+	$tmpin=<STDIN>;
+	$userlist{$user} = $pass;
+	unless ($tmpin =~ m/(y|yes)/i ) {
+		$moreusers=0;
+	}
+}
+
+
+
 open(NEWCONFIG,'>', "$config{'saveconfig'}") or die("cant open file $config{'saveconfig'}");
 
 print NEWCONFIG " # OpenFPC configuration. 
@@ -212,6 +265,9 @@ print NEWCONFIG " # OpenFPC configuration.
 
 foreach (keys %config) {
 	print NEWCONFIG "$_=$config{$_}\n";
+}
+foreach (keys %userlist) {
+	print NEWCONFIG "USER=$_=$userlist{$_}\n";
 }
 close($config{'saveconfig'});
 
