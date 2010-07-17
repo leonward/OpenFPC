@@ -60,6 +60,7 @@ my %request=(	user => 0,
 		timestamp => 0,
 		stime => 0,
 		etime => 0,
+		comment => 0,
 		);
 
 my %result=(
@@ -87,7 +88,8 @@ sub showhelp{
   --debug or -d				Run in debug mode (very verbose)
   --write or -w				Output PCAP file to write to
   --quiet or -q				Quiet, shhhhhhh please. Only print saved filename||error
-  --gui	of -g				Output that's parseable via OpenFPC's gui (or other tool)
+  --gui	or -g				Output that's parseable via OpenFPC's gui (or other tool)
+  --comment or -m 			Comment for session
 
   -------- Constraints -------
 
@@ -175,6 +177,7 @@ GetOptions (    'u|user=s' => \$cmdargs{'user'},
 		'e|logline=s' => \$cmdargs{'logline'},
 		'a|action=s' => \$cmdargs{'action'},
 		'p|password=s' => \$cmdargs{'password'},
+		'm|comment=s' => \$cmdargs{'comment'},
 		'g|gui'	=> \$cmdargs{'gui'},
 		't|time|timestamp=s' => \$cmdargs{'timestamp'},
 		'src-addr=s' => \$cmdargs{'sip'},
@@ -192,6 +195,7 @@ if ($cmdargs{'logtype'}) { $request{'logtype'} = $cmdargs{'logtype'}; }
 if ($cmdargs{'action'}) { $request{'action'} = $cmdargs{'action'}; }
 if ($cmdargs{'logline'}) { $request{'logline'} = $cmdargs{'logline'}; }
 if ($cmdargs{'password'}) { $request{'password'} = $cmdargs{'password'}; }
+if ($cmdargs{'comment'}) { $request{'comment'} = $cmdargs{'comment'}; }
 
 if ($cmdargs{'debug'}) { 
 	$debug=1;
@@ -231,6 +235,15 @@ if ($request{'action'} =~ m/(fetch|store)/)  {
 } else {
 	die("Action $request{'action'} invalid, or not implemented yet");
 }
+
+# If we are in GUI mode, PHP's escapecmd function could have broken out logline, lets unescape it
+
+$cmdargs{'logline'} =~ s/\\(.)/$1/g;
+#s/\/[!\/]//g;
+
+
+
+#print "Line is now $cmdargs{'logline'}\n";
 
 # Convert session info into a "logline" to make a request.
 unless ($cmdargs{'logline'}) {

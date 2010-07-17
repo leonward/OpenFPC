@@ -38,7 +38,7 @@ sub request{
 	my $request=shift;
 	my %result=(
 			'success' => 0,
-			'message' => 'none',
+			'message' => 'Unknown Error',
 			'md5'	=> 0,
 			'expected_md5'	=> 0,
 			'filename' => 0,
@@ -86,7 +86,8 @@ sub request{
                 "   Filename:   $request->{'filename'}\n" .
                 "   Tempfile:   $request->{'tempfile'}\n" .
                 "   Location:   $request->{'location'}\n" .
-                "   Type:       $request->{'logtype'}\n" .
+                "   Type:       $request->{'type'}\n" .
+		"   Comment:	$request->{'comment'}" .
                 "   LogLine:    $request->{'logline'}\n" .
                 "   SIP:        $request->{'sip'}\n" .
                 "   DIP:        $request->{'dip'}\n" .
@@ -120,7 +121,8 @@ sub request{
 			"$request->{'filename'}||" .
 			"$request->{'location'}||" .
 			"$request->{'logtype'}||" .
-			"$request->{'logline'}";
+			"$request->{'logline'}||" .
+			"$request->{'comment'}";
 
 	while(my $connection = $socket->connected) { # While we are connected to the server
         	my $data=<$socket>;
@@ -227,9 +229,10 @@ sub request{
                                         }
                         } case /ERROR/ {
 					my $error;
-					if ($data =~ m/^ERROR:(.*)/) {
+					if ($data =~ m/ERROR:*\s(.*)/) {
 						$result{'message'} = $1;
 	                                        print "DEBUG: Got error: $result{'message'} :closing connection\n" if ($debug);
+	                                        print "DEBUG: Got error: $result{'message'} :closing connection\n";
 					}
                                         shutdown($socket,2);
 					return %result;

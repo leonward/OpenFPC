@@ -19,9 +19,9 @@
 
 // openfpc Database Settings
 $dbhost = "127.0.0.1";
-$dbuser = "openfpc";
-$dbpass = "openfpc";
-$dbname = "openfpc";
+$dbuser = "ofpc";
+$dbpass = "ofpc";
+$dbname = "ofpc";
 
 //OFPC Queue Daemon Settings
 $ofpcuser = "ofpc";
@@ -46,7 +46,10 @@ $dstport    = sanitize("dstport");    if (empty($dstport))    $dstport = "";
 $start_date = sanitize("start_date"); if (!valdate($start_date)) $start_date = date("Y-m-d 00:00:00");
 $end_date   = sanitize("end_date");   if (!valdate($end_date))   $end_date   = date("Y-m-d H:i:s");
 $protocol   = sanitize("protocol");   if (empty($protocol))   $protocol = "any";
-$logline	 	= sanitize("logline");	  if (empty($logline))    $logline = "NoneSet";
+$logline    = sanitize("logline");    if (empty($logline))    $logline = "NoneSet";
+$comment    = sanitize("comment");    if (empty($comment))    $logline = "No Comment";
+
+$out="";
 
 $notsrcip = 0; if (is_not_set($srcip)) $notsrcip = 1;
 $notdstip = 0; if (is_not_set($dstip)) $notdstip = 1;
@@ -100,7 +103,7 @@ function mainDisplay() {
     global $major, $minor, $build, $pollTime, $dbname, $start_date, $end_date;
     global $srcip, $dstip, $srcport, $dstport, $ipv, $protocol;
     global $notdstip, $notsrcip, $notsrcport, $notdstport;
-
+    $out = "";
     $out .= "<div class=titleDisplay><table border=0 width=100% cellpadding=0 cellspacing=0>\n";
     $out .= "<form METHOD=\"GET\" NAME=\"search\" ACTION=\"\">\n";
     $out .= "<tr>";
@@ -170,7 +173,8 @@ function mainDisplay() {
     $out .= "<tr>";
     $out .= "<td width=250 valign=middle align=center><div style=\"font-size: 10px; color: #DEDEDE\">";
     $out .= "Event <input type=text size=100 bgcolor=\"#2299bb\" name=\"logline\" value=\"ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp timestamp:1274864808 msg:Some freeform text\"\n";
-    $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"Fetch pcap\">\n";
+    $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"Fetch pcap\"><br>\n";
+    $out .= "Comment <input type=text size=96 bgcolor=\"#2299bb\" name=\"comment\" value=\"No comment\"\n";
     $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"Store pcap\">\n";
     $out .= "</table><div>\n";
     return $out;
@@ -178,7 +182,7 @@ function mainDisplay() {
 
 function showResults() {
     // Show results    
-    $out .= "<div class=edwardTest>";
+    $out = "<div class=edwardTest>";
     $out .= "<table border=0 width=100% cellpadding=0 cellspacing=0><tr>";
     $out .= "<td valign=top>";
     $out .= doSearchQuery();
@@ -191,7 +195,7 @@ function showResults() {
 
 
 function infoBox($infomsg) {
-	$out .= "<!-- infoBox -->\n";
+	$out = "<!-- infoBox -->\n";
 	$out .= "</p><div class=infoDisplay><table align=center border=1 width=300 cellpadding=0 cellspacing=0>\n";
 	#$out .= "</p><div class=infoDisplay><table align=center border=0 width=500 cellpadding=0 cellspacing=0>\n";
 	$out .= "<td width=100 valign=middle align=center> <div style=\"font-size: 10px; color: #DEDEDE\">\n";
@@ -202,27 +206,29 @@ function infoBox($infomsg) {
 }
 
 function extractPcapFromLog($action) {
-	global $logline, $ofpcuser, $ofpcpass;
-	$out .= "<!-- extractPcapFromLog -->\n";
+	global $logline, $ofpcuser, $ofpcpass, $comment;
+
+	$out = "<!-- extractPcapFromLog -->\n";
 	
 	# Shell out to ofpc-client here. Note the --gui option.
-	$exec .= "/home/lward/code/openfpc/ofpc-client.pl ";
+	$exec = "/home/lward/code/openfpc/ofpc-client.pl ";
 	$exec .= "--gui -u $ofpcuser -p $ofpcpass "; 
 	$exec .= "-a $action ";
-	$exec .= "--logline \"$logline\"";
+	$exec .= "--logline \"$logline\" ";
+	$exec .= "--comment \"$comment\"";
 
 	# Clean up command before we exec it.
 	$e = escapeshellcmd($exec);
-	#$out .= "$e <br>";
-	#$out .= $result;
+	#$out .= infoBox("$e<br>");
 
 	# These are defined in ofpc-client.pl
-	# This is the "friendly parseable" output
+	# This is the parseable output
 	$cmdresult = shell_exec($e);
 	list($result,$action,$filename,$size,$md5,$expected_md5,$position,$message) = explode(",",$cmdresult);
 
 	$pathfile=explode("/",$filename);	# Break path and filename from filename
 	$file=array_pop($pathfile);		# Pop last element of path/file array
+	#$out .=infoBox("exec out is $cmdresult result is $result");
 
 	if ($result) {
 		if ($action == "store" ) {
@@ -340,7 +346,7 @@ function dumpDisplay() {
 
 function mainHeading() {
     
-    $out .= "<html><head><title>OpenFPC - Open Full Packet Capture : WebGUI</title>";
+    $out = "<html><head><title>OpenFPC - Open Full Packet Capture : WebGUI</title>";
     
     $out .= "
     
@@ -472,7 +478,7 @@ function doSessionQuery() {
 function doSearchQuery() {
         global $maxRows, $srcip, $dstip, $srcport, $dstport, $start_date, $end_date;
         global $protocol, $ipv, $notsrcip, $notdstip, $notsrcport, $notdstport;
-
+	$out="";
         $siteDB = new siteDB();
 
         $orderBy = "start_time";
@@ -570,7 +576,7 @@ function doSearchQuery() {
 function eventRowFormat($data) {
 
     //$out .= "<div>";
-    $out .= "<table border=0 width=100% cellpadding=0 cellspacing=0>";
+    $out = "<table border=0 width=100% cellpadding=0 cellspacing=0>";
     $out .= "<tr onmouseover=\"this.style.cursor=&#39;hand&#39;\" ";
     //$out .= "onmouseup=\"javascript:opacity(&#39;object1&#39;, 0, 100, 1000);\" ";
     $out .= "onclick=\"SessionWindow('" . $data["sessionid"] . "','" . $data["ip_version"] .  "');\"";

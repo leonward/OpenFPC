@@ -44,11 +44,11 @@ our $DB_NAME       = "openfpc";
 our $DB_HOST       = "127.0.0.1";
 our $DB_PORT       = "3306";
 our $DB_USERNAME   = "openfpc";
-our $DB_PASSWORD   = "openfpc";
-our $DBI           = "DBI:mysql:$DB_NAME:$DB_HOST:$DB_PORT";
+our $DB_PASS	   = "openfpc";
 our $AUTOCOMMIT    = 0;
 my $SANCP_DB       = {};
-my %CONFIG			 = ();
+my %CONFIG         = ();
+my $starttime      = 0;
 GetOptions(
    'dir=s'         => \$SDIR,
    'debug'         => \$DEBUG,
@@ -82,7 +82,7 @@ if ($CONFFILE) {
 
 	$DB_NAME = $CONFIG{'SESSION_DB_NAME'} if (defined $CONFIG{'SESSION_DB_NAME'});
 	$DB_USERNAME = $CONFIG{'SESSION_DB_USER'} if (defined $CONFIG{'SESSION_DB_USER'});
-	$DB_PASSWORD = $CONFIG{'SESSION_DB_PASSWORD'} if (defined $CONFIG{'SESSION_DB_PASSWORD'});
+	$DB_PASS = $CONFIG{'SESSION_DB_PASS'} if (defined $CONFIG{'SESSION_DB_PASS'});
 	$SDIR = $CONFIG{'SESSION_DIR'} if (defined $CONFIG{'SESSION_DIR'});
 	$FDIR="$SDIR/failed";
 
@@ -90,12 +90,15 @@ if ($CONFFILE) {
 } else {
 	warn "[-] No config file specified. Using defaults.\n" if ($DEBUG);
 }
+
+our $DBI           = "DBI:mysql:$DB_NAME:$DB_HOST:$DB_PORT";
+
 # Show config if debug is enabled.
 if ($DEBUG) {
 	print "[-] Config \n" . 
 			"    Session DB : $DB_NAME\n" .
 			"    DB User    : $DB_USERNAME\n" .
-			"    DB Pass    : $DB_PASSWORD\n" .
+			"    DB Pass    : $DB_PASS\n" .
 			"    Session Dir: $SDIR\n" .
 			"    Failed Dir : $FDIR\n" ;
 }
@@ -136,7 +139,7 @@ if ( $DAEMON ) {
 }
 
 warn "[*] Connecting to database...\n";
-my $dbh = DBI->connect($DBI,$DB_USERNAME,$DB_PASSWORD, {RaiseError => 1}) or die "$DBI::errstr";
+my $dbh = DBI->connect($DBI,$DB_USERNAME,$DB_PASS, {RaiseError => 1}) or die "$DBI::errstr";
 # Make todays table, and initialize the session merged table
 setup_db();
 
@@ -170,9 +173,15 @@ sub dir_watch {
       }
       foreach my $FILE ( @FILES ) {
          my $result = get_session ("$SDIR/$FILE");
+	 print "Working on $SDIR/$FILE\n" if ($DEBUG);
+
          if ($result == 1) {
             rename ("$SDIR/$FILE", "$FDIR/$FILE") or warn "[*] Couldn't move $SDIR/$FILE to $FDIR/$FILE: $!\n";
          }
+	 my $endtime=time();
+	 print "$endtime\n";
+	 my $processtime=$endtime-$starttime;
+	 print "Done with $SDIR/$FILE in $processtime seconds\n" if ($DEBUG);
          unlink("$SDIR/$FILE") if $result == 0; 
       }
       # Dont pool files to often, or to seldom...
@@ -192,7 +201,12 @@ sub get_session {
    my $result = 0;
    my %signatures;
    if (open (FILE, $SFILE)) {
-      print "Found session file: ".$SFILE."\n" if $DEBUG;
+      $starttime=time();
+      my $filelen=`wc -l $SFILE |awk '{print \$1'}`;
+      my $filesize=`ls -lh $SFILE |awk '{print \$5}'`;
+      chomp $filelen;
+      chomp $filesize;
+      print "Found session file: $SFILE $filelen lines $filesize\n" if $DEBUG;
       # Verify the data in the session files
       LINE:
       while (my $line = readline FILE) {
@@ -336,17 +350,21 @@ sub put_session2db {
       new_session_table($tablename);
       recreate_merge_table();
    }
-
    my( $cx_id, $s_t, $e_t, $tot_time, $ip_type, $src_dip, $src_port,
        $dst_dip, $dst_port, $src_packets, $src_byte, $dst_packets, $dst_byte, 
        $src_flags, $dst_flags) = split /\|/, $SESSION, 15;
 
   if ( ip_is_ipv6($src_dip) || ip_is_ipv6($dst_dip) ) {
-      $src_dip = expand_ipv6($src_dip);
-      $dst_dip = expand_ipv6($dst_dip);
-      $src_dip = "INET_ATON6(\'$src_dip\')";
-      $dst_dip = "INET_ATON6(\'$dst_dip\')";
-      $ip_version = 10; # AF_INET6
+      if ($CONFIG{'ENABLE_IP_V6'} ) {
+      	  $src_dip = expand_ipv6($src_dip);
+      	  $dst_dip = expand_ipv6($dst_dip);
+          $src_dip = "INET_ATON6(\'$src_dip\')";
+          $dst_dip = "INET_ATON6(\'$dst_dip\')";
+          $ip_version = 10; # AF_INET6
+      } else {
+	  print "Skipping record, ipV6 disabled\n";
+	  return 0; 
+      }
   }
 
    my ($sql, $sth);
@@ -374,6 +392,7 @@ sub put_session2db {
    }
    return 0;
 }
+   
 
 =head2 setup_db
 
