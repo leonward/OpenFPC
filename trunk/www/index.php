@@ -47,7 +47,7 @@ $start_date = sanitize("start_date"); if (!valdate($start_date)) $start_date = d
 $end_date   = sanitize("end_date");   if (!valdate($end_date))   $end_date   = date("Y-m-d H:i:s");
 $protocol   = sanitize("protocol");   if (empty($protocol))   $protocol = "any";
 $logline    = sanitize("logline");    if (empty($logline))    $logline = "NoneSet";
-$comment    = sanitize("comment");    if (empty($comment))    $logline = "No Comment";
+$comment    = sanitize("comment");    if (empty($comment))    $comment = "No Comment";
 
 $out="";
 
@@ -172,9 +172,9 @@ function mainDisplay() {
     $out .= "<form METHOD=\"GET\" NAME=\"logline\" ACTION=\"\">";
     $out .= "<tr>";
     $out .= "<td width=250 valign=middle align=center><div style=\"font-size: 10px; color: #DEDEDE\">";
-    $out .= "Event <input type=text size=100 bgcolor=\"#2299bb\" name=\"logline\" value=\"ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp timestamp:1274864808 msg:Some freeform text\"\n";
+    $out .= "Event <input type=text size=100 bgcolor=\"#2299bb\" name=\"logline\"\n";
     $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"Fetch pcap\"><br>\n";
-    $out .= "Comment <input type=text size=96 bgcolor=\"#2299bb\" name=\"comment\" value=\"No comment\"\n";
+    $out .= "Comment <input type=text size=96 bgcolor=\"#2299bb\" name=\"comment\" value=\"\"\n";
     $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"Store pcap\">\n";
     $out .= "</table><div>\n";
     return $out;
@@ -205,30 +205,29 @@ function infoBox($infomsg) {
 	return $out;
 }
 
+# Calls ofpc-client.pl to extract the data if the user enters a "log" line.
 function extractPcapFromLog($action) {
 	global $logline, $ofpcuser, $ofpcpass, $comment;
 
 	$out = "<!-- extractPcapFromLog -->\n";
-	
+
 	# Shell out to ofpc-client here. Note the --gui option.
 	$exec = "/home/lward/code/openfpc/ofpc-client.pl ";
 	$exec .= "--gui -u $ofpcuser -p $ofpcpass "; 
 	$exec .= "-a $action ";
 	$exec .= "--logline \"$logline\" ";
-	$exec .= "--comment \"$comment\"";
+	$exec .= "--comment \"$comment\" ";
 
 	# Clean up command before we exec it.
 	$e = escapeshellcmd($exec);
-	#$out .= infoBox("$e<br>");
 
 	# These are defined in ofpc-client.pl
-	# This is the parseable output
+
 	$cmdresult = shell_exec($e);
 	list($result,$action,$filename,$size,$md5,$expected_md5,$position,$message) = explode(",",$cmdresult);
 
 	$pathfile=explode("/",$filename);	# Break path and filename from filename
 	$file=array_pop($pathfile);		# Pop last element of path/file array
-	#$out .=infoBox("exec out is $cmdresult result is $result");
 
 	if ($result) {
 		if ($action == "store" ) {
@@ -236,16 +235,20 @@ function extractPcapFromLog($action) {
 			$infomsg .= "Expected filename: $file.<br>\n";
 			$out .= infoBox($infomsg);	
 		} elseif ( $action == "fetch") {
-			serv_pcap("$pathfile","$file");
+			serv_pcap("$filename","$file");
+			exit(0);
 		}
 	} else {
 		$infomsg = "Error: $message<br>";
+		$infomsg .= "$e";
 		$out .= infoBox($infomsg);
 	}
 	$out .= "<!-- /extractPcapFromLog -->\n";
 	$out .= showResults();
 	return $out;
 }
+
+# Calls ofpc-client.pl to extract the traffic when the user selects a session entry in the table
 
 function extractPcapFromSession() {
 	global $ofpcuser, $ofpcpass;
@@ -264,7 +267,6 @@ function extractPcapFromSession() {
 		" --dst-port " . $array["dst_port"] .
 		" --proto " . $array["ip_proto"];
 
-	#$out .= infoBox($exec);
 	$e = escapeshellcmd($exec);
 	$shellresult = shell_exec($e);
 
@@ -273,10 +275,8 @@ function extractPcapFromSession() {
 	$file=array_pop($pathfile);             # Pop last element of path/file array
 
 	if ($result) {
-		$infobox ="Extracted: $filename, $size<br>" .
-		  "Slave MD5: $expected_md5<br>" .
-		  "Queue postion: $position<br>" .
-		  "Msg: $message";
+		serv_pcap("$filename","$file");
+		exit(0);
 	} else {
 		$infobox ="Error: $message <br>";
 	}
