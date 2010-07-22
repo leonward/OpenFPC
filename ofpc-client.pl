@@ -31,6 +31,8 @@ use Getopt::Long;
 use Switch;
 use Digest::MD5(qw(md5_hex));
 
+my $now=time();
+
 # Hint: "ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp timestamp:1274864808 msg:Some freeform text";
 my %cmdargs=( user => "ofpc",
 	 	password => 0, 
@@ -40,7 +42,7 @@ my %cmdargs=( user => "ofpc",
 		logtype => "auto",
 		debug => 0,
 		verbose => 0,
-		filename => "/tmp/foo.pcap",
+		filename => "/tmp/extracted-ofpc-$now.pcap",
 		logline => 0,
 		quiet => 0,
 		gui => 0,
@@ -72,7 +74,6 @@ my %result=(
 		message => 0,
 		size => 0,
 	);
-
 
 sub showhelp{
 	print <<EOF 
@@ -131,6 +132,7 @@ sub sessionToLogline{
 }
 
 sub displayResult{
+
 	if ($result{'success'} == 1) { 			# Request is Okay and being processed
 		unless ($cmdargs{'gui'}) {  		# Command line output
 			if ($request{'action'} eq "fetch") {
@@ -238,12 +240,10 @@ if ($request{'action'} =~ m/(fetch|store)/)  {
 
 # If we are in GUI mode, PHP's escapecmd function could have broken out logline, lets unescape it
 
-$cmdargs{'logline'} =~ s/\\(.)/$1/g;
-#s/\/[!\/]//g;
+if ($cmdargs{'gui'}) {
+	$request{'logline'} =~ s/\\(.)/$1/g;
+}
 
-
-
-#print "Line is now $cmdargs{'logline'}\n";
 
 # Convert session info into a "logline" to make a request.
 unless ($cmdargs{'logline'}) {
