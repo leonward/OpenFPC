@@ -468,7 +468,7 @@ sub doslave{
 			"Size: $size\n" .
 			"User comment: $request->{'comment'}\n" .
 			"Time: $request->{'rtime'}\n";
-	close METDATA;
+	close METADATA;
 
 	# Return the name of the file that we have extracted
         return(1,"$filename");
@@ -815,6 +815,7 @@ $listenSocket->autoflush(1);
 
 if ($daemon) {
 	print "[*] OpenFPC Queued - Daemonizing\n";
+	print " -  Leon Ward\n";
 
 
 
