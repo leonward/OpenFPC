@@ -40,6 +40,7 @@ sub request{
 			'success' => 0,
 			'message' => 'Unknown Error',
 			'md5'	=> 0,
+			'position' => 'None',
 			'expected_md5'	=> 0,
 			'filename' => 0,
 			'size' => 0,
@@ -184,7 +185,11 @@ sub request{
 
                                         close($socket);
                                         close(PCAP);
-                                        open(PCAPMD5, '<', "$request->{'filename'}") or die("cant open pcap file $request->{'filename'}");
+                                        unless (open(PCAPMD5, '<', "$request->{'filename'}")) {
+						$result{'message'} = "cant open pcap file $request->{'filename'}";
+						$result{'success'} = 0;
+						return %result;
+					}
 				        $result{'size'}=`ls -lh $request->{'filename'} |awk '{print \$5}'`;
 					chomp $result{'size'};
 					print "DEBUG $request->{'filename'} size:$result{'size'}\n" if ($debug);
@@ -196,6 +201,7 @@ sub request{
                                         print "Expected: $result{'expected_md5'}\nGot   : $result{'md5'}\n" if ($debug);
 					if ($result{'md5'} eq $result{'expected_md5'}) {
 						$result{'success'} = 1;
+						$result{'message'} = "Success";
 						$result{'filename'} = $request->{'filename'};
 					} else {
 						$result{'success'} = 0;
