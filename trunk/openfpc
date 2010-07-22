@@ -24,20 +24,21 @@
 # ---------------- Nothing to do below here -------------
 # List of config files to try in order
 
-CONFIG_FILES="./myopenfpc.conf" 
+CONFIG_FILES="./myopenfpc.conf /etc/openfpc/openfpc.conf" 
 
-for i in $CONFIG_FILES
+
+# Read the first config file found in order above.
+
+for CONFIG in $CONFIG_FILES
 do
-	if [ -f $i ]
+	if [ -f $CONFIG ]
 	then
-		echo "[*] Reading configuration file $i"
-		source $i
+		echo "[*] Reading configuration file $CONFIG"
+		source $CONFIG
 		break
 	fi
 done
 
-FILENAME="buffer"    	# IMPORTANT the - is used to determine what is filename and what is file number!
-			# Make sure that there is only one - and it is at the end of the filename
 IAM=$(whoami)
 DATE=$(date)
 PATH=$PATH:/sbin:/usr/sbin
@@ -46,6 +47,8 @@ openfpcver=0.1a
 PID_FILE=openfpc-dl
 PID_PATH=/var/run
 FILENAME=openfpc-pcap
+OPENFPCQD=./ofpc-queued.pl
+
 
 if [ "$DONE" != "y" ] 
 then
@@ -75,6 +78,7 @@ function clean()
 	then
 		die "[!] Must be root"
 	fi
+	die "! Not done. It's on the todo list"
 	# Remove all non-current pcap buffers to free up disk space
 	echo [!] Are you sure you want to delete these old pcap buffers?
 	RMFILES=$(ls $BUFFER_PATH/$FILENAME* |grep -v $CURRENT)
@@ -84,7 +88,42 @@ function clean()
 	rm $RMFILES
 }
 
-function start()
+function openfpcqstart() 
+{
+	if [ -f $OFPC_Q_PID ] 
+	then
+		QPID=$(cat $OFPC_Q_PID) || QPID=none
+		if ps $QPID > /dev/null 2>&1
+		then
+			echo -e "[*] OpenFPC Queue Daemon running as Pid: $QPID"
+		fi
+	else 
+		echo -e "[*] Starting OpenFPC Queue Daemon"
+		$OPENFPCQD -c $CONFIG --daemon
+	  	QPID=$(cat $OFPC_Q_PID) || QPI=none
+                if ps $QPID > /dev/null 2>&1
+                then
+                        echo -e "[-] OpenFPC Queue Daemon running as Pid: $QPID"
+                fi  	
+	fi	
+}
+
+function openfpcqstop()
+{
+	if [ -f $OFPC_Q_PID ] 
+	then
+		QPID=$(cat $OFPC_Q_PID) || QPID=none
+		if ps $QPID > /dev/null 2>&1
+		then
+			echo -e "[*] OpenFPC Queue Daemon running as Pid: $QPID"
+			kill $QPID
+		fi
+	else 
+		echo -e "[!] OpenFPC Queue Dameon not running"
+	fi
+}
+
+function daemonloggerstart()
 {
 	if [ "$IAM" != "root" ]
 	then
@@ -94,7 +133,12 @@ function start()
 	if [ -f $PID_PATH/$PID_FILE ] 
 	then
 		DPID=$(cat $PID_PATH/$PID_FILE)
-		ps aux |grep $DPID |grep -v grep > /dev/null && die "[!] Daemonlogger already running"
+		#ps aux |grep $DPID |grep -v grep > /dev/null && die "[!] Daemonlogger already running"
+		if ps $DPID 
+		then
+			echo "[!] Daemonlogger already running"
+			return
+		fi
 	fi 
 
 	if [ -d $BUFFER_PATH ]
@@ -121,6 +165,7 @@ function start()
 		-n openfpc-pcap "
 
 	$CMD || die "Unable to start daemonlogger"
+
 	sleep 1
 	[ -f $BUFFER_PATH/openfpc-pcap.0 ] && rm $BUFFER_PATH/openfpc-pcap.0
 	
@@ -145,7 +190,7 @@ function start()
 }
 
 
-function stop()
+function daemonloggerstop()
 {
 	if [ "$IAM" != "root" ]
 	then
@@ -160,6 +205,10 @@ function stop()
 	fi 
 
 	kill $DPID 
+	# Daemonlogger doesn't rm it's pid file. Need to look into this further, but as a quick 
+	# fix lets rm it if it exists.
+
+	[ -d $DPID ] && rm $DPID
 	echo "[*] Traffic buffer (Daemonlogger) $DPID stopped"
 }
 
@@ -180,7 +229,7 @@ function status()
 
 		if ps aux |grep $DPID > /dev/null 
 		then
-			echo "[*] Traffic buffer (Daemonlogger) running with pid $PID "
+			echo "[*] Traffic buffer (Daemonlogger) running with pid $DPID "
 		else
 			echo "[!] Traffic buffer (Daemonlogger) not running"
 		fi
@@ -206,6 +255,8 @@ function status()
 			echo -s "    Stale PID! $QPID Queued Not running"
 		fi
 	
+	else 
+		echo -e "[!] OpenFPC Queue Daemon not running!"
 	fi	
 
 }
@@ -213,18 +264,22 @@ function status()
 
 case $1 in 
 	start)
-		start
+		daemonloggerstart
+		openfpcqstart
 	;;
 	stop)
-		stop
+		daemonloggerstop
+		openfpcqstop
 	;;
 	clean)
 		clean	
 	;;
 	restart)
-		stop
+		daemonloggerstop
+		openfpcqstop
 		sleep 2
-		start	
+		daemonloggerstart
+		openfpcqstart	
 	;;
 	status)
 		status
