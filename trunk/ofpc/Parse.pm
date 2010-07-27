@@ -54,6 +54,7 @@ sub parselog{
                        "   DIP: $eventdata{'dip'}\n" .
                        "   SPT: $eventdata{'spt'}\n" .
                        "   DPT: $eventdata{'dpt'}\n" .
+		       "   Device: $eventdata{'dev'}\n" .
                        "   Protocol: $eventdata{'proto'}\n" .
                        "   Message: $eventdata{'msg'}\n" ;
         }   
@@ -80,6 +81,7 @@ sub OFPC1Event{
 		'msg' => "User request",
 		'timestamp' => 0,
 		'bpf' => 0,
+		'device' => 0,
 		'parsed' => 0
 		);
 
@@ -126,6 +128,10 @@ sub OFPC1Event{
 
 sub SF49IPS{
 	# Sourcefire 3D 4.9 IPS event
+	# Example event:
+	# 2010-03-31 13:24:36     high                    IPS Demo DE / sfukse3d00.lab.emea.sourcefire.com        tcp    Go to Host View 192.168.4.248   Go to Host View 207.46.108.86    Viktor     Westcott (viktor.westcott, ldap)                 3044/tcp        1863/tcp        Standard Text Rule      CHAT MSN message (1:540)        Potential Corporate Policy Violation    0
+
+
 	my %event=(
 		'type' => "SFIPS",
 		'spt' => 0,
@@ -136,7 +142,8 @@ sub SF49IPS{
 		'msg' => "Sourcefire IPS event",
 		'timestamp' => 0,
 		'bpf' => 0,
-		'parsed' =>0
+		'device' => 0,
+		'parsed' => 0
 		);
 
 	my $logline=shift;
@@ -145,6 +152,10 @@ sub SF49IPS{
         	$event{'timestamp'}=`date --date='$1' +%s`;
 		chomp $event{'timestamp'};
         }   
+	# Here	
+	if ($logline =~ m/( high| medium| low)\s+(.*) \//) {
+		$event{'device'} = $2;
+	}
 
         if ($logline =~ m/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(.*)(\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/) {   
                 $event{'sip'}=$3;
@@ -179,6 +190,7 @@ sub Exim4{
 		'msg' => "Email transfer",
 		'timestamp' => 0,
 		'bpf' => 0,
+		'device' => 0,
 		'parsed' => 0
 		);
 
@@ -231,6 +243,7 @@ sub SnortSyslog{
 		'msg' => "Snort IPS event",
 		'timestamp' => 0,
 		'bpf' => 0,
+		'device' => 0,
 		'parsed' => 0
 		);
 
@@ -254,6 +267,10 @@ sub SnortSyslog{
         	chomp $event{'timestamp'};
 	} 
 
+	if ($logline =~ m/([a-zA-Z]+ )snort:/ ) {
+		$event{'device'} = $1;
+	}
+
 	
   	if ($event{'proto'} eq "ICMP") {
                 if ($logline =~ m/(\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b) -> (\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b)/) {
@@ -269,7 +286,7 @@ sub SnortSyslog{
                 }
 	}
 
-	 if ( ($event{'sip'} or $event{'dip'}) and $event{'proto'} and $event{'timestamp'} ) {
+	if ( ($event{'sip'} or $event{'dip'}) and $event{'proto'} and $event{'timestamp'} ) {
 		$event{'parsed'}=1;
 	}
 	
@@ -290,6 +307,7 @@ sub SnortFast{
 		'msg' => "Snort IPS event",
 		'timestamp' => 0,
 		'bpf' => 0,
+		'device' => 0,
 		'parsed' => 0
 		);
 
