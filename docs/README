@@ -15,5 +15,14 @@ OpenFPC-v1\n
 <userid>||<action>||<device>||<filename>||<location>||<logformat>||<data>
 
 
+userid = Username
+action = Action to take (e.g. fetch)
+device = slave device to request from
+filename = request a filename to create
+location = ?
+logformat = format of logs, e.g. snort
+data = the request log-line
+
+
 Status format
 

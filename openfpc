@@ -50,9 +50,9 @@ FILENAME=openfpc-pcap
 OPENFPCQD=./ofpc-queued.pl
 
 
-if [ "$DONE" != "y" ] 
+if [ "$DONE" == 1 ] 
 then
-	echo -e "[!] Configuration not complete, unable to read config from $CONFIG_FILES \n    Have you run ./install-opefpc ?"
+	echo -e "[!] Configuration not complete, Done not marked in $CONFIG \n    Have you run ./install-opefpc ?"
 	exit 1
 fi
 
@@ -134,7 +134,7 @@ function daemonloggerstart()
 	then
 		DPID=$(cat $PID_PATH/$PID_FILE)
 		#ps aux |grep $DPID |grep -v grep > /dev/null && die "[!] Daemonlogger already running"
-		if ps $DPID 
+		if ps $DPID  > /dev/null
 		then
 			echo "[!] Daemonlogger already running"
 			return
@@ -224,22 +224,22 @@ function status()
 		EPOC_LAST=$(date -d "$NOW" +%s)
 		let EPOC_DELTA=($EPOC_LAST-$EPOC_FIRST)/60/60
 		SIZE=$(du $BUFFER_PATH -h | awk '{print $1}')
-		USED=$(df $BUFER_PATH -h |grep ^/ |awk '{print $5}')
-		DPID=$(cat $PID_PATH/$PID_FILE) || DPID="NONE_NOT_RUNNING"
-
-		if ps aux |grep $DPID > /dev/null 
+		USED=$(df $BUFFER_PATH -h |grep ^/ |awk '{print $5}')
+		DPID=$(cat $PID_PATH/$PID_FILE)
+		if ps $DPID  > /dev/null
 		then
 			echo "[*] Traffic buffer (Daemonlogger) running with pid $DPID "
 		else
 			echo "[!] Traffic buffer (Daemonlogger) not running"
 		fi
-		echo -e " - Time now 		    $NOW"
-		echo -e " - Oldest packet	    $FIRSTPACKET"
-		echo -e " - Oldest File		    $FIRSTBUFFER"
-		echo -e " - Using File		    $LASTBUFFER"
-		echo -e " - Time Window		    ~ $EPOC_DELTA hours"
-		echo -e " - Disk space used	    $SIZE"
-		echo -e " - Partition utilization    $USED"
+
+		echo -e " -  Time now 		    $NOW"
+		echo -e " -  Oldest packet	    $FIRSTPACKET"
+		echo -e " -  Oldest File	    $FIRSTBUFFER"
+		echo -e " -  Using File		    $LASTBUFFER"
+		echo -e " -  Time Window	    ~ $EPOC_DELTA hours"
+		echo -e " -  Disk space used	    $SIZE"
+		echo -e " -  Partition utilization  $USED"
 	else
 		echo "[!] No current buffers found in $BUFFER_PATH - Have you started it yet?"
 	fi

@@ -91,6 +91,7 @@ sub showhelp{
   --quiet or -q				Quiet, shhhhhhh please. Only print saved filename||error
   --gui	or -g				Output that's parseable via OpenFPC's gui (or other tool)
   --comment or -m 			Comment for session
+  --device 				Slave device to extract from (via master --server)
 
   -------- Constraints -------
 
@@ -187,6 +188,7 @@ GetOptions (    'u|user=s' => \$cmdargs{'user'},
                 'src-port=s' => \$cmdargs{'spt'},
                 'dst-port=s' => \$cmdargs{'dpt'},
                 'proto=s' => \$cmdargs{'proto'},
+		'device=s' => \$cmdargs{'device'},
                 );
 
 if ($cmdargs{'user'}) { $request{'user'} = $cmdargs{'user'}; }
@@ -198,6 +200,7 @@ if ($cmdargs{'action'}) { $request{'action'} = $cmdargs{'action'}; }
 if ($cmdargs{'logline'}) { $request{'logline'} = $cmdargs{'logline'}; }
 if ($cmdargs{'password'}) { $request{'password'} = $cmdargs{'password'}; }
 if ($cmdargs{'comment'}) { $request{'comment'} = $cmdargs{'comment'}; }
+if ($cmdargs{'device'}) { $request{'device'} = $cmdargs{'device'}; }
 
 if ($cmdargs{'debug'}) { 
 	$debug=1;
@@ -249,6 +252,7 @@ if ($cmdargs{'gui'}) {
 unless ($cmdargs{'logline'}) {
 	my $logline=sessionToLogline(\%cmdargs);
 	$request{'logline'} = $logline;	
+	print "Logline created from session IDs: $request{'logline'}\n" if ($debug);
 }
 
 my $sock = IO::Socket::INET->new(
