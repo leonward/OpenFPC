@@ -54,6 +54,7 @@ my ($queuelen,$debug,$verbose,$rid,%config,%userlist,$help);
 my $queue = Thread::Queue->new();	# Queue shared over all threads
 my $mrid : shared =1; $mrid=1;	# Master request counter. Quick way to identify  requests
 my %pcaps: shared =();
+my %route: shared =();
 my $CONFIG_FILE=0;
 my $daemon=0;		# NOT DONE YET
 $verbose=0;
@@ -65,10 +66,12 @@ sub showhelp{
    * ofpc-queued.pl *
    Part of the OpenFPC project.
 
-   --daemon or -D		Daemon mode (NOT DONE YET)
-   --config or -c <config file>	Config file  
-   --help   or -h		Show help
-   --debug  or -d 		Show debug data
+   --daemon  or -d		Daemon mode
+   --config  or -c <file>	Config file  
+   --help    or -h		Show help
+   --verbose or -v		Verbose logging
+   --debug  	 		Show debug data
+  
 EOF
 }
 
@@ -190,7 +193,7 @@ sub decoderequest($){
 	# replay	Replay traffic (FUTURE)
 
 	$request{'action'} = lc $request{'action'};
-	$request{'rid'} = getrequestid();
+	$request{'rid'} = getrequestid;
 
 	if ($request{'action'} =~ m/(fetch|store|status)/) {
 		wlog("DECOD: Recieved action $request{'action'}");
@@ -226,7 +229,7 @@ sub comms{
   	while (my $buf=<$client>) {
     		chomp $buf;
     		$buf =~ s/\r//;
-	    	print "$client_ip -> Got data $buf :\n" if ($debug);
+	    	#print "$client_ip -> Got data $buf :\n" if ($debug);
 	        switch($buf) {
 			case /USER/ {	# Start authentication provess
 				if ($buf =~ /USER:\s+([a-zA-Z1-9]+)/) {
@@ -251,9 +254,8 @@ sub comms{
 					wlog("COMMS: $client_ip: Bad USER: request $buf. Sending ERROR");
 					print $client "AUTH FAIL: Bad user $state{'user'}\n";
 				}
-
 			} case /RESPONSE/ {
-				print "DEBUG $client_ip: Got RESPONSE\n" if ($debug);
+				print "DEBUG: $client_ip: Got RESPONSE\n" if ($debug);
 				if ($buf =~ /RESPONSE:*\s*(.*)/) {
 					my $response=$1;
 					if ($debug) {
@@ -263,7 +265,7 @@ sub comms{
                         		# Check response hash
                         		if ( $response eq $state{'response'} ) {	
 						wlog("COMMS: $client_ip: Pass Okay");
-						$state{'response'}=0;		# Reset the response hash. Don't know why but it sounds like a good idea to me
+						$state{'response'}=0;		# Reset the response hash. Don't know why I need to, but it sounds like a good idea. 
 						$state{'auth'}=1;		# Mark as authed
 						print $client "AUTH OK\n";
 					} else {
@@ -274,10 +276,9 @@ sub comms{
 					print "DEBUG $client_ip: Bad USER: request $buf\n " if ($debug);
 					print $client "ERROR: Bad password request\n";
 				}
-
 			} 
 			case /ERROR/ {
-                                print "DEBUG $client_ip: Got error closing connection\n";
+                                wlog("DEBUG $client_ip: Got error. Closing connection\n");
                                 shutdown($client,2);
 
 			} 
@@ -286,7 +287,7 @@ sub comms{
 				# OFPC request. Made up of ACTION||
 				if ($buf =~ /REQ:\s*(.*)/) {
 					$reqcmd=$1;
-					print "DEBUG: $client_ip: REQ -> $reqcmd\n" if ($debug);
+					#print "DEBUG: $client_ip: REQ -> $reqcmd\n" if ($debug);
 					my $request=decoderequest($reqcmd);
 					if ($request->{'valid'} == 1) {					# Valid request then...		
 						# Generate a rid (request ID for this.... request!).
@@ -312,43 +313,58 @@ sub comms{
 							$pcaps{$request->{'rid'}} = "WAITING";
 							while ($pcaps{$request->{'rid'}} eq "WAITING") {
 								# Wait for our request to be complete"
-								print "State is $pcaps{$request->{'rid'}}\n" if ($debug);
-								print "Waiting for $request->{'rid'}\n" if ($debug);
+								print "Waiting for $request->{'rid'} - $pcaps{$request->{'rid'}} \n" if ($debug);
 								sleep(1);
 							}
-							wlog("Request: $request->{'rid'} Complete: state is $pcaps{$request->{'rid'}}<-");
-							my $pcapfile = "$config{'SAVEDIR'}/$pcaps{$request->{'rid'}}";
+							if ($pcaps{$request->{'rid'}} eq "NOROUTE") {
+								wlog("COMMS: No route to target device $request->{'device'}");
+								print $client "ERROR No route to device $request->{'device'}\n";
+								shutdown($client,2);
+							} elsif ($pcaps{$request->{'rid'}} eq "ERROR") {
+								# Do error
+								wlog("COMMS: Sending error to client");
+								print $client "ERROR Problem with master/slave process. Check logs on Master for details\n";
+								shutdown($client,2);
+							} else { # Have a filename
+								wlog("COMMS: $request->{'rid'} Complete: Sending: $pcaps{$request->{'rid'}}");
+								my $pcapfile = "$pcaps{$request->{'rid'}}";
 
-							# Best to take a MD5 to check xfer is Okay
-							open(PCAPMD5, '<', "$pcapfile") or die("cant open pcap file $pcapfile");
-							my $md5=Digest::MD5->new->addfile(*PCAPMD5)->hexdigest;
-							close(PCAPMD5);
-							wlog("PCAP $client_ip Request: $request->{'rid'} PCAP MD5 $pcapfile $md5");
+								# Best to take a MD5 to check xfer is Okay
+								unless (open(PCAPMD5, '<', "$config{'SAVEDIR'}/$pcapfile")) {
+									wlog("COMMS: Cant open pcap file $config{'SAVEDIR'}/$pcapfile");
+									print $client "ERROR: Cant open pcap file $config{'SAVEDIR'}/$pcapfile\n";
+	                        					shutdown($client,2);	
+									return 0;
+								}
+								my $md5=Digest::MD5->new->addfile(*PCAPMD5)->hexdigest;
+								close(PCAPMD5);
+								wlog("COMMS: $request->{'rid'} $client_ip Sending PCAP:$config{'SAVEDIR'}/$pcapfile MD5:$md5");
 
-							# Get client ready to recieve binary PCAP file
-							print $client "PCAP: $md5\n";
-							$client->flush();
+								# Get client ready to recieve binary PCAP file
+								print $client "PCAP: $md5\n";
+								$client->flush();
 
-							# Wait for client to share its ready state
-							# Any data sent from the client will be fine.
+								# Wait for client to share its ready state
+								# Any data sent from the client will be fine.
 
-							my $ready=<$client>;
-							open(PCAP, '<', "$pcapfile") or die("cant open pcap file $pcapfile");
-							binmode(PCAP);
-							binmode($client);
+								my $ready=<$client>;
+								open(PCAP, '<', "$config{'SAVEDIR'}/$pcapfile") or die("cant open pcap file $config{'SAVEDIR'}/$pcapfile");
+								binmode(PCAP);
+								binmode($client);
 
-							my $data;
-							# Read and send pcap data to client
-							my $a=0;
-							while(sysread(PCAP, $data, 1024)) {
-								syswrite($client,$data,1024);
-								$a++;
-							}
-							wlog("Sent $a KB\n");
-							close(PCAP);		# Close file
-	                        			shutdown($client,2);	# CLose client
+								my $data;
+								# Read and send pcap data to client
+								my $a=0;
+								while(sysread(PCAP, $data, 1024)) {
+									syswrite($client,$data,1024);
+									$a++;
+								}
+								wlog("COMMS: Uploaded $a x 1KB chunks\n");
+								close(PCAP);		# Close file
+	                        				shutdown($client,2);	# CLose client
 
-							wlog("COMMS: $client_ip Request: $request->{'rid'} Transfer complete");
+								wlog("COMMS: $client_ip Request: $request->{'rid'} Transfer complete");
+							} 
 						} elsif ($request->{'action'} eq "status") {
 							wlog ("COMMS: $client_ip Recieved Status Request");	
 						}
@@ -393,6 +409,54 @@ sub wlog{
 	syslog("info",$logdata);
 }
 
+=head frageq
+	Take a single request, and re-insert it in the queue but for every known device.
+	This isn't used right now, I was testing some concepts out.
+=cut
+
+sub fragreq{
+	print "Fraging request\n";
+
+	my $request=shift;
+	foreach my $device (keys %route){
+		$request->{'rid'} = getrequestid;
+		$request->{'device'} = $device;
+        	my $qlen=$queue->pending();     # Length of extract queue
+		print "Qlen is $qlen\n";
+		# Inject a a sub-request to slave that exists
+		print "Adding sub-request RID $request->{'rid'} to $request->{'device'} \n";
+		$queue->enqueue($request);
+        	$qlen=$queue->pending();     # Length of extract queue
+		print "Qlen is $qlen\n";
+	}
+	# If original req is WAITING, report back it's fraged so it can move on.
+}
+
+=head routereq
+	Find device to make request from, and calculate the correct user/pass
+	If we cant find a device, lets add requests from all slaves
+=cut
+
+sub routereq{
+	my $request=shift;
+	my $slavevalue=0;
+	if (exists $route{$request->{'device'}} ) {
+		$slavevalue=$route{$request->{'device'}};
+		($request->{'slavehost'}, $request->{'slaveport'}, $request->{'slaveuser'}, $request->{'slavepassword'}) = split(/:/, $slavevalue);
+		wlog("ROUTE: Routing request to : $request->{'device'} ( $request->{'slavehost'} : $request->{'slaveport'} User: $request->{'slaveuser'})");
+	} else {
+		wlog("ROUTE: No ofpc-route entry found for $request->{'device'} in routing table\n");
+		return 0;
+	}
+		
+	unless ($request->{'slavehost'} and $request->{'slaveport'} and $request->{'slavepassword'} and $request->{'slaveuser'}) {
+		wlog("ROUTE: ERROR: Unable to pass route line $slavevalue");
+		return(0);		
+	} else {
+		return($request);
+	}
+}
+
 =head2 domaster
 	The OFPC "Master" action.
 	A Master device proxies the request from the client to a slave, and sends the data back to the client.
@@ -403,36 +467,47 @@ sub wlog{
 =cut
 
 sub domaster{
-
+	
 	my $request=shift;
-	print "---- for the moment, lets only request data from our one host\n";
-	# Create socket
-	# Request data (store)
-	#Disconnect
+	my %result=(
+		message => "None",
+		success => 0,
+	);
 
 	my $slavesock = IO::Socket::INET->new(
-                                PeerAddr => 'localhost',
-                                PeerPort => '4241',
+                                PeerAddr => $request->{'slavehost'},
+                                PeerPort => $request->{'slaveport'},
                                 Proto => 'tcp',
                                 );
-	unless ($slavesock) { die("Unable to create socket to slave "); }
-	$request->{'user'} = "ofpc";
-	$request->{'password'} = "ofpc";
-	$request->{'tempfile'}="M" . time() . "-" . $request->{'rid'} . ".pcap";
+
+	unless ($slavesock) { 
+		wlog("MASTR: Unable to open socket to slave $request->{'slavehost'}:$request->{'slaveport'}");
+		$result{'message'} = "Unable to connect to slave $request->{'slavehost'}:$request->{'slaveport'}";
+		$result{'success'} = 0;	
+		return(\%result);
+	}
 	# This is a master request, we don't want the user to control what file we will
 	# write on the master. Create our own tempfile.
-	$request->{'filename'}="$config{'SAVEDIR'}/$request->{'tempfile'}";	
-	print Dumper $request;
-	my ($result, $message)=ofpc::Request::request($slavesock,$request);
-	print "Master Result: $result\n";
-	print "Master got MEssage: $message\n";
+	#$request->{'filename'}="$request->{'tempfile'}";	
+	#$request->{'filename'}="$config{'SAVEDIR'}/$request->{'tempfile'}";	
+	$request->{'filename'}="M-" . time() . "-" . $request->{'rid'} . ".pcap";
+	$request->{'user'} = $request->{'slaveuser'};
+	$request->{'password'} = $request->{'slavepassword'};
+	$request->{'savedir'} = $config{'SAVEDIR'};
+	#print "Request is ----\n";
+	#print Dumper $request;
+	%result=ofpc::Request::request($slavesock,$request);
+	#print "Result is ----\n";
+	#print Dumper %result;
+	#print "----Done\n";
+	
 	# Return the name of the file that we have been passed by the slave
-	if ($result) {
-		# Looks good
-		return(1,$request->{'tempfile'});
+	if ($result{'success'} == 1) {
+		wlog("DEBUG: Master got $result{'filename'} MD5: $result{'md5'} Size $result{'size'} from $request->{'device'} ($request->{'slavehost'})\n");
+		return(\%result);
 	} else {
-		return(0,"Unknown problem");
-
+		wlog("Problem with extract: Result: $result{'success'} Message: $result{'message'}");
+		return(\%result);
 	}
 }
 
@@ -484,21 +559,35 @@ sub runq {
         	my $qlen=$queue->pending();     # Length of extract queue
         	if ($qlen >= 1) {
 			my $request=$queue->dequeue();
-                	wlog("QUEUE: Found request: $request->{'rid'} Queue length: $qlen");
-                	wlog("QUEUE: Request: $request->{'rid'} User: $request->{'user'} Found in queue:");
+                	wlog("RUNQ : Found request: $request->{'rid'} Queue length: $qlen");
+                	wlog("RUNQ : Request: $request->{'rid'} User: $request->{'user'} Found in queue:");
 			if ($config{'MASTER'}) {
-				my ($result,$message)=domaster($request,$rid);
-                		wlog("QUEUE: MASTER: Request: $request->{'rid'} Result: $result Message: $message");    
-				$pcaps{$request->{'rid'}}=$message; # Report done
+				if (routereq($request)) { 	# If this request is routable....
+                			wlog("RUNQ : MASTER: Request: $request->{'rid'} Routable");    
+					my $result=domaster($request);
+                			wlog("RUNQ : MASTER: Request: $request->{'rid'} Result: $result->{'success'} Message: $result->{'message'}");    
+					if ($result->{'success'} ) {
+						$pcaps{$request->{'rid'}}=$request->{'filename'} ; # Report done
+					} else {
+						$pcaps{$request->{'rid'}}="ERROR" ; # Report FAIL 
+					}
+				} else {
+					# If fragmented requests were supported, this is one of the places
+					# where I would frag it
+					#print "Non-routable. Fragmenting \n";
+					#fragreq($request);
+					wlog("RUNQ : $pcaps{$request->{'rid'}}: No ofpc-route to $request->{'device'}. Cant extract.");
+					$pcaps{$request->{'rid'}}="NOROUTE"; # Report FAIL 
+				}
 			} else {
 				my ($result,$filename) = doslave($request,$rid);
 				if ($result) {
 					my $filesize=`ls -lh $config{'SAVEDIR'}/$filename |awk '{print \$5}'`;
 					chomp $filesize;
-                			wlog("QUEUE: SLAVE: Request: $request->{'rid'} Success. File: $filename $filesize now cached on SLAVE in $config{'SAVEDIR'}"); 
+                			wlog("RUNQ : SLAVE: Request: $request->{'rid'} Success. File: $filename $filesize now cached on SLAVE in $config{'SAVEDIR'}"); 
 					$pcaps{$request->{'rid'}}=$filename;
 				} else {
-                			wlog("QUEUE: SLAVE: Request: $request->{'rid'} Result: Failed, $filename.");    
+                			wlog("RUNQ: SLAVE: Request: $request->{'rid'} Result: Failed, $filename.");    
 				}
 			}
         	}
@@ -733,7 +822,6 @@ sub doExtract{
 	return($mergefile,$filesize,$md5);
 }
 
-########### End of subs ############
 ########### Start Here  ############
 $SIG{PIPE} = \&pipeHandler;
 
@@ -753,9 +841,9 @@ openlog("OpenfpcQ","pid", "daemon");
 
 
 GetOptions (    'c|conf=s' => \$CONFIG_FILE,
-		'D|daemon' => \$daemon,
+		'd|daemon' => \$daemon,
 		'h|help' => \$help,
-		'd|debug' => \$debug,
+		'debug' => \$debug,
 		'v|verbose' => \$verbose,
                 );
 if ($debug) { 
@@ -781,7 +869,7 @@ while(<$config>) {
                 unless ($key eq "USER") {
                         $config{$key} = join '=', @value;
                 } else {
-                        print "C- Adding user:$value[0]: Pass:$value[1]\n" if ($verbose);
+                        print " - Adding user \"$value[0]\" Pass \"$value[1]\"\n" if ($verbose);
                         $userlist{$value[0]} = $value[1] ;
                 }
         }
@@ -795,12 +883,23 @@ unless ($numofusers) {
 
 if ($config{'MASTER'}) {
         wlog("Starting in MASTER mode");
+	if ($config{'SLAVEROUTE'}) {
+		open SLAVEROUTE, '<', $config{'SLAVEROUTE'} or die "Unable to open slave route file $config{'slaveroute'} $!";
+		print " -  Reading route file $config{'SLAVEROUTE'}\n";
+		while(<SLAVEROUTE>) {
+			chomp $_;
+			unless ($_ =~ /^[# \$\n]/) {
+				if ( (my $key, my $value) = split /=/, $_ ) {
+					$route{$key} = $value;	
+					print " - Adding route for $key as $value\n" if ($verbose);
+				}
+			}
+		}
+		close SLAVEROUTE;
+	}
 } else {
         wlog("Starting in SLAVE mode");
 }
-# Now that we have opened/closed the config file
-# Daemonising if requested/required.
-
 
 # Start listener
 print "*  Starting listener on TCP:$config{'OFPC_PORT'}\n" if ($debug);
@@ -810,14 +909,13 @@ my $listenSocket = IO::Socket::INET->new(
                                 Listen => '10',
                                 Reuse => 1,
                                 );
+
 unless ($listenSocket) { die("Problem creating socket!"); }
 $listenSocket->autoflush(1);
 
 if ($daemon) {
 	print "[*] OpenFPC Queued - Daemonizing\n";
 	print " -  Leon Ward\n";
-
-
 
 	chdir '/' or die "Can't chdir to /: $!";
 	umask 0;
