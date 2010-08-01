@@ -52,6 +52,9 @@ sub request{
 	my $protover="OFPC-v1";		# For future use.
 
 	if ($request->{'logline'}) {
+		# Break out the "logline" part of the request into a hash via Parse::parselog.
+		# Event details can now be accessed via the hash regardless of event format.
+
 		($event, my $err)=ofpc::Parse::parselog($request->{'logline'});
 		unless ($event) {
 			$result{'success'} = 0;
@@ -86,7 +89,8 @@ sub request{
                 "   Device:     $request->{'device'}\n" .
                 "   Filename:   $request->{'filename'}\n" .
                 "   Tempfile:   $request->{'tempfile'}\n" .
-                "   Location:   $request->{'location'}\n" .
+		"   SaveDir:    $request->{'savedir'}\n" .
+                "   Location:   $request->{'location'}\n" . # WTF?
                 "   Type:       $request->{'type'}\n" .
 		"   Comment:	$request->{'comment'}" .
                 "   LogLine:    $request->{'logline'}\n" .
@@ -103,6 +107,7 @@ sub request{
 		"\n";
         }   
 
+	# Check that a request contains all of the data we require
 	# It is expected that any request will have already been sanity checked, but we do it again incase
 	# The following are required to make any type of request:
 	unless ($request->{'user'}) { 
@@ -113,6 +118,13 @@ sub request{
 	unless ($request->{'action'} =~ m/(store|fetch|status)/) { 
 		$result{'success'} = 0;
 		$result{'message'} = "Invalid action $request->{'action'}";
+	}
+
+	if ($request->{'action'} == "fetch" ) {
+		unless ($request->{'filename'} and $request->{'savedir'} ) {
+			$result{'success'} = 0;
+			$result{'message'} = "No filename or savedir specified";
+		}
 	}
 	
 	# Make request from Socket
@@ -127,7 +139,7 @@ sub request{
 
 	while(my $connection = $socket->connected) { # While we are connected to the server
         	my $data=<$socket>;
-        	print "Waiting for Data\n" if ($debug);
+        	print "DEBUG: Waiting for Data\n" if ($debug);
             	chomp $data;
                 print "DEBUG: GOT DATA: $data\n" if ($debug);
 
@@ -169,7 +181,7 @@ sub request{
                                         }
                                         print "Expecting MD5 $result{'expected_md5'}\n" if ($debug);
 
-                                        open (PCAP,'>',"$request->{'filename'}");
+                                        open (PCAP,'>',"$request->{'savedir'}/$request->{'filename'}");
 					PCAP->autoflush(1);	
                                         binmode(PCAP);
                                         binmode($socket);
@@ -185,19 +197,19 @@ sub request{
 
                                         close($socket);
                                         close(PCAP);
-                                        unless (open(PCAPMD5, '<', "$request->{'filename'}")) {
-						$result{'message'} = "cant open pcap file $request->{'filename'}";
+                                        unless (open(PCAPMD5, '<', "$request->{'savedir'}/$request->{'filename'}")) {
+						$result{'message'} = "cant open pcap file $request->{'savedir'}/$request->{'filename'}";
 						$result{'success'} = 0;
 						return %result;
 					}
-				        $result{'size'}=`ls -lh $request->{'filename'} |awk '{print \$5}'`;
+				        $result{'size'}=`ls -lh $request->{'savedir'}/$request->{'filename'} |awk '{print \$5}'`;
 					chomp $result{'size'};
-					print "DEBUG $request->{'filename'} size:$result{'size'}\n" if ($debug);
+					print "DEBUG $request->{'savedir'}/$request->{'filename'} size:$result{'size'}\n" if ($debug);
                                         # XXX
 					#my $xfermd5=Digest::MD5->new->addfile(*PCAPMD5)->hexdigest;
 					$result{'md5'}=Digest::MD5->new->addfile(*PCAPMD5)->hexdigest;
                                         close(PCAPMD5);
-					print "$request->{'filename'} on disk is has md5 $result{'md5'}\n" if ($debug);
+					print "$request->{'savedir'}/$request->{'filename'} on disk is has md5 $result{'md5'}\n" if ($debug);
                                         print "Expected: $result{'expected_md5'}\nGot   : $result{'md5'}\n" if ($debug);
 					if ($result{'md5'} eq $result{'expected_md5'}) {
 						$result{'success'} = 1;
@@ -251,6 +263,7 @@ sub request{
                                 print "DEBUG: Password BAD\n" if ($debug);
 				$result{'success'} = 0;
 				$result{'message'} = "Authentication Failed";
+				return %result;
                         #} else {
                         #        die("Unknown server response $data") ;
                         }
