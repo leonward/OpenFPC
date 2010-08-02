@@ -50,7 +50,7 @@ FILENAME=openfpc-pcap
 OPENFPCQD=./ofpc-queued.pl
 
 
-if [ "$DONE" == 1 ] 
+if [ "$DONE" != 1 ] 
 then
 	echo -e "[!] Configuration not complete, Done not marked in $CONFIG \n    Have you run ./install-opefpc ?"
 	exit 1

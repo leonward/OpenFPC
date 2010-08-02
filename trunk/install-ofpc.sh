@@ -22,12 +22,13 @@
 #########################################################################################
 openfpcver="0.1a"
 TARGET_DIR="/opt/openfpc"
-INSTALL_FILES="ofpc-extract.pl openfpc openfpc.conf ofpcParse.pm"
-PERL_MODULES="ofpcParse.pm"
+INSTALL_FILES="ofpc-client.pl openfpc openfpc.conf ofpc-queued.pl"
+PERL_MODULES="Parse.pm Request.pm"
 INIT_SCRIPTS="openfpc"
 INIT_DIR="/etc/init.d/" 
 REQUIRED_BINS="tcpdump date mergecap perl tshark"
 LOCAL_CONFIG="/etc/openfpc/openfpc.conf"
+PERL_LIB_DIR="/usr/local/lib/site_perl"
 
 DISTRO="AUTO"		# Try to work out what distro we are installing on
 # DISTRO="RH"		# force to RedHat
@@ -54,6 +55,20 @@ function doinstall()
 	       	die "[!] Must be root to run this script"
 	fi
 
+	# Check perl site includes dir is in the perl path
+	if  perl -V | grep "$PERL_LIB_DIR" > /dev/null
+	then
+		echo "Installing modules to $PERL_LIB_DIR"
+	else
+		die "[!] Cant find $PERL_LIB_DIR in Perl's @INC (perl -V to check)"
+	fi	
+	
+        if [ -d $PERL_LIB_DIR ] 
+	then
+		echo -e " -  $PERL_LIB_DIR exists"
+	else
+		mkdir $PERL_LIB_DIR || die "[!] Unable to mkdir $PERL_LIB_DIR"
+	fi
 
 	[ -d $INIT_DIR ] || die "Cannot find init.d directory $INIT_DIR. Something bad must have happened."
 
@@ -69,6 +84,15 @@ function doinstall()
 		echo -e "- Installing $file"
                 cp $file $TARGET_DIR || echo Unable to copy $file to $TARGET_DIR
         done
+
+	######## Modules ###########
+
+	if [ -d $PERL_LIB_DIR/ofpc ] 
+	then
+		echo -e " -  Found $PERL_LIB_DIR/ofpc"
+	else
+		mkdir $PERL_LIB_DIR/ofpc || die "[!] Unable to mkdir $PERL_LIB_DIR/ofpc"
+	fi
 
 	for file in $PERL_MODULES
 	do

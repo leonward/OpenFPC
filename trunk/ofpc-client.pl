@@ -32,7 +32,7 @@ use Switch;
 use Digest::MD5(qw(md5_hex));
 
 my $now=time();
-
+my $openfpcver="0.2";
 # Hint: "ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp timestamp:1274864808 msg:Some freeform text";
 my %cmdargs=( user => "ofpc",
 	 	password => 0, 
