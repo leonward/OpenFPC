@@ -43,12 +43,10 @@ ofpc-queued.pl - Queue and process extract requests from local and remote PCAP s
 
 =head1 VERSION 
 
-0.1
+0.2
 
 =cut
-
-
-my $openfpcver="0.1a";
+my $openfpcver="0.2";
 
 my ($queuelen,$debug,$verbose,$rid,%config,%userlist,$help);
 my $queue = Thread::Queue->new();	# Queue shared over all threads
