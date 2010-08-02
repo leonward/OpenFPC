@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash 
 
 #########################################################################################
 # Copyright (C) 2009 Leon Ward 
@@ -22,7 +22,7 @@
 #########################################################################################
 openfpcver="0.2"
 TARGET_DIR="/opt/openfpc"
-INSTALL_FILES="ofpc-client.pl openfpc openfpc.conf ofpc-queued.pl"
+INSTALL_FILES="ofpc-client.pl openfpc openfpc.conf ofpc-queued.pl setup-ofpc.pl"
 PERL_MODULES="Parse.pm Request.pm"
 INIT_SCRIPTS="openfpc"
 INIT_DIR="/etc/init.d/" 
@@ -107,8 +107,8 @@ function doinstall()
 	for file in $PERL_MODULES
 	do
 		echo -e "- Installing PERL module $file"
-		[ -d $PERL_LIB_DIR ] || mkdir --parent $PERL_LIB_DIR
-		ln -s $TARGET_DIR/$file $PERL_LIB_DIR/$file
+		[ -d $PERL_LIB_DIR/ofpc ] || mkdir --parent $PERL_LIB_DIR/ofpc
+		cp ofpc/$file $PERL_LIB_DIR/ofpc/$file
 	done
 
         for file in $INIT_SCRIPTS
@@ -176,7 +176,7 @@ function remove()
 	do
 		if [ -L $PERL_LIB_DIR/$file ]
 		then	
-			rm $PERL_LIB_DIR/$file  || echo unable to delete $file
+			rm $PERL_LIB_DIR/ofpc/$file  || echo unable to delete $file
 		else
 			echo -e " - *Not found"
 		fi
