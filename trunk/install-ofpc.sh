@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #########################################################################################
-openfpcver="0.1a"
+openfpcver="0.2"
 TARGET_DIR="/opt/openfpc"
 INSTALL_FILES="ofpc-client.pl openfpc openfpc.conf ofpc-queued.pl"
 PERL_MODULES="Parse.pm Request.pm"
@@ -46,14 +46,24 @@ function die()
         exit 1
 }
 
-
-function doinstall()
+function chkroot()
 {
-
 	if [ "$IAM" != "root" ]
 	then
 	       	die "[!] Must be root to run this script"
 	fi
+}
+
+
+function doinstall()
+{
+
+	#if [ "$IAM" != "root" ]
+	#then
+	#       	die "[!] Must be root to run this script"
+	#fi
+	
+	chkroot
 
 	# Check perl site includes dir is in the perl path
 	if  perl -V | grep "$PERL_LIB_DIR" > /dev/null
@@ -136,7 +146,7 @@ function doinstall()
 function remove()
 {
 	echo -e "* Stopping Services..."
-
+	chkroot
 	for file in $INIT_SCRIPTS
 	do
 		if [ -f $INIT_DIR/$file ] 
@@ -149,11 +159,6 @@ function remove()
 	done
 	
 	echo -e "* Removing files..."
-
-	if [ "$IAM" != "root" ]
-	then
-	       	die "[!] Must be root to run this script"
-	fi
 
 	for file in $INSTALL_FILES
 	do
@@ -222,12 +227,15 @@ function remove()
 
 function installstatus()
 {
+	SUCCESS=1
+
 	echo -e "* Status"
 	if [ -d $TARGET_DIR ] 
 	then
-		echo -e " Yes Target install dir $TARGET_DIR Exists"	
+		echo -e "  Yes Target install dir $TARGET_DIR Exists"	
 	else
-		echo -e " No  Target install dir $TARGET_DIR does not exist"
+		echo -e "  No  Target install dir $TARGET_DIR does not exist"
+		SUCCESS=0
 
 	fi
 	
@@ -235,9 +243,10 @@ function installstatus()
 	do
 		if [ -f $TARGET_DIR/$file ] 
 		then
-			echo -e " Yes $TARGET_DIR/$file Exists"
+			echo -e "  Yes $TARGET_DIR/$file Exists"
 		else
-			echo -e " No  $TARGET_DIR/$file  does not exist"
+			echo -e "  No  $TARGET_DIR/$file does not exist"
+			SUCCESS=0
 		fi
 
 	done
@@ -247,11 +256,21 @@ function installstatus()
 	
 		if [ -f $TARGET_DIR/$file ]
 		then
-			echo -e " Yes $TARGET_DIR/$file Exists"
+			echo -e "  Yes $TARGET_DIR/$file Exists"
 		else
-			echo -e " No  $TARGET_DIR/$file does not exist"
+			echo -e "  No  $TARGET_DIR/$file does not exist"
+			SUCCESS=0
 		fi	
 	done
+
+	echo -e "--------------------------------"
+	if [ $SUCCESS == 1 ] 
+	then
+		echo -e "  Installation Okay"
+	else
+		echo -e "  Install has problems"
+	fi
+	echo -e "--------------------------------"
 }
 
 echo -e "

@@ -26,7 +26,7 @@ use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
 require Exporter;
 
 @EXPORT = qw(ALL);
-$VERSION = '0.01';
+$VERSION = '0.2';
 
 sub parselog{
         # Recieve a logline, and return a ref to a hash that contains its data if valid

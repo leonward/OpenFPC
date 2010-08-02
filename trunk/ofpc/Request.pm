@@ -28,7 +28,7 @@ require Exporter;
 use Switch;
 use Digest::MD5(qw(md5_hex));
 @EXPORT = qw(ALL);
-$VERSION = '0.01';
+$VERSION = '0.2';
 
 sub request{
 	# Take a request hash, and a socket, do as asked and return 
