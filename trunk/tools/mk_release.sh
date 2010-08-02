@@ -7,7 +7,7 @@
 
 TARPATH=~
 SRCPATH=..
-FILES="ofpc-client.pl install-ofpc.sh openfpc openfpc.conf docs/README ofpc/Parse.pm ofpc/Request.pm ofpc-queued.pl"
+FILES="ofpc-client.pl install-ofpc.sh openfpc openfpc.conf docs/README ofpc/Parse.pm ofpc/Request.pm ofpc-queued.pl setup-ofpc.pl"
 VERFILES="install-ofpc.sh ofpc-client.pl openfpc ofpc-queued.pl"
 
 echo Checking version numbers in code...

@@ -49,7 +49,7 @@ my %config=(
 		SESSION_DB_USER => "openfpc",
 		SESSION_DB_PASS => "openfpc",
 		SESSION_DIR => "/var/tmp/ofpc_session",	
-		DONE => 1,
+		DONE => "n",
 		INTERFACE => "eth1",
 		DAEMONLOGGER => "daemonlogger",
 		ENABLE_IP_V6 => "0",
@@ -59,13 +59,16 @@ my %config=(
 
 # Rather than dupe questions for different operation modes and setup styles, these are a list of questions to ask for slave/simple, slave/advanced, and in the future master/simple, master/advanced.
 
+# For version 0.2, I've disabled the GUI to get a release out while fixing some of the problems there.
+# So i'm not asking GUI questions, commented out. - Leon
+
 my @slavesimple=(
 	"BUFFER_PATH",
 	"SAVEDIR",
-	"SESSION_DIR",
-	"SESSION_DB_NAME",
-	"SESSION_DB_USER",
-	"SESSION_DB_PASS",
+#	"SESSION_DIR",
+#	"SESSION_DB_NAME",
+#	"SESSION_DB_USER",
+#	"SESSION_DB_PASS",
 	"INTERFACE",
 	"DONE");
 
@@ -74,16 +77,16 @@ my @slaveadvanced=(
 	"INTERFACE",
 	"BUFFER_PATH",
 	"SAVEDIR",
-	"SESSION_DIR",
-	"SESSION_DB_NAME",
-	"SESSION_DB_USER",
-	"SESSION_DB_PASS",
+#	"SESSION_DIR",
+#	"SESSION_DB_NAME",
+#	"SESSION_DB_USER",
+#	"SESSION_DB_PASS",
 	"OFPC_PORT",
 	"VERBOSE",
 	"DONE",
 	"DAEMONLOGGER",
 	"FILE_SIZE",
-	"ENABLE_IP_V6",
+#	"ENABLE_IP_V6",
 	"OFPC_Q_PID",
 	);
 

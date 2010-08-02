@@ -50,7 +50,7 @@ FILENAME=openfpc-pcap
 OPENFPCQD=./ofpc-queued.pl
 
 
-if [ "$DONE" != 1 ] 
+if [ "$DONE" != "y" ] 
 then
 	echo -e "[!] Configuration not complete, Done not marked in $CONFIG \n    Have you run ./install-opefpc ?"
 	exit 1
@@ -233,13 +233,13 @@ function status()
 			echo "[!] Traffic buffer (Daemonlogger) not running"
 		fi
 
-		echo -e " -  Time now 		    $NOW"
-		echo -e " -  Oldest packet	    $FIRSTPACKET"
-		echo -e " -  Oldest File	    $FIRSTBUFFER"
-		echo -e " -  Using File		    $LASTBUFFER"
-		echo -e " -  Time Window	    ~ $EPOC_DELTA hours"
-		echo -e " -  Disk space used	    $SIZE"
-		echo -e " -  Partition utilization  $USED"
+		echo -e " -  Time now                $NOW"
+		echo -e " -  Oldest packet           $FIRSTPACKET"
+		echo -e " -  Oldest File             $FIRSTBUFFER"
+		echo -e " -  Using File              $LASTBUFFER"
+		echo -e " -  Time Window             ~ $EPOC_DELTA hours"
+		echo -e " -  Disk space used         $SIZE"
+		echo -e " -  Partition utilization   $USED"
 	else
 		echo "[!] No current buffers found in $BUFFER_PATH - Have you started it yet?"
 	fi
