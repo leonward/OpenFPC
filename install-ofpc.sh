@@ -108,7 +108,7 @@ function doinstall()
 	do
 		echo -e "- Installing PERL module $file"
 		[ -d $PERL_LIB_DIR/ofpc ] || mkdir --parent $PERL_LIB_DIR/ofpc
-		cp ofpc/$file $PERL_LIB_DIR/ofpc/$file
+		cp $file $PERL_LIB_DIR/ofpc/$file
 	done
 
         for file in $INIT_SCRIPTS
