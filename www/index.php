@@ -588,7 +588,7 @@ function eventRowFormat($data) {
 
                 //$out .= "<div style=\"font-size: 10px;\">" . $data["cnt"] . "</div>";
         $out .= "<div style=\"font-size: 10px; color: #DEDEDE\">" . $data["sessionid"] . "</div>";
-                $out .= "<div style=\"font-size: 10px; text-align: center;\">Sensor</div>";
+                $out .= "<div style=\"font-size: 10px; text-align: center;\">cxtid</div>";
 
         $out .= "</td><td width=12 valign=top>";
 
