@@ -10,7 +10,7 @@ use DBI;
 
 =head1 NAME
 
-cxtracker2db.pl - Load session metadata from cxtracker into a db
+ofpc-cxt2db.pl - Load session metadata from cxtracker into a db
 
 =head1 VERSION
 
@@ -18,7 +18,7 @@ cxtracker2db.pl - Load session metadata from cxtracker into a db
 
 =head1 SYNOPSIS
 
- $ cxtracker2db.pl [options]
+ $ ofpc-cxt2db.pl [options]
 
  OPTIONS:
 
@@ -26,7 +26,7 @@ cxtracker2db.pl - Load session metadata from cxtracker into a db
  --daemon       : enables daemon mode
  --debug        : enable debug messages (default: 0 (disabled))
  --help         : this help message
- --version      : show cxtracker2db.pl version
+ --version      : show ofpc-cxt2db.pl version
  --config	: specify the OpenFPC Config file
 =cut
 
@@ -118,7 +118,7 @@ unless ( -d "$FDIR" )  {
 	warn "[-] Created failed insertion dir $FDIR\n";
 }
 
-warn "[*] Starting cxtracker2db.pl...\n";
+warn "[*] Starting ofpc-cxt2db.pl...\n";
 
 # Prepare to meet the world of Daemons
 if ( $DAEMON ) {
