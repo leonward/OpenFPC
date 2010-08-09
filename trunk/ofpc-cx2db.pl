@@ -37,7 +37,6 @@ our $TIMEOUT       = 5;
 our $HOSTNAME      = q(aruba);
 our $CONFFILE	   = 0;
 my  $SDIR          = "/nsm_data/$HOSTNAME/session/";
-my  $FDIR          = "$SDIR/failed/";
 my  $LOGFILE       = q(/var/log/ofpc-cx2db.log);
 my  $PIDFILE       = q(/var/run/ofpc-cx2db.pid);
 our $DB_NAME       = "openfpc";
@@ -55,6 +54,7 @@ GetOptions(
    'daemon'        => \$DAEMON,
    'config=s'		 => \$CONFFILE,
 );
+my  $FDIR          = "$SDIR/failed/";
 
 # Signal handlers
 use vars qw(%sources);
