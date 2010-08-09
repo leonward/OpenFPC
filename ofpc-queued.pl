@@ -33,6 +33,7 @@ use Getopt::Long;
 use POSIX qw(setsid);		# Required for daemon mode
 use Data::Dumper;
 use File::Temp(qw(tempdir));
+use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 use Sys::Syslog;
 use ofpc::Parse;
 use ofpc::Request;
@@ -205,6 +206,164 @@ sub decoderequest($){
 	}
 }
 
+
+=head2 prepfile 
+	prepare a file to deliver back to the client.
+	Call with:
+		\$request
+	This consists of:
+		- Checking if we are to queue it up for later or do it now
+		- If master-Check the routing to see if we need to fragment it and re-insert
+		- Call the extract functions (if we are to do it now)
+		- Return a hashref containing
+		( success => 0,
+		  filename => 0,
+		  message => = 0,
+		  type => = 0,
+		)
+
+		success 1 = Okay 0= Fail
+		filename = Name of file (no path!)
+		message = Error message
+		type "PCAP" = pcap file "ZIP" = zip file
+=cut
+
+sub prepfile{
+	my $request=shift;
+	my @ziplist=();		# List of files to zip up
+	my $multifile=0;
+	my $meta=0;
+
+	my %prep=(
+			success => 0,
+			filename => 0,
+			message => 0,
+			type => 0,
+			md5 => 0,
+	);	
+	# If we are master, check if we need to frag this req into smaller ones, and get the data back from each slave
+	# If we are slave, do the slave action now (rather than enqueue if we were in STORE mode)
+	# Check if we want to include the meta-text
+	# Return the filename of the data that is to be sent back to the client.
+
+	if ( $config{'MASTER'} ) {
+		# Check if we can route this request
+		open METADATA , '>', "$config{'SAVEDIR'}/$request->{'tempfile'}.txt"  or die "Unable to open MetaFile $config{'SAVEDIR'}/$request->{'tempfile'}.txt for writing";
+        	print METADATA "OFPC-Master request report\n" .
+			"User: $request->{'user'}\n" .
+                       	"User comment: $request->{'comment'}\n" .
+                       	"Time: $request->{'rtime'}\n";
+
+ 		(my $slavehost,my $slaveport,my $slaveuser,my $slavepass)=routereq($request->{'device'});
+		unless ($slavehost) { 	# If request isn't routeable....
+					# Request from all devices
+			$multifile=1;	# Fraged request will be a multi-file return
+			$prep{'type'} = "ZIP";
+			foreach (keys %route) {
+				print METADATA "-------------------\n";
+ 				($slavehost,$slaveport,$slaveuser,$slavepass)=routereq($_);
+				$request->{'slavehost'} = $slavehost;
+				$request->{'slaveuser'} = $slaveuser;
+				$request->{'slaveport'} = $slaveport;
+				$request->{'slavepass'} = $slavepass;
+				print METADATA "Host: $slavehost\n";
+				print METADATA "Port: $slaveport\n";
+				print METADATA "User: $slaveuser\n";
+
+				my $result=domaster($request);
+				if ($result->{'success'}) {
+					print METADATA "Filename: $result->{'filename'}\n";
+					print METADATA "Size    : $result->{'size'}\n";
+					print METADATA "MD5     : $result->{'md5'}\n";
+					wlog("Added $result->{'filename'} to zip list") if ($verbose);
+					push (@ziplist, $result->{'filename'});
+				} else {
+					print METADATA "Error   : $result->{'message'}\n";
+				}
+			}
+		} else { 					# Routeable, do the master action 
+			$request->{'slavehost'} = $slavehost;
+			$request->{'slaveuser'} = $slaveuser;
+			$request->{'slaveport'} = $slaveport;
+			$request->{'slavepass'} = $slavepass;
+			print METADATA "-------------------\n";
+			print METADATA "Host: $slavehost\n";
+			print METADATA "Port: $slaveport\n";
+			print METADATA "User: $slaveuser\n";
+
+			my $result=domaster($request);
+
+			if ($result->{'success'}) {
+				print METADATA "Filename: $result->{'filename'}\n";
+				print METADATA "Size    : $result->{'size'}\n";
+				print METADATA "MD5     : $result->{'md5'}\n";
+				$prep{'success'} = 1;
+				$prep{'md5'} = $result->{'md5'};
+				$prep{'type'} = "PCAP";
+				$prep{'filename'}="$result->{'filename'}";
+       				push (@ziplist, $result->{'filename'});
+				wlog("PREP: Added $result->{'filename'} to zip list") if ($verbose);
+			} else {
+				print METADATA "Error   : $result->{'message'}\n";
+				wlog("METADATA Error   : $result->{'message'}");
+			}
+		}
+        	close METADATA;
+		push (@ziplist,"$request->{'tempfile'}.txt");
+
+		# Now we have the file(s) we want to rtn to the client, lets zip if reqd
+		if ($multifile) {
+			my $zip = Archive::Zip->new();
+			foreach my $filename (@ziplist) {
+				$zip->addFile("$config{'SAVEDIR'}/$filename","$filename");
+			}
+			if ($zip->writeToFileNamed("$config{'SAVEDIR'}/$request->{'tempfile'}.zip") !=AZ_OK ) {
+				wlog("PREP: ERROR: Problem creating $config{'SAVEDIR'}/$request->{'tempfile'}.zip");
+			} else {
+				wlog("PREP: Created $config{'SAVEDIR'}/$request->{'tempfile'}.zip");
+				$prep{'filename'}="$request->{'tempfile'}.zip";
+				$prep{'success'} = 1;
+				$prep{'md5'} = getmd5("$config{'SAVEDIR'}/$prep{'filename'}");
+			}
+		}
+		if ($verbose) {
+			wlog("PREP: Sending back $prep{'type'} file");
+		}
+		return(\%prep);
+	} else { 	# Do slave stuff
+   		my $result = doslave($request,$rid);
+		if ($result->{'success'}) {
+			$prep{'success'} = 1;
+			wlog ("Slave action done");
+			$prep{'filename'} = $result->{'filename'};
+			$prep{'type'} = "PCAP";
+			$prep{'md5'} = getmd5("$config{'SAVEDIR'}/$result->{'filename'}");
+		} else {
+			$prep{'message'} = $result->{'message'};
+		}
+		return(\%prep);
+	}
+	
+}
+=head2 getmd5
+	Get the md5 for a file. 
+	Takes, filename (including path)
+	Returns the md5sum 
+=cut
+
+sub getmd5{
+
+	my $file=shift;
+	unless (open(MD5, '<', $file)) {
+		wlog("MD5: ERROR: Cant open file $file to get MD5");
+		return 0;
+	}
+	my $md5=Digest::MD5->new->addfile(*MD5)->hexdigest;
+	wlog("MD5: $file => $md5") if ($verbose);
+	close(MD5);
+	return($md5);
+}
+
 =head2 comms
 	Communicate with the client, and if a valid request is made add it on to the processqueue
 =cut
@@ -305,63 +464,47 @@ sub comms{
 						} elsif ($request->{'action'} eq "fetch") {
 							# Create a tempfilename for this store request
 							$request->{'tempfile'}=time() . "-" . $request->{'rid'} . ".pcap";
-							$queue->enqueue($request);
 							wlog("COMMS: $client_ip: RID: $request->{'rid'} Request OK -> WAIT!\n");
-							print $client "WAIT: $position\n";
-							$pcaps{$request->{'rid'}} = "WAITING";
-							while ($pcaps{$request->{'rid'}} eq "WAITING") {
-								# Wait for our request to be complete"
-								print "Waiting for $request->{'rid'} - $pcaps{$request->{'rid'}} \n" if ($debug);
-								sleep(1);
-							}
-							if ($pcaps{$request->{'rid'}} eq "NOROUTE") {
-								wlog("COMMS: No route to target device $request->{'device'}");
-								print $client "ERROR No route to device $request->{'device'}\n";
-								shutdown($client,2);
-							} elsif ($pcaps{$request->{'rid'}} eq "ERROR") {
-								# Do error
-								wlog("COMMS: Sending error to client");
-								print $client "ERROR Problem with master/slave process. Check logs on Master for details\n";
-								shutdown($client,2);
-							} else { # Have a filename
-								wlog("COMMS: $request->{'rid'} Complete: Sending: $pcaps{$request->{'rid'}}");
-								my $pcapfile = "$pcaps{$request->{'rid'}}";
+							my $prep = prepfile($request);
+							my $xferfile=$prep->{'filename'};
 
-								# Best to take a MD5 to check xfer is Okay
-								unless (open(PCAPMD5, '<', "$config{'SAVEDIR'}/$pcapfile")) {
-									wlog("COMMS: Cant open pcap file $config{'SAVEDIR'}/$pcapfile");
-									print $client "ERROR: Cant open pcap file $config{'SAVEDIR'}/$pcapfile\n";
+							if ($prep->{'success'}) {
+								wlog("COMMS: $request->{'rid'} $client_ip Sending File:$config{'SAVEDIR'}/$xferfile MD5: $prep->{'md5'}");
+
+								# Get client ready to recieve binary PCAP or zip file
+								if ($prep->{'type'} eq "ZIP") {
+									print $client "PCAP: $prep->{'md5'}\n"; 	# ZIP forced to PCAP for now :P
+								} elsif ($prep->{'type'} eq "PCAP") {
+									print $client "PCAP: $prep->{'md5'}\n";
+								} else {
+									print $client "ERROR: Bad filetype extracted : $prep->{'type'}\n";
 	                        					shutdown($client,2);	
-									return 0;
 								}
-								my $md5=Digest::MD5->new->addfile(*PCAPMD5)->hexdigest;
-								close(PCAPMD5);
-								wlog("COMMS: $request->{'rid'} $client_ip Sending PCAP:$config{'SAVEDIR'}/$pcapfile MD5:$md5");
-
-								# Get client ready to recieve binary PCAP file
-								print $client "PCAP: $md5\n";
 								$client->flush();
 
 								# Wait for client to share its ready state
 								# Any data sent from the client will be fine.
 
 								my $ready=<$client>;
-								open(PCAP, '<', "$config{'SAVEDIR'}/$pcapfile") or die("cant open pcap file $config{'SAVEDIR'}/$pcapfile");
-								binmode(PCAP);
+								open(XFER, '<', "$config{'SAVEDIR'}/$xferfile") or die("cant open pcap file $config{'SAVEDIR'}/$xferfile");
+								binmode(XFER);
 								binmode($client);
 
 								my $data;
 								# Read and send pcap data to client
 								my $a=0;
-								while(sysread(PCAP, $data, 1024)) {
+								while(sysread(XFER, $data, 1024)) {
 									syswrite($client,$data,1024);
 									$a++;
 								}
 								wlog("COMMS: Uploaded $a x 1KB chunks\n");
-								close(PCAP);		# Close file
+								close(XVER);		# Close file
 	                        				shutdown($client,2);	# CLose client
 
 								wlog("COMMS: $client_ip Request: $request->{'rid'} Transfer complete");
+							} else {
+								print $client "ERROR: $prep->{'message'}\n";
+	                        				shutdown($client,2);	# CLose client
 							} 
 						} elsif ($request->{'action'} eq "status") {
 							wlog ("COMMS: $client_ip Recieved Status Request");	
@@ -432,26 +575,31 @@ sub fragreq{
 
 =head routereq
 	Find device to make request from, and calculate the correct user/pass
-	If we cant find a device, lets add requests from all slaves
+	expects $device
+	returns $slavehost,$slaveport,$salveuser,$slavepass
 =cut
 
 sub routereq{
-	my $request=shift;
+	my $device=shift;
+	my $slavehost=0;
+	my $slaveport=0;
+	my $slaveuser=0;
+	my $slavepass=0;
 	my $slavevalue=0;
-	if (exists $route{$request->{'device'}} ) {
-		$slavevalue=$route{$request->{'device'}};
-		($request->{'slavehost'}, $request->{'slaveport'}, $request->{'slaveuser'}, $request->{'slavepassword'}) = split(/:/, $slavevalue);
-		wlog("ROUTE: Routing request to : $request->{'device'} ( $request->{'slavehost'} : $request->{'slaveport'} User: $request->{'slaveuser'})");
+	if (exists $route{$device} ) {
+		$slavevalue=$route{$device};
+		($slavehost, $slaveport, $slaveuser, $slavepass) = split(/:/, $slavevalue);
+		wlog("ROUTE: Routing request to : $device ( $slavehost : $slaveport User: $slaveuser )");
 	} else {
-		wlog("ROUTE: No ofpc-route entry found for $request->{'device'} in routing table\n");
-		return 0;
+		wlog("ROUTE: No ofpc-route entry found for $device in routing table\n");
+		return(0,0,0,0);
 	}
 		
-	unless ($request->{'slavehost'} and $request->{'slaveport'} and $request->{'slavepassword'} and $request->{'slaveuser'}) {
+	unless ($slavehost and $slaveport and $slavepass and $slaveuser) {
 		wlog("ROUTE: ERROR: Unable to pass route line $slavevalue");
-		return(0);		
+		return(0,0,0,0);		
 	} else {
-		return($request);
+		return($slavehost,$slaveport,$slaveuser,$slavepass);
 	}
 }
 
@@ -462,6 +610,16 @@ sub routereq{
 
 	Master mode is OUT OF SCOPE for the initial release, but I wanted to make sure that it could function sooner rather than later.
 	I had this working in a few tests, so theory is Okay, but needs some more planing before release.
+
+	Expects a hashref of the request
+	Returns a hash of result data
+	%result( 
+		filename => 0,
+		md5 => 0,
+		size => 0,
+		success => 0,
+		message => 0,
+	)
 =cut
 
 sub domaster{
@@ -486,18 +644,11 @@ sub domaster{
 	}
 	# This is a master request, we don't want the user to control what file we will
 	# write on the master. Create our own tempfile.
-	#$request->{'filename'}="$request->{'tempfile'}";	
-	#$request->{'filename'}="$config{'SAVEDIR'}/$request->{'tempfile'}";	
-	$request->{'filename'}="M-" . time() . "-" . $request->{'rid'} . ".pcap";
+	$request->{'filename'}="M-$request->{'slavehost'}-$request->{'slaveport'}-" . time() . "-" . $request->{'rid'} . ".pcap";
 	$request->{'user'} = $request->{'slaveuser'};
-	$request->{'password'} = $request->{'slavepassword'};
+	$request->{'password'} = $request->{'slavepass'};
 	$request->{'savedir'} = $config{'SAVEDIR'};
-	#print "Request is ----\n";
-	#print Dumper $request;
 	%result=ofpc::Request::request($slavesock,$request);
-	#print "Result is ----\n";
-	#print Dumper %result;
-	#print "----Done\n";
 	
 	# Return the name of the file that we have been passed by the slave
 	if ($result{'success'} == 1) {
@@ -512,6 +663,12 @@ sub domaster{
 =head2 doslave
 	The slave action is where the real extraction work takes place.
 	It takes a decoded request as it's input, and returns a filename when the extraction has been done.
+	
+	returns a hash of
+		( success => 0,
+		  filename => 0,
+		  message => 0,
+		)
 =cut
 
 sub doslave{
@@ -521,6 +678,11 @@ sub doslave{
 	my $extractcmd;
 	my $request=shift;
 	my @cmdargs=();
+	my %result=( filename => 0,
+			success => 0,
+			message => 0,
+		);
+
 	wlog("SLAVE: Request: $request->{'rid'} User: $request->{'user'} Action: $request->{'action'}");
 	my $bpf=mkBPF($request);
 	print "DEBUG: BPF is $bpf\n" if ($debug);
@@ -530,11 +692,15 @@ sub doslave{
 	print "DEBUG: Got buffers @pcaproster\n" if ($debug);
 
 	(my $filename, my $size, my $md5) = doExtract($bpf,\@pcaproster,$request->{'tempfile'});
+	$result{'filename'} = $filename;
+	$result{'success'} = 1;
+	$result{'message'} = "Success";
 	wlog("SLAVE: Extraction complete: Result: $filename, $size, $md5");   
 	
 	# Create extraction Metadata file
 	
 	open METADATA , '>', "$config{'SAVEDIR'}/$filename.txt"  or die "Unable to open MetaFile $config{'SAVEDIR'}/$filename.txt for writing";
+	print METADATA "Extract Report - Slave action\n";
 	print METADATA "User: $request->{'user'}\n" .
 			"Filename: $request->{'filename'}\n" .
 			"MD5: $md5\n" .
@@ -544,7 +710,8 @@ sub doslave{
 	close METADATA;
 
 	# Return the name of the file that we have extracted
-        return(1,"$filename");
+	
+        return(\%result);
 }
 
 =head2 runq
@@ -560,7 +727,16 @@ sub runq {
                 	wlog("RUNQ : Found request: $request->{'rid'} Queue length: $qlen");
                 	wlog("RUNQ : Request: $request->{'rid'} User: $request->{'user'} Found in queue:");
 			if ($config{'MASTER'}) {
-				if (routereq($request)) { 	# If this request is routable....
+
+				(my $slavehost,my $slaveport,my $slaveuser,my $slavepass)=routereq($request->{'device'});
+				print "Slavehost is $slavehost\n";
+
+				if ($slavehost) { 		# If this request is routable....
+					$request->{'slavehost'} = $slavehost;
+					$request->{'slaveuser'} = $slaveuser;
+					$request->{'slaveport'} = $slaveport;
+					$request->{'slavepass'} = $slavepass;
+
                 			wlog("RUNQ : MASTER: Request: $request->{'rid'} Routable");    
 					my $result=domaster($request);
                 			wlog("RUNQ : MASTER: Request: $request->{'rid'} Result: $result->{'success'} Message: $result->{'message'}");    
@@ -570,22 +746,18 @@ sub runq {
 						$pcaps{$request->{'rid'}}="ERROR" ; # Report FAIL 
 					}
 				} else {
-					# If fragmented requests were supported, this is one of the places
-					# where I would frag it
-					#print "Non-routable. Fragmenting \n";
-					#fragreq($request);
 					wlog("RUNQ : $pcaps{$request->{'rid'}}: No ofpc-route to $request->{'device'}. Cant extract.");
 					$pcaps{$request->{'rid'}}="NOROUTE"; # Report FAIL 
 				}
 			} else {
-				my ($result,$filename) = doslave($request,$rid);
-				if ($result) {
-					my $filesize=`ls -lh $config{'SAVEDIR'}/$filename |awk '{print \$5}'`;
+				my $result = doslave($request,$rid);
+				if ($result->{'success'}) {
+					my $filesize=`ls -lh $config{'SAVEDIR'}/$result->{'filename'} |awk '{print \$5}'`;
 					chomp $filesize;
-                			wlog("RUNQ : SLAVE: Request: $request->{'rid'} Success. File: $filename $filesize now cached on SLAVE in $config{'SAVEDIR'}"); 
-					$pcaps{$request->{'rid'}}=$filename;
+                			wlog("RUNQ : SLAVE: Request: $request->{'rid'} Success. File: $result->{'filename'} $filesize now cached on SLAVE in $config{'SAVEDIR'}"); 
+					$pcaps{$request->{'rid'}}=$result->{'filename'};
 				} else {
-                			wlog("RUNQ: SLAVE: Request: $request->{'rid'} Result: Failed, $filename.");    
+                			wlog("RUNQ: SLAVE: Request: $request->{'rid'} Result: Failed, $result->{'message'}.");    
 				}
 			}
         	}
@@ -657,7 +829,7 @@ sub findBuffers {
         my @timestampArray=();
 	my @pcaps;
 	my $vdebug=0;	# Enable this to debug the pcap selection process
-			# It's verbose, so it's off even when debugging is enabled
+			# It's VERY verbose, so it's off even when debugging is enabled
 
 	print "DEBUG: WARNING vdebug not enabled to inspect pcap filename selection\n" if ($debug and not $vdebug);
 
@@ -854,9 +1026,7 @@ if ($help) {
 	exit;
 }
 
-if ($verbose) {
-        print "*  Reading config file $CONFIG_FILE\n";
-}
+wlog("CONF: Reading config file $CONFIG_FILE");
 
 unless ($CONFIG_FILE) { die "Unable to find a config file. See help (--help)"; }
 open my $config, '<', $CONFIG_FILE or die "Unable to open config file $CONFIG_FILE $!";
@@ -867,7 +1037,7 @@ while(<$config>) {
                 unless ($key eq "USER") {
                         $config{$key} = join '=', @value;
                 } else {
-                        print " - Adding user \"$value[0]\" Pass \"$value[1]\"\n" if ($verbose);
+                        wlog("CONF: Adding user \"$value[0]\" Pass \"$value[1]\"\n") if ($verbose);
                         $userlist{$value[0]} = $value[1] ;
                 }
         }
@@ -883,7 +1053,7 @@ if ($config{'MASTER'}) {
         wlog("Starting in MASTER mode");
 	if ($config{'SLAVEROUTE'}) {
 		open SLAVEROUTE, '<', $config{'SLAVEROUTE'} or die "Unable to open slave route file $config{'slaveroute'} $!";
-		print " -  Reading route file $config{'SLAVEROUTE'}\n";
+		print " - Reading route file $config{'SLAVEROUTE'}\n";
 		while(<SLAVEROUTE>) {
 			chomp $_;
 			unless ($_ =~ /^[# \$\n]/) {
