@@ -10,7 +10,7 @@ use DBI;
 
 =head1 NAME
 
-ofpc-cxt2db.pl - Load session metadata from cxtracker into a db
+ofpc-cx2db.pl - Load session metadata from cxtracker into a db
 
 =head1 VERSION
 
@@ -18,7 +18,7 @@ ofpc-cxt2db.pl - Load session metadata from cxtracker into a db
 
 =head1 SYNOPSIS
 
- $ ofpc-cxt2db.pl [options]
+ $ ofpc-cx2db.pl [options]
 
  OPTIONS:
 
@@ -26,7 +26,7 @@ ofpc-cxt2db.pl - Load session metadata from cxtracker into a db
  --daemon       : enables daemon mode
  --debug        : enable debug messages (default: 0 (disabled))
  --help         : this help message
- --version      : show ofpc-cxt2db.pl version
+ --version      : show ofpc-cx2db.pl version
  --config	: specify the OpenFPC Config file
 =cut
 
@@ -91,7 +91,7 @@ if ($CONFFILE) {
 	warn "[-] No config file specified. Using defaults.\n" if ($DEBUG);
 }
 
-our $DBI           = "DBI:mysql:$DB_NAME:$DB_HOST:$DB_PORT";
+our $DBI = "DBI:mysql:$DB_NAME:$DB_HOST:$DB_PORT";
 
 # Show config if debug is enabled.
 if ($DEBUG) {
@@ -118,7 +118,7 @@ unless ( -d "$FDIR" )  {
 	warn "[-] Created failed insertion dir $FDIR\n";
 }
 
-warn "[*] Starting ofpc-cxt2db.pl...\n";
+warn "[*] Starting ofpc-cx2db.pl...\n";
 
 # Prepare to meet the world of Daemons
 if ( $DAEMON ) {
@@ -139,7 +139,8 @@ if ( $DAEMON ) {
 }
 
 warn "[*] Connecting to database...\n";
-my $dbh = DBI->connect($DBI,$DB_USERNAME,$DB_PASS, {RaiseError => 1}) or die "$DBI::errstr";
+my $dbh = DBI->connect($DBI,$DB_USERNAME,$DB_PASS, {AutoCommit => 0, RaiseError => 1}) or die "$DBI::errstr";
+my $sth;
 # Make todays table, and initialize the session merged table
 setup_db();
 
@@ -172,16 +173,15 @@ sub dir_watch {
          closedir( DIR );
       }
       foreach my $FILE ( @FILES ) {
+         print "[*] Found file: $SDIR/$FILE\n" if ($DEBUG);
          my $result = get_session ("$SDIR/$FILE");
-	 print "Working on $SDIR/$FILE\n" if ($DEBUG);
-
-         if ($result == 1) {
+         if ($result <= 1) {
             rename ("$SDIR/$FILE", "$FDIR/$FILE") or warn "[*] Couldn't move $SDIR/$FILE to $FDIR/$FILE: $!\n";
+            warn "[*] Error while processing file: $SDIR/$FILE\n";
          }
 	 my $endtime=time();
-	 print "$endtime\n";
 	 my $processtime=$endtime-$starttime;
-	 print "Done with $SDIR/$FILE in $processtime seconds\n" if ($DEBUG);
+	 print "[*] File $SDIR/$FILE processed in $processtime seconds\n" if ($DEBUG);
          unlink("$SDIR/$FILE") if $result == 0; 
       }
       # Dont pool files to often, or to seldom...
@@ -198,15 +198,24 @@ sub dir_watch {
 
 sub get_session {
    my $SFILE = shift;
+   my $tablename = get_table_name();
    my $result = 0;
    my %signatures;
+
+   # Check if table exists, if not create and make new session merge table
+   if ( ! checkif_table_exist($tablename) ) {
+      new_session_table($tablename);
+      $sth->finish if $sth; 
+      recreate_merge_table();
+   }
+
    if (open (FILE, $SFILE)) {
       $starttime=time();
       my $filelen=`wc -l $SFILE |awk '{print \$1'}`;
       my $filesize=`ls -lh $SFILE |awk '{print \$5}'`;
       chomp $filelen;
       chomp $filesize;
-      print "Found session file: $SFILE $filelen lines $filesize\n" if $DEBUG;
+      print "[*] File:$SFILE, Lines:$filelen, Size:$filesize\n" if $DEBUG;
       # Verify the data in the session files
       LINE:
       while (my $line = readline FILE) {
@@ -222,9 +231,17 @@ sub get_session {
             next LINE;
          }
          # Things should be OK now to send to the DB
-         $result = put_session2db($line);
-    }
+         $result += put_session2db($line, $tablename);
+      }
       close FILE;
+      eval {
+         $dbh->commit;
+         $sth->finish();
+      };
+      if ($@) {
+         # Failed
+         return 1;
+      }
    }
    return $result;
 }
@@ -342,20 +359,16 @@ sub expand_ipv6 {
 
 sub put_session2db {
    my $SESSION = shift;
-   my $tablename = get_table_name();
+   my $tablename = shift;
    my $ip_version = 2; # AF_INET
 
-   # Check if table exists, if not create and make new session merge table
-   if ( ! checkif_table_exist($tablename) ) {
-      new_session_table($tablename);
-      recreate_merge_table();
-   }
    my( $cx_id, $s_t, $e_t, $tot_time, $ip_type, $src_dip, $src_port,
        $dst_dip, $dst_port, $src_packets, $src_byte, $dst_packets, $dst_byte, 
        $src_flags, $dst_flags) = split /\|/, $SESSION, 15;
 
-  if ( ip_is_ipv6($src_dip) || ip_is_ipv6($dst_dip) ) {
+   if ( ip_is_ipv6($src_dip) || ip_is_ipv6($dst_dip) ) {
       if ($CONFIG{'ENABLE_IP_V6'} ) {
+          # We should verify that src and dst are both ipv6! else b0rk!
       	  $src_dip = expand_ipv6($src_dip);
       	  $dst_dip = expand_ipv6($dst_dip);
           $src_dip = "INET_ATON6(\'$src_dip\')";
@@ -365,26 +378,27 @@ sub put_session2db {
 	  print "Skipping record, ipV6 disabled\n";
 	  return 0; 
       }
-  }
+   }
 
-   my ($sql, $sth);
+   my $sql;
    eval{
-
-      $sql = qq[                                                 
-             INSERT INTO $tablename (                           
+      $sql = qq[INSERT INTO $tablename (                           
                 sid,sessionid,start_time,end_time,duration,ip_proto, 
                 src_ip,src_port,dst_ip,dst_port,src_pkts,src_bytes,
                 dst_pkts,dst_bytes,src_flags,dst_flags,ip_version
              ) VALUES (                                         
-                '$HOSTNAME','$cx_id','$s_t','$e_t','$tot_time',
-                '$ip_type',$src_dip,'$src_port',$dst_dip,'$dst_port',
-                '$src_packets','$src_byte','$dst_packets','$dst_byte',
-                '$src_flags','$dst_flags','$ip_version'
+                ?,?,?,?,?,
+                ?,?,?,?,?,
+                ?,?,?,?,?,
+                ?,?
              )];
 
-      $sth = $dbh->prepare($sql);
-      $sth->execute;
-      $sth->finish;
+      $sth = $dbh->prepare_cached($sql) if not $sth;
+      $sth->execute(
+                $HOSTNAME,$cx_id,$s_t,$e_t,$tot_time,
+                $ip_type,$src_dip,$src_port,$dst_dip,$dst_port,
+                $src_packets,$src_byte,$dst_packets,$dst_byte,
+                $src_flags,$dst_flags,$ip_version);
    };
    if ($@) {
       # Failed
@@ -392,7 +406,6 @@ sub put_session2db {
    }
    return 0;
 }
-   
 
 =head2 setup_db
 
@@ -419,7 +432,7 @@ sub setup_db {
 
 sub new_session_table {
    my ($tablename) = shift;
-   my ($sql, $sth);
+   my ($sql, $sth1);
    eval{
       $sql = "                                             \
         CREATE TABLE IF NOT EXISTS $tablename              \
@@ -449,9 +462,9 @@ sub new_session_table {
         INDEX start_time (start_time)                      \
         )                                                  \
       ";
-      $sth = $dbh->prepare($sql);
-      $sth->execute;
-      $sth->finish;
+      $sth1 = $dbh->prepare($sql);
+      $sth1->execute;
+      $sth1->finish;
    };
    if ($@) {
       # Failed
