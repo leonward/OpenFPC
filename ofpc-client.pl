@@ -33,6 +33,11 @@ use Digest::MD5(qw(md5_hex));
 
 my $now=time();
 my $openfpcver="0.2";
+my $timeoffset=600;		# Default time offset if a --timstamp isn't specified 
+my $debug;
+my (%config,$verbose);
+my $version=0.1;
+
 # Hint: "ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp timestamp:1274864808 msg:Some freeform text";
 my %cmdargs=( user => "ofpc",
 	 	password => 0, 
@@ -124,10 +129,12 @@ sub sessionToLogline{
 	$logline .= "dpt:$req->{'dpt'} " if ($req->{'dpt'});
 	$logline .= "spt:$req->{'spt'} " if ($req->{'spt'});
 
-	if ($req->{'timestamp'}) {
-		#my $epoch=`date --date='$req->{'timestamp'}' +%s` or die "Cant make sense of timestamp $req->{'timestamp'}";
-		$logline .= "timestamp:$req->{'timestamp'} ";
+	unless ($req->{'timestamp'}) { 	
+		# No timestamp specified, lets assume a NOW - $timeoffset seconds
+		$req->{'timestamp'} = $now - $timeoffset;
+		print "DEBUG: No --timestamp specified, defaulting to last $timeoffset seconds ($req->{'timestamp'})\n" if ($debug);
 	}
+	$logline .= "timestamp:$req->{'timestamp'} ";
 
 	return($logline);
 }
@@ -165,8 +172,6 @@ sub displayResult{
 }
 
 
-my (%config,$verbose,$debug);
-my $version=0.1;
 
 GetOptions (    'u|user=s' => \$cmdargs{'user'},
 		's|server=s' => \$cmdargs{'server'},
