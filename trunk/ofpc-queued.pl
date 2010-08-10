@@ -498,7 +498,7 @@ sub comms{
 									$a++;
 								}
 								wlog("COMMS: Uploaded $a x 1KB chunks\n");
-								close(XVER);		# Close file
+								close(XFER);		# Close file
 	                        				shutdown($client,2);	# CLose client
 
 								wlog("COMMS: $client_ip Request: $request->{'rid'} Transfer complete");
