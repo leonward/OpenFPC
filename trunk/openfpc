@@ -48,6 +48,7 @@ PID_FILE=openfpc-dl
 PID_PATH=/var/run
 FILENAME=openfpc-pcap
 OPENFPCQD=./ofpc-queued.pl
+CXPIDFILE=/var/run/cxtracker.pid 
 
 
 if [ "$DONE" != "y" ] 
@@ -122,6 +123,55 @@ function openfpcqstop()
 		echo -e "[!] OpenFPC Queue Dameon not running"
 	fi
 }
+
+function cxtrackerstart()
+{
+	if [ -f $CXPIDFILE ] 
+	then
+		CXPID=$(cat $CXPIDFILE)
+		if ps $CXPID > /dev/null
+		then
+			echo -e  "[!] cxtracker already running"
+			return
+		fi
+	fi
+	CMD="$CXTRACKER \
+		-i $INTERFACE \
+		-d $SESSION_DIR \
+		-D"
+
+	$CMD
+}
+
+
+function cxtrackerstop()
+{
+	if [ "$IAM" != "root" ]
+	then
+		die "[!] Must be root"
+	fi
+	if [ -f $CXPIDFILE ] 
+	then
+		CXPID=$(cat $CXPIDFILE)
+		if ps $CXPID > /dev/null 
+		then
+			echo -e "[-] Stopping cxtracker PID $CXPID"
+			kill $CXPID
+			sleep 1
+			if ps $CXPID >/dev/null
+			then
+				echo -e "[!] Failed to stop CXPID"
+			else 
+				echo -e "[*] cxtracker Stopped"
+			fi
+		else 
+			echo -e "[*] cxtracker not running"
+		fi
+	fi
+}
+
+
+
 
 function daemonloggerstart()
 {
@@ -274,6 +324,15 @@ case $1 in
 	clean)
 		clean	
 	;;
+	cxstart)
+		cxtrackerstart
+	;;
+	cxstop)
+		cxtrackerstop
+	;;	
+	test)
+		cxtrackerstop
+	;;
 	restart)
 		daemonloggerstop
 		openfpcqstop
@@ -291,5 +350,8 @@ case $1 in
 		echo -e " openfpc stop"
 		echo -e " openfpc status - Show buffer status"	
 		echo -e " openfpc clean  - Delete old buffers"	
+		echo -e " openfpc cxstart  - Start cxtracker only"
+		echo -e " openfpc cxstop   - Stop cxtracker only"
+		
 	;;
 esac
