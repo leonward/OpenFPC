@@ -309,15 +309,32 @@ function status()
 		echo -e "[!] OpenFPC Queue Daemon not running!"
 	fi	
 
+
+	if [ -f $CXPIDFILE ] 
+	then
+		CXPID=$(cat $CXPIDFILE)
+		if ps $CXPID > /dev/null
+		then
+			echo -e  "[*] cxtracker running as Pid: $CXPID"
+		else
+			echo -e "[!] cxtracker not running"
+		fi
+	fi
+	SESSION_LAG=$(ls -l |grep failed $SESSION_DIR| wc -l)
+	echo -e " -  Session tempdir         $SESSION_DIR" 
+	echo -e " -  Session lag             $SESSION_LAG"
+
 }
 
 
 case $1 in 
 	start)
 		daemonloggerstart
+		cxtrackerstart
 		openfpcqstart
 	;;
 	stop)
+		cxtrackerstop
 		daemonloggerstop
 		openfpcqstop
 	;;
