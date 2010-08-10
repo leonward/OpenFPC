@@ -175,7 +175,7 @@ sub dir_watch {
       foreach my $FILE ( @FILES ) {
          print "[*] Found file: $SDIR/$FILE\n" if ($DEBUG);
          my $result = get_session ("$SDIR/$FILE");
-         if ($result <= 1) {
+         if ($result >= 1) {
             rename ("$SDIR/$FILE", "$FDIR/$FILE") or warn "[*] Couldn't move $SDIR/$FILE to $FDIR/$FILE: $!\n";
             warn "[*] Error while processing file: $SDIR/$FILE\n";
          }
