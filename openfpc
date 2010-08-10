@@ -320,7 +320,7 @@ function status()
 			echo -e "[!] cxtracker not running"
 		fi
 	fi
-	SESSION_LAG=$(ls -l |grep failed $SESSION_DIR| wc -l)
+	SESSION_LAG=$(ls -l $SESSION_DIR |grep -v failed | grep -v total | wc -l)
 	echo -e " -  Session tempdir         $SESSION_DIR" 
 	echo -e " -  Session lag             $SESSION_LAG"
 
