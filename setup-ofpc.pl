@@ -52,6 +52,7 @@ my %config=(
 		DONE => "n",
 		INTERFACE => "eth1",
 		DAEMONLOGGER => "daemonlogger",
+		CXTRACKER => "cxtracker",
 		ENABLE_IP_V6 => "0",
 		OFPC_Q_PID => "/tmp/ofpc-queued.pid",
 		SLAVEROUTE => "0",
