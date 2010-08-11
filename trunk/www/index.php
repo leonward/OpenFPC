@@ -1,6 +1,6 @@
 <?php
 # --------------------------------------------------------------------------
-# Copyright (C) 2010 Edward Fjellskål <edward@redpill-linpro.com>
+# Copyright (C) 2010 Edward Fjellskål <edward.fjellskaal@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,10 +29,11 @@ $ofpcpass = "ofpc";
 
 // Settings
 $maxRows = 20;
-$openfpcdir = "/nsm_data/hostname/dailylogs";
+$openfpcdir = "/var/tmp/openfpc/";
 $mrgtmpdir = "/tmp/merge/";
 $tcpdump = "/usr/sbin/tcpdump";
 $mergecap = "/usr/bin/mergecap";
+$ofpc_client = "/opt/openfpc/ofpc-client.pl";
 
 // Variable Initialization
 $op         = sanitize("op");         if (empty($op))         $op = "search";
@@ -207,12 +208,12 @@ function infoBox($infomsg) {
 
 # Calls ofpc-client.pl to extract the data if the user enters a "log" line.
 function extractPcapFromLog($action) {
-	global $logline, $ofpcuser, $ofpcpass, $comment;
+	global $logline, $ofpcuser, $ofpcpass, $comment, $ofpc_client;
 
 	$out = "<!-- extractPcapFromLog -->\n";
 
 	# Shell out to ofpc-client here. Note the --gui option.
-	$exec = "/home/lward/code/openfpc/ofpc-client.pl ";
+	$exec = "$ofpc_client ";
 	$exec .= "--gui -u $ofpcuser -p $ofpcpass "; 
 	$exec .= "-a $action ";
 	$exec .= "--logline \"$logline\" ";
@@ -258,14 +259,14 @@ function extractPcapFromSession() {
 	$sudate = dd2unix($sddate);
 	$eudate = dd2unix($eddate);
 
-	$exec = "/home/lward/code/openfpc/ofpc-client.pl -u $ofpcuser -p $ofpcuser " . 
+	$exec = "$ofpc_client -u $ofpcuser -p $ofpcuser " . 
 		" --gui " .
 		" --timestamp " . $sudate .
-		" --src-addr " . $array["src_ip"] .
-		" --dst-addr " . $array["dst_ip"] .
-		" --src-port " . $array["src_port"] .
-		" --dst-port " . $array["dst_port"] .
-		" --proto " . $array["ip_proto"];
+		" --src-addr "  . $array["src_ip"] .
+		" --dst-addr "  . $array["dst_ip"] .
+		" --src-port "  . $array["src_port"] .
+		" --dst-port "  . $array["dst_port"] .
+		" --proto "     . $array["ip_proto"];
 
 	$e = escapeshellcmd($exec);
 	$shellresult = shell_exec($e);

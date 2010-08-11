@@ -26,6 +26,12 @@ $ less cxtracker/doc/INSTALL
 Also remember to edit openfpc/www/index.php and set the DB configuration and
 edit "Settings" to fit your needs.
 
+# Prepare the mysql database (Quick and dirty)
+CREATE DATABASE ofpc;
+GRANT USAGE ON *.*  TO 'ofpc'@'localhost' IDENTIFIED BY 'ofpc';
+GRANT ALL ON ofpc.* TO 'ofpc'@'localhost' IDENTIFIED BY 'ofpc';
+FLUSH PRIVILEGES;
+
 # Quick notes on MySQL and IPv6 support
 You need to add two function to mysql to handle IPv6 
 INET_ATON6 and INET_NTOA6:
