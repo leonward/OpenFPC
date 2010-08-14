@@ -121,7 +121,7 @@ sub decoderequest($){
                         device   =>     0,
                         filename =>     0,
 			tempfile =>	0,
-                        location =>     0,
+                        filetype =>     0,
                         logtype  =>     0,
                         logline  =>     0,
 			sip	=>	0,
@@ -149,14 +149,17 @@ sub decoderequest($){
 		$request{'msg'} = "Bad request. Only $argnum args. Expected 8\n";
                 return(\%request);
         }
-        ($request{'user'},
-		$request{'action'},
-		$request{'device'},
-		$request{'filename'},
-		$request{'location'},
-		$request{'logtype'},
-		$request{'logline'},
-		$request{'comment'}) = split(/\|\|/, $rawrequest);
+
+	# Each request element is seprated by a double-pipe - ||
+        ($request{'user'},			# OFPC user
+		$request{'action'},		# Action (store,status,fetch,etc)
+		$request{'device'},		# Device to request from i.e ofpc-slave
+		$request{'filename'},		# Filename to save file as 
+		$request{'filetype'},		# Filetype zip or pcap?
+		$request{'logtype'},		# Type of log being processed
+		$request{'logline'},		# The log-line (including one made from session identifiers
+		$request{'comment'}		# User comments
+		) = split(/\|\|/, $rawrequest);
 
 	# Check logline is valid
 	my ($eventdata, $error)=ofpc::Parse::parselog($request{'logline'});
@@ -179,6 +182,11 @@ sub decoderequest($){
 		$request{'comment'} = "No comment";
 	}
 
+	# Default to PCAP file if filetype not specified
+	unless ($request{'filetype'}) {
+		$request{'filetype'} = "PCAP";
+	}
+
 	#if ($debug) {
 	#	print "DEBUG Dumping request in decoderequest\n";
 	#	print Dumper %request;
@@ -196,7 +204,7 @@ sub decoderequest($){
 
 	if ($request{'action'} =~ m/(fetch|store|status)/) {
 		wlog("DECOD: Recieved action $request{'action'}");
-		wlog("DECOD: User $request{'user'} assigned RID: $request{'rid'} for action $request{'action'}. Comment: $request{'comment'}");
+		wlog("DECOD: User $request{'user'} assigned RID: $request{'rid'} for action $request{'action'}. Comment: $request{'comment'} Filetype : $request{'filetype'}");
 		$request{'valid'} = 1;
         	return(\%request);
 	} else {
@@ -213,19 +221,21 @@ sub decoderequest($){
 		\$request
 	This consists of:
 		- Checking if we are to queue it up for later or do it now
-		- If master-Check the routing to see if we need to fragment it and re-insert
+		- If master-Check the routing to see if we need to fragment it and re-insert for each slave
 		- Call the extract functions (if we are to do it now)
 		- Return a hashref containing
 		( success => 0,
 		  filename => 0,
-		  message => = 0,
-		  type => = 0,
+		  message => 0,
+		  filetype => 0,
+		  md5 => 0,
+		  size => 0,
 		)
 
 		success 1 = Okay 0= Fail
 		filename = Name of file (no path!)
 		message = Error message
-		type "PCAP" = pcap file "ZIP" = zip file
+		filetype "PCAP" = pcap file "ZIP" = zip file
 =cut
 
 sub prepfile{
@@ -233,14 +243,21 @@ sub prepfile{
 	my @ziplist=();		# List of files to zip up
 	my $multifile=0;
 	my $meta=0;
-
 	my %prep=(
 			success => 0,
 			filename => 0,
 			message => 0,
-			type => 0,
+			filetype => "PCAP",
 			md5 => 0,
+			size => 0,
 	);	
+
+	# If a zip file is requested, set prep to gather a zip
+	if ($request->{'filetype'} eq "ZIP") {
+		$multifile=1;
+		$prep{'filetype'} = "ZIP";		
+	}
+
 	# If we are master, check if we need to frag this req into smaller ones, and get the data back from each slave
 	# If we are slave, do the slave action now (rather than enqueue if we were in STORE mode)
 	# Check if we want to include the meta-text
@@ -248,7 +265,8 @@ sub prepfile{
 
 	if ( $config{'MASTER'} ) {
 		# Check if we can route this request
-		open METADATA , '>', "$config{'SAVEDIR'}/$request->{'tempfile'}.txt"  or die "Unable to open MetaFile $config{'SAVEDIR'}/$request->{'tempfile'}.txt for writing";
+		open METADATA , '>', "$config{'SAVEDIR'}/$request->{'tempfile'}.txt"  or 
+			die "Unable to open MetaFile $config{'SAVEDIR'}/$request->{'tempfile'}.txt for writing";
         	print METADATA "OFPC-Master request report\n" .
 			"User: $request->{'user'}\n" .
                        	"User comment: $request->{'comment'}\n" .
@@ -257,94 +275,118 @@ sub prepfile{
  		(my $slavehost,my $slaveport,my $slaveuser,my $slavepass)=routereq($request->{'device'});
 		unless ($slavehost) { 	# If request isn't routeable....
 					# Request from all devices
-			$multifile=1;	# Fraged request will be a multi-file return
-			$prep{'type'} = "ZIP";
+			$multifile=1;	# Fraged request will be a multi-file return so we use a ZIP to combine
+			$prep{'filetype'} = "ZIP";
 			foreach (keys %route) {
-				print METADATA "-------------------\n";
  				($slavehost,$slaveport,$slaveuser,$slavepass)=routereq($_);
 				$request->{'slavehost'} = $slavehost;
 				$request->{'slaveuser'} = $slaveuser;
 				$request->{'slaveport'} = $slaveport;
 				$request->{'slavepass'} = $slavepass;
-				print METADATA "Host: $slavehost\n";
-				print METADATA "Port: $slaveport\n";
-				print METADATA "User: $slaveuser\n";
 
 				my $result=domaster($request);
 				if ($result->{'success'}) {
-					print METADATA "Filename: $result->{'filename'}\n";
-					print METADATA "Size    : $result->{'size'}\n";
-					print METADATA "MD5     : $result->{'md5'}\n";
-					wlog("Added $result->{'filename'} to zip list") if ($verbose);
+					wlog("Adding $result->{'filename'} to zip list") if ($verbose);
 					push (@ziplist, $result->{'filename'});
 				} else {
-					print METADATA "Error   : $result->{'message'}\n";
+					$prep{'message'} = $result->{'message'};
+					wlog("Error: $result->{'message'}");
+
 				}
+
+				print METADATA "-------------------\n";
+				print METADATA "Host    : $slavehost\n";
+				print METADATA "Port    : $slaveport\n";
+				print METADATA "User    : $slaveuser\n";
+				print METADATA "Filename: $result->{'filename'}\n";
+				print METADATA "Size    : $result->{'size'}\n";
+				print METADATA "MD5     : $result->{'md5'}\n";
+				print METADATA "Error   : $result->{'message'}\n";
 			}
 		} else { 					# Routeable, do the master action 
 			$request->{'slavehost'} = $slavehost;
 			$request->{'slaveuser'} = $slaveuser;
 			$request->{'slaveport'} = $slaveport;
 			$request->{'slavepass'} = $slavepass;
-			print METADATA "-------------------\n";
-			print METADATA "Host: $slavehost\n";
-			print METADATA "Port: $slaveport\n";
-			print METADATA "User: $slaveuser\n";
 
 			my $result=domaster($request);
 
 			if ($result->{'success'}) {
-				print METADATA "Filename: $result->{'filename'}\n";
-				print METADATA "Size    : $result->{'size'}\n";
-				print METADATA "MD5     : $result->{'md5'}\n";
 				$prep{'success'} = 1;
 				$prep{'md5'} = $result->{'md5'};
-				$prep{'type'} = "PCAP";
+				$prep{'filetype'} = "PCAP";
 				$prep{'filename'}="$result->{'filename'}";
        				push (@ziplist, $result->{'filename'});
 				wlog("PREP: Added $result->{'filename'} to zip list") if ($verbose);
 			} else {
-				print METADATA "Error   : $result->{'message'}\n";
-				wlog("METADATA Error   : $result->{'message'}");
+				$prep{'message'} = $result->{'message'};
+				wlog("Error: $result->{'message'}");
 			}
+
+			print METADATA "-------------------\n";
+			print METADATA "Host: $slavehost\n";
+			print METADATA "Port: $slaveport\n";
+			print METADATA "User: $slaveuser\n";
+			print METADATA "Filename: $result->{'filename'}\n";
+			print METADATA "Size    : $result->{'size'}\n";
+			print METADATA "MD5     : $result->{'md5'}\n";
+			print METADATA "Error   : $result->{'message'}\n";
+
 		}
         	close METADATA;
 		push (@ziplist,"$request->{'tempfile'}.txt");
 
-		# Now we have the file(s) we want to rtn to the client, lets zip if reqd
-		if ($multifile) {
-			my $zip = Archive::Zip->new();
-			foreach my $filename (@ziplist) {
-				$zip->addFile("$config{'SAVEDIR'}/$filename","$filename");
-			}
-			if ($zip->writeToFileNamed("$config{'SAVEDIR'}/$request->{'tempfile'}.zip") !=AZ_OK ) {
-				wlog("PREP: ERROR: Problem creating $config{'SAVEDIR'}/$request->{'tempfile'}.zip");
-			} else {
-				wlog("PREP: Created $config{'SAVEDIR'}/$request->{'tempfile'}.zip");
-				$prep{'filename'}="$request->{'tempfile'}.zip";
-				$prep{'success'} = 1;
-				$prep{'md5'} = getmd5("$config{'SAVEDIR'}/$prep{'filename'}");
-			}
-		}
-		if ($verbose) {
-			wlog("PREP: Sending back $prep{'type'} file");
-		}
-		return(\%prep);
-	} else { 	# Do slave stuff
+	} else { 	# Do slave stuff, no routing etc just extract the data and make a report
    		my $result = doslave($request,$rid);
+
 		if ($result->{'success'}) {
 			$prep{'success'} = 1;
-			wlog ("Slave action done");
 			$prep{'filename'} = $result->{'filename'};
-			$prep{'type'} = "PCAP";
-			$prep{'md5'} = getmd5("$config{'SAVEDIR'}/$result->{'filename'}");
+			$prep{'md5'} = $result->{'md5'};
+			$prep{'size'} = $result->{'size'};
 		} else {
 			$prep{'message'} = $result->{'message'};
 		}
-		return(\%prep);
+
+		open METADATA , '>', "$config{'SAVEDIR'}/$request->{'tempfile'}.txt"  or 
+			die "Unable to open MetaFile $config{'SAVEDIR'}/$request->{'tempfile'}.txt for writing";
+        	print METADATA "OFPC-slave request report\n" .
+			"User: $request->{'user'}\n" .
+                       	"User comment: $request->{'comment'}\n" .
+                       	"Time: $request->{'rtime'}\n" .
+			"Filename: $result->{'filename'}\n" .
+			"Size    : $result->{'size'}\n" .
+			"MD5     : $prep{'md5'}\n" .
+			"Error   : $result->{'message'}\n" ;
+		close(METADATA);
+		push(@ziplist,"$request->{'tempfile'}.txt");
+		push(@ziplist,$request->{'tempfile'});
 	}
-	
+
+	# Now we have the file(s) we want to rtn to the client, lets zip if reqd
+	if ($multifile) {
+		$prep{'filetype'} = "ZIP";
+		my $zip = Archive::Zip->new();
+		foreach my $filename (@ziplist) {
+			if ( -f "$config{'SAVEDIR'}/$filename" ) {
+				$zip->addFile("$config{'SAVEDIR'}/$filename","$filename");
+			} else {
+				wlog("ZIP : Cant find $config{'SAVEDIR'}/$filename to add to zip! - Skipping"); 
+			}
+		}
+		if ($zip->writeToFileNamed("$config{'SAVEDIR'}/$request->{'tempfile'}.zip") !=AZ_OK ) {
+			wlog("PREP: ERROR: Problem creating $config{'SAVEDIR'}/$request->{'tempfile'}.zip");
+		} else {
+			wlog("PREP: Created $config{'SAVEDIR'}/$request->{'tempfile'}.zip");
+			$prep{'filename'}="$request->{'tempfile'}.zip";
+			$prep{'success'} = 1;
+			$prep{'md5'} = getmd5("$config{'SAVEDIR'}/$prep{'filename'}");
+		}
+	}
+	return(\%prep);
+
 }
+
 =head2 getmd5
 	Get the md5 for a file. 
 	Takes, filename (including path)
@@ -470,14 +512,14 @@ sub comms{
 
 							if ($prep->{'success'}) {
 								wlog("COMMS: $request->{'rid'} $client_ip Sending File:$config{'SAVEDIR'}/$xferfile MD5: $prep->{'md5'}");
-
 								# Get client ready to recieve binary PCAP or zip file
-								if ($prep->{'type'} eq "ZIP") {
-									print $client "PCAP: $prep->{'md5'}\n"; 	# ZIP forced to PCAP for now :P
-								} elsif ($prep->{'type'} eq "PCAP") {
+								if ($prep->{'filetype'} eq "ZIP") {
+									print $client "ZIP: $prep->{'md5'}\n";
+								} elsif ($prep->{'filetype'} eq "PCAP") {
 									print $client "PCAP: $prep->{'md5'}\n";
 								} else {
-									print $client "ERROR: Bad filetype extracted : $prep->{'type'}\n";
+									print "SENT OTHER $prep->{'filetype'}\n";
+									print $client "ERROR: Bad filetype extracted : $prep->{'filetype'}\n";
 	                        					shutdown($client,2);	
 								}
 								$client->flush();
@@ -541,11 +583,13 @@ sub comms{
 =cut
                         
 sub wlog{
-        my $logdata=shift;
-        chomp $logdata;
+        my $msg =  shift;
+
+        chomp $msg;
         my $gmtime=gmtime();
+	my $logdata = $config{'NODENAME'}  . " " .  $msg;
         unless ($daemon) {
-                print "LOG: $gmtime GMT: $logdata\n";
+                print "$gmtime GMT: $logdata\n";
         } 
 	syslog("info",$logdata);
 }
@@ -628,6 +672,9 @@ sub domaster{
 	my %result=(
 		message => "None",
 		success => 0,
+		filename => 0,
+		size => 0,
+		md5 => 0,
 	);
 
 	my $slavesock = IO::Socket::INET->new(
@@ -638,13 +685,14 @@ sub domaster{
 
 	unless ($slavesock) { 
 		wlog("MASTR: Unable to open socket to slave $request->{'slavehost'}:$request->{'slaveport'}");
-		$result{'message'} = "Unable to connect to slave $request->{'slavehost'}:$request->{'slaveport'}";
+		$result{'message'} = "Node: $config{'NODENAME'} unable to connect to slave $request->{'slavehost'}:$request->{'slaveport'}";
 		$result{'success'} = 0;	
 		return(\%result);
 	}
 	# This is a master request, we don't want the user to control what file we will
 	# write on the master. Create our own tempfile.
-	$request->{'filename'}="M-$request->{'slavehost'}-$request->{'slaveport'}-" . time() . "-" . $request->{'rid'} . ".pcap";
+	$request->{'filename'}="M-$request->{'slavehost'}-$request->{'slaveport'}-" . time() . "-" . $request->{'rid'};
+	#$request->{'filename'}="M-$request->{'slavehost'}-$request->{'slaveport'}-" . time() . "-" . $request->{'rid'} . ".pcap";
 	$request->{'user'} = $request->{'slaveuser'};
 	$request->{'password'} = $request->{'slavepass'};
 	$request->{'savedir'} = $config{'SAVEDIR'};
@@ -667,6 +715,8 @@ sub domaster{
 	returns a hash of
 		( success => 0,
 		  filename => 0,
+		  md5 => 0,
+		  size => 0,
 		  message => 0,
 		)
 =cut
@@ -681,6 +731,8 @@ sub doslave{
 	my %result=( filename => 0,
 			success => 0,
 			message => 0,
+			md5 => 0,
+			size => 0,
 		);
 
 	wlog("SLAVE: Request: $request->{'rid'} User: $request->{'user'} Action: $request->{'action'}");
@@ -695,6 +747,8 @@ sub doslave{
 	$result{'filename'} = $filename;
 	$result{'success'} = 1;
 	$result{'message'} = "Success";
+	$result{'md5'} = $md5;
+	$result{'size'} = $size;
 	wlog("SLAVE: Extraction complete: Result: $filename, $size, $md5");   
 	
 	# Create extraction Metadata file
@@ -752,9 +806,7 @@ sub runq {
 			} else {
 				my $result = doslave($request,$rid);
 				if ($result->{'success'}) {
-					my $filesize=`ls -lh $config{'SAVEDIR'}/$result->{'filename'} |awk '{print \$5}'`;
-					chomp $filesize;
-                			wlog("RUNQ : SLAVE: Request: $request->{'rid'} Success. File: $result->{'filename'} $filesize now cached on SLAVE in $config{'SAVEDIR'}"); 
+                			wlog("RUNQ : SLAVE: Request: $request->{'rid'} Success. File: $result->{'filename'} $result->{'filesize'} now cached on SLAVE in $config{'SAVEDIR'}"); 
 					$pcaps{$request->{'rid'}}=$result->{'filename'};
 				} else {
                 			wlog("RUNQ: SLAVE: Request: $request->{'rid'} Result: Failed, $result->{'message'}.");    
@@ -996,6 +1048,7 @@ sub doExtract{
 $SIG{PIPE} = \&pipeHandler;
 
 # Some config defaults
+$config{'NODENAME'} = "OPENFPC"; 
 $config{'MASTER'}=0;		# Default is slave mode
 $config{'SAVEDIR'}="/tmp";	# Where to save cached PCAP files.
 $config{'LOGFILE'}="/tmp/ofpc-queued.log"; 	# Log file
@@ -1050,23 +1103,23 @@ unless ($numofusers) {
 }
 
 if ($config{'MASTER'}) {
-        wlog("Starting in MASTER mode");
+        wlog("CONF: Starting OFPC Node \"$config{'NODENAME'}\" as a MASTER");
 	if ($config{'SLAVEROUTE'}) {
 		open SLAVEROUTE, '<', $config{'SLAVEROUTE'} or die "Unable to open slave route file $config{'slaveroute'} $!";
-		print " - Reading route file $config{'SLAVEROUTE'}\n";
+		wlog("CONF: Reading route file $config{'SLAVEROUTE'}");
 		while(<SLAVEROUTE>) {
 			chomp $_;
 			unless ($_ =~ /^[# \$\n]/) {
 				if ( (my $key, my $value) = split /=/, $_ ) {
 					$route{$key} = $value;	
-					print " - Adding route for $key as $value\n" if ($verbose);
+					wlog("CONF: Adding route for $key as $value") if ($verbose);
 				}
 			}
 		}
 		close SLAVEROUTE;
 	}
 } else {
-        wlog("Starting in SLAVE mode");
+        wlog("CONF: Starting OFPC Node \"$config{'NODENAME'}\" as a SLAVE");
 }
 
 # Start listener

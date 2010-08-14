@@ -45,9 +45,10 @@ my %cmdargs=( user => "ofpc",
 		port => "4242",
 		action => "fetch",
 		logtype => "auto",
+		filetype => "PCAP",
 		debug => 0,
 		verbose => 0,
-		filename => "/tmp/extracted-ofpc-$now.pcap",
+		filename => "/tmp/extracted-ofpc-$now",
 		logline => 0,
 		quiet => 0,
 		gui => 0,
@@ -58,6 +59,7 @@ my %request=(	user => 0,
 		action => 0,
 		device => 0,
 		logtype => 0,
+		filetype => 0,
 		logline => 0,
 		sip => 0,
 		dip => 0,
@@ -144,8 +146,11 @@ sub displayResult{
 	if ($result{'success'} == 1) { 			# Request is Okay and being processed
 		unless ($cmdargs{'gui'}) {  		# Command line output
 			if ($request{'action'} eq "fetch") {
-				print "$result{'filename'} size:$result{'size'}\n";
-				print "$result{'md5'}\n";
+
+				print 	"##########################################\n" .
+					"Filename: $result{'filename'} \n" .
+					"Size    : $result{'size'}\n" .
+					"MD5     : $result{'md5'}\n";
 			} else {
 				print 	"Queue Position: $result{'position'} \n".
 					"Remote File   : $result{'filename'}\n" .
@@ -187,6 +192,7 @@ GetOptions (    'u|user=s' => \$cmdargs{'user'},
 		'p|password=s' => \$cmdargs{'password'},
 		'm|comment=s' => \$cmdargs{'comment'},
 		'g|gui'	=> \$cmdargs{'gui'},
+		'z|zip' => \$cmdargs{'zip'},
 		't|time|timestamp=s' => \$cmdargs{'timestamp'},
 		'src-addr=s' => \$cmdargs{'sip'},
                 'dst-addr=s' => \$cmdargs{'dip'}, 
@@ -206,6 +212,7 @@ if ($cmdargs{'logline'}) { $request{'logline'} = $cmdargs{'logline'}; }
 if ($cmdargs{'password'}) { $request{'password'} = $cmdargs{'password'}; }
 if ($cmdargs{'comment'}) { $request{'comment'} = $cmdargs{'comment'}; }
 if ($cmdargs{'device'}) { $request{'device'} = $cmdargs{'device'}; }
+if ($cmdargs{'zip'}) { $request{'filetype'} = "ZIP"; }
 
 if ($cmdargs{'debug'}) { 
 	$debug=1;
