@@ -30,6 +30,88 @@ use Digest::MD5(qw(md5_hex));
 @EXPORT = qw(ALL);
 $VERSION = '0.2';
 
+sub receivefile{
+
+	my $socket=shift;	# Socket
+	my $filetype=shift;		# Filetype
+	my $svrmd5=shift;	# MD5 of file from server
+	my $request=shift;	# Reqiest hashref
+	my $debug=0;
+
+	my %result={
+		success => 0,
+		md5	=> 0,
+		message => 0,
+		size => 0,
+		filename => 0,
+		ext => 0,
+	};
+
+        print "Expecting MD5 for file is $svrmd5\n" if ($debug); 
+
+	if ( $filetype eq "ZIP" ) {
+		$result{'ext'} = ".zip";
+	} elsif ( $filetype eq "PCAP" ) {
+		$result{'ext'} = ".pcap";
+	} else {
+		$result{'message'} = "Invalid file filetype $filetype";
+		return(\%result);
+	}
+
+	# Update $filename with new extension.	
+	$request->{'filename'} = $request->{'filename'} . $result{'ext'};
+	$result{'filename'} = $request->{'filename'};
+
+	# Open file and set socket/file to BIN
+        open (FILE,'>',"$request->{'filename'}");
+        #open (FILE,'>',"$request->{'savedir'}/$request->{'filename'}");
+	FILE->autoflush(1);	
+        binmode(FILE);
+	binmode($socket);
+
+	my $data;
+	my $a=0;
+
+	print $socket "READY:\n";
+	print "DEBUG: Sent ready marker\n" if ($debug);
+	# Do the read from socket, write to file
+	while (sysread($socket,$data,1024,0)){
+		syswrite(FILE, $data,1024,0);
+		$a++;
+	}
+
+	close($socket);
+	close(FILE);
+
+	unless (open(FILEMD5, '<', "$request->{'filename'}")) {
+		$result{'message'} = "Cant open recieved file $request->{'filename'}";
+		$result{'success'} = 0;
+		return %result;
+	} else {
+		$result{'md5'}=Digest::MD5->new->addfile(*FILEMD5)->hexdigest;
+		close(PCAPMD5);
+	}
+
+	$result{'size'}=`ls -lh $request->{'filename'} |awk '{print \$5}'`;
+	chomp $result{'size'};
+	print "DEBUG $request->{'filename'} size:$result{'size'}\n" if ($debug);
+
+	print "DEBUG File: $request->{'savedir'}/$request->{'filename'} on disk is has md5 $result{'md5'}\n" if ($debug);
+	print "DEBUG Expected: $svrmd5\n".
+	      "DEBUG Got     : $result{'md5'}\n" if ($debug);
+
+	if ($result{'md5'} eq $svrmd5) {
+		$result{'success'} = 1;
+		$result{'message'} = "Success";
+	} else {
+		$result{'success'} = 0;
+		$result{'message'} = "md5sum mismatch between extracted and recieved file";
+	}
+
+	return(\%result);
+
+}
+
 sub request{
 	# Take a request hash, and a socket, do as asked and return 
 	# a hash of the result
@@ -90,8 +172,8 @@ sub request{
                 "   Filename:   $request->{'filename'}\n" .
                 "   Tempfile:   $request->{'tempfile'}\n" .
 		"   SaveDir:    $request->{'savedir'}\n" .
-                "   Location:   $request->{'location'}\n" . # WTF?
-                "   Type:       $request->{'type'}\n" .
+                "   Filetype:   $request->{'filetype'}\n" . 
+                "   Type:       $request->{'type'}\n" .	    # Log type - Need to update theis var name to logtype
 		"   Comment:	$request->{'comment'}" .
                 "   LogLine:    $request->{'logline'}\n" .
                 "   SIP:        $request->{'sip'}\n" .
@@ -132,8 +214,8 @@ sub request{
 			"$request->{'action'}||" .
 			"$request->{'device'}||" .
 			"$request->{'filename'}||" .
-			"$request->{'location'}||" .
-			"$request->{'logtype'}||" .
+			"$request->{'filetype'}||" .
+			"$request->{'type'}||" .
 			"$request->{'logline'}||" .
 			"$request->{'comment'}";
 
@@ -141,7 +223,7 @@ sub request{
         	my $data=<$socket>;
         	print "DEBUG: Waiting for Data\n" if ($debug);
             	chomp $data;
-                print "DEBUG: GOT DATA: $data\n" if ($debug);
+                print "DEBUG: GOT DATA: $data\n\n" if ($debug);
 
                 switch($data) {
                         case /OFPC READY/ { 
@@ -175,50 +257,38 @@ sub request{
                                                 print "DEBUG: Request accepted. Queue position $result{'position'}  Waiting.....\n" if ($debug);
                                         }
                         } case /PCAP/ {
+					my $filetype;
                                         print "DEBUG: Incomming PCAP\n" if ($debug);
                                         if ($data =~ /^PCAP:\s*(.*)/) {
+						$filetype="PCAP";
 						$result{'expected_md5'} = $1;
                                         }
-                                        print "Expecting MD5 $result{'expected_md5'}\n" if ($debug);
+					my $xfer=receivefile($socket,$filetype,$result{'expected_md5'},$request);
+					$result{'md5'} = $xfer->{'md5'};
+					$result{'size'} = $xfer->{'size'};
+					$result{'message'} = $xfer->{'message'};
+					$result{'filename'} = $xfer->{'filename'};
 
-                                        open (PCAP,'>',"$request->{'savedir'}/$request->{'filename'}");
-					PCAP->autoflush(1);	
-                                        binmode(PCAP);
-                                        binmode($socket);
-                                        my $data;
-					my $a=0;
-					print $socket "READY:\n";
-					print "DEBUG: Sent ready marker\n" if ($debug);
-
-                                        while (sysread($socket,$data,1024,0)){
-                                                syswrite(PCAP, $data,1024,0);
-						$a++;
-                                        }
-
-                                        close($socket);
-                                        close(PCAP);
-                                        unless (open(PCAPMD5, '<', "$request->{'savedir'}/$request->{'filename'}")) {
-						$result{'message'} = "cant open pcap file $request->{'savedir'}/$request->{'filename'}";
-						$result{'success'} = 0;
-						return %result;
-					}
-				        $result{'size'}=`ls -lh $request->{'savedir'}/$request->{'filename'} |awk '{print \$5}'`;
-					chomp $result{'size'};
-					print "DEBUG $request->{'savedir'}/$request->{'filename'} size:$result{'size'}\n" if ($debug);
-                                        # XXX
-					#my $xfermd5=Digest::MD5->new->addfile(*PCAPMD5)->hexdigest;
-					$result{'md5'}=Digest::MD5->new->addfile(*PCAPMD5)->hexdigest;
-                                        close(PCAPMD5);
-					print "$request->{'savedir'}/$request->{'filename'} on disk is has md5 $result{'md5'}\n" if ($debug);
-                                        print "Expected: $result{'expected_md5'}\nGot   : $result{'md5'}\n" if ($debug);
-					if ($result{'md5'} eq $result{'expected_md5'}) {
+					if ($xfer->{'success'}) {
 						$result{'success'} = 1;
-						$result{'message'} = "Success";
-						$result{'filename'} = $request->{'filename'};
-					} else {
-						$result{'success'} = 0;
-						$result{'filename'} = $request->{'filename'};
-						$result{'message'} = "md5sum mismatch between extracted and recieved file";
+					}
+					shutdown($socket,2);
+					return %result;
+                        } case /ZIP/ {
+                                        print "DEBUG: Incomming ZIP\n" if ($debug);
+					my $filetype;
+                                        if ($data =~ /^ZIP:\s*(.*)/) {
+						$filetype="ZIP";
+						$result{'expected_md5'} = $1;
+                                        }
+					my $xfer=receivefile($socket,$filetype,$result{'expected_md5'},$request);
+					$result{'md5'} = $xfer->{'md5'};
+					$result{'size'} = $xfer->{'size'};
+					$result{'message'} = $xfer->{'message'};
+					$result{'filename'} = $xfer->{'filename'};
+
+					if ($xfer->{'success'}) {
+						$result{'success'} = 1;
 					}
 					shutdown($socket,2);
 					return %result;
@@ -250,7 +320,6 @@ sub request{
 					if ($data =~ m/ERROR:*\s(.*)/) {
 						$result{'message'} = $1;
 	                                        print "DEBUG: Got error: $result{'message'} :closing connection\n" if ($debug);
-	                                        print "DEBUG: Got error: $result{'message'} :closing connection\n";
 					}
                                         shutdown($socket,2);
 					return %result;

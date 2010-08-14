@@ -36,6 +36,7 @@ my (%userlist, %oldconfig, %question,%validation,%cmdargs,@qlist);
 # hint to take something sensible.
 
 my %config=( 
+		NODENAME => "Unnamed",
                 OFPCUSER => "root",  
                 saveconfig => "./myofpc.conf",
 		SAVEDIR => "/tmp",
@@ -64,6 +65,7 @@ my %config=(
 # So i'm not asking GUI questions, commented out. - Leon
 
 my @slavesimple=(
+	"NODENAME",
 	"BUFFER_PATH",
 	"SAVEDIR",
 #	"SESSION_DIR",
@@ -74,6 +76,7 @@ my @slavesimple=(
 	"DONE");
 
 my @slaveadvanced=(
+	"NODENAME",
 	"OFPCUSER",
 	"INTERFACE",
 	"BUFFER_PATH",
@@ -97,6 +100,7 @@ my @master=(
 	);
 
 # This is a hash of things we need to configure. It contains the variable, and the question to present to the user
+$question{'NODENAME'} = "Enter a name for this OFPC node e.g. \"London\"";
 $question{'OFPCUSER'} = "What system User ID would you like to run the ofpc process as?";
 $question{'INTERFACE'} = "What interface do you want daemonlogger to run on?";
 $question{'VERBOSE'} = "Run in verbose mode (WARNING this disables daemon mode (not done yet!)) \n (1=on 0=off)";
