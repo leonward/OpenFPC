@@ -142,25 +142,46 @@ sub sessionToLogline{
 }
 
 sub displayResult{
+	# TODO, why the hell is $result a global?
+	# How did I get in to that state: Need to fix this.
 
 	if ($result{'success'} == 1) { 			# Request is Okay and being processed
 		unless ($cmdargs{'gui'}) {  		# Command line output
-			if ($request{'action'} eq "fetch") {
-
+			if ($request{'action'} eq "fetch") {	
 				print 	"##########################################\n" .
 					"Filename: $result{'filename'} \n" .
 					"Size    : $result{'size'}\n" .
 					"MD5     : $result{'md5'}\n";
-			} else {
+			} elsif ($request{'action'} eq "store") {
 				print 	"Queue Position: $result{'position'} \n".
 					"Remote File   : $result{'filename'}\n" .
 					"Result        : $result{'message'}\n";
+			} elsif ($request{'action'} eq "status" ) {
+				print 	"##########################################\n" .
+					" OpenFPC Node name   :  $result{'nodename'}\n".
+					" OpenFPC Node Type   :  $result{'ofpctype'} \n".
+					" Oldest Packet       :  $result{'firstpacket'} \n".
+					" Packet utilization  :  $result{'packetspace'}\% \n" .
+					" Session utilization :  $result{'sessionspace'}\% \n" .
+					" Storage utilization :  $result{'savespace'}\% \n" .
+					" Packet space used   :  $result{'packetused'} \n" . 
+					" Session space used  :  $result{'sessionused'} \n" .
+					" Storage used        :  $result{'saveused'}\n".
+					" Load avg 1          :  $result{'ld1'} \n" .
+					" Load avg 5          :  $result{'ld5'} \n" .
+					" Load avg 15         :  $result{'ld15'} \n" .
+					" Errors              :  $result{'message'} \n";
+				
+			} else {
+				die("Unknown action: $request{'action'}\n");
 			}
-		} else {			# GUI firendly output
-						# Provide output that is easy to parse
-						# result=0   	Fail
-						# result=1	success
-						# result,action,filename,size,md5,expected_md5,position,message
+		} else {	
+			# GUI firendly output
+			# Provide output that is easy to parse
+			# result=0   	Fail
+			# result=1	success
+			# result,action,filename,size,md5,expected_md5,position,message
+
 			print "1,$request{'action'},$result{'filename'},$result{'size'},$result{'md5'},$result{'expected_md5'}," .
 				"$result{'position'},$result{'message'}\n";
 		}
@@ -249,6 +270,8 @@ if ($request{'action'} =~ m/(fetch|store)/)  {
 		print "Error: This action requres a request line or session identifiers\n\n";
 		exit;
 	}
+} elsif ($request{'action'} eq "status") {
+	print "Sending status request\n" if ($debug);
 } else {
 	die("Action $request{'action'} invalid, or not implemented yet");
 }
@@ -266,6 +289,14 @@ unless ($cmdargs{'logline'}) {
 	$request{'logline'} = $logline;	
 	print "Logline created from session IDs: $request{'logline'}\n" if ($debug);
 }
+# Unless user has passed a password via -p, lets request one.
+
+unless ($request{'password'}) {
+	print "Password for user $request{'user'} : ";
+	my $userpass=<STDIN>;
+	chomp $userpass;
+	$request{'password'} = $userpass;
+}
 
 my $sock = IO::Socket::INET->new(
 				PeerAddr => $config{'server'},
@@ -278,12 +309,6 @@ unless ($sock) {
 	exit 1;
 }
 
-unless ($request{'password'}) {
-	print "Password for user $request{'user'} : ";
-	my $userpass=<STDIN>;
-	chomp $userpass;
-	$request{'password'} = $userpass;
-}
 
 %result=ofpc::Request::request($sock,\%request);
 close($sock);

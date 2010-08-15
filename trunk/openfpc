@@ -212,7 +212,7 @@ function daemonloggerstart()
 		-s $FILE_SIZE \
 		-p $PID_FILE \
 		-P $PID_PATH \
-		-n openfpc-pcap "
+		-n ofpc-$NODENAME-pcap "
 
 	$CMD || die "Unable to start daemonlogger"
 
