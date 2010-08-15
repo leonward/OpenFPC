@@ -26,6 +26,7 @@ use ofpc::Parse;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
 require Exporter;
 use Switch;
+use Data::Dumper;
 use Digest::MD5(qw(md5_hex));
 @EXPORT = qw(ALL);
 $VERSION = '0.2';
@@ -37,7 +38,6 @@ sub receivefile{
 	my $svrmd5=shift;	# MD5 of file from server
 	my $request=shift;	# Reqiest hashref
 	my $debug=0;
-
 	my %result={
 		success => 0,
 		md5	=> 0,
@@ -58,12 +58,24 @@ sub receivefile{
 		return(\%result);
 	}
 
+
 	# Update $filename with new extension.	
 	$request->{'filename'} = $request->{'filename'} . $result{'ext'};
 	$result{'filename'} = $request->{'filename'};
 
+	# if savedir is specified, lets add it to the filename
+	# A master uses a savedir, where as a client doesn't
+
+	my $savefile;
+	if (defined $request->{'savedir'}) {
+		$savefile = $request->{'savedir'} . "/" . $request->{'filename'};
+	} else {
+		$savefile = $request->{'filename'};
+	}
+
 	# Open file and set socket/file to BIN
-        open (FILE,'>',"$request->{'filename'}");
+        open (FILE,'>',$savefile);
+        #open (FILE,'>',"$request->{'filename'}");
         #open (FILE,'>',"$request->{'savedir'}/$request->{'filename'}");
 	FILE->autoflush(1);	
         binmode(FILE);
@@ -83,8 +95,10 @@ sub receivefile{
 	close($socket);
 	close(FILE);
 
-	unless (open(FILEMD5, '<', "$request->{'filename'}")) {
-		$result{'message'} = "Cant open recieved file $request->{'filename'}";
+	unless (open(FILEMD5, '<', $savefile)) {
+	#unless (open(FILEMD5, '<', "$request->{'filename'}")) {
+		$result{'message'} = "Cant open recieved file $savefile";
+		#$result{'message'} = "Cant open recieved file $request->{'filename'}";
 		$result{'success'} = 0;
 		return %result;
 	} else {
@@ -92,11 +106,14 @@ sub receivefile{
 		close(PCAPMD5);
 	}
 
-	$result{'size'}=`ls -lh $request->{'filename'} |awk '{print \$5}'`;
+	$result{'size'}=`ls -lh $savefile |awk '{print \$5}'`;
+	#$result{'size'}=`ls -lh $request->{'filename'} |awk '{print \$5}'`;
 	chomp $result{'size'};
-	print "DEBUG $request->{'filename'} size:$result{'size'}\n" if ($debug);
+	print "DEBUG $savefile size:$result{'size'}\n" if ($debug);
+	#print "DEBUG $request->{'filename'} size:$result{'size'}\n" if ($debug);
 
-	print "DEBUG File: $request->{'savedir'}/$request->{'filename'} on disk is has md5 $result{'md5'}\n" if ($debug);
+	print "DEBUG File: $savefile on disk is has md5 $result{'md5'}\n" if ($debug);
+	#print "DEBUG File: $request->{'savedir'}/$request->{'filename'} on disk is has md5 $result{'md5'}\n" if ($debug);
 	print "DEBUG Expected: $svrmd5\n".
 	      "DEBUG Got     : $result{'md5'}\n" if ($debug);
 
@@ -109,7 +126,6 @@ sub receivefile{
 	}
 
 	return(\%result);
-
 }
 
 sub request{
@@ -256,7 +272,44 @@ sub request{
                                         } else {
                                                 print "DEBUG: Request accepted. Queue position $result{'position'}  Waiting.....\n" if ($debug);
                                         }
-                        } case /PCAP/ {
+                        } case /STATUS/ {
+					my $statresp=0;
+					my %status=(nodename => 0,
+							ofpctype => 0,
+							firstpacket => 0,
+							packetspace => 0,
+							packetused => 0,
+							sessionspace => 0,
+							sessionused => 0,
+							savespace => 0,
+							saveused => 0,
+							comms => 0,
+							message => 0,
+							ld1 => 0,
+							ld5 => 0,
+							ld15 => 0,	
+						);
+
+                                        if ($data =~ /^STATUS:\s*(.*)/) {
+						$statresp = $1;
+                                        }
+					($status{'success'},
+						$status{'ofpctype'},
+                                        	$status{'nodename'},
+                                                $status{'firstpacket'},
+                                                $status{'packetspace'},
+                                                $status{'packetused'},
+                                                $status{'sessionspace'},
+                                                $status{'sessionused'},
+                                                $status{'savespace'},
+                                                $status{'saveused'},
+                                                $status{'ld1'},
+                                                $status{'ld5'},
+                                                $status{'ld15'},
+                                                $status{'comms'},
+                                                $status{'message'} )= split(/\|\|/,$statresp);	
+					return %status;
+			} case /PCAP/ {
 					my $filetype;
                                         print "DEBUG: Incomming PCAP\n" if ($debug);
                                         if ($data =~ /^PCAP:\s*(.*)/) {

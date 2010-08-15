@@ -34,6 +34,7 @@ use POSIX qw(setsid);		# Required for daemon mode
 use Data::Dumper;
 use File::Temp(qw(tempdir));
 use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
+use Filesys::Df;
 use Sys::Syslog;
 use ofpc::Parse;
 use ofpc::Request;
@@ -265,8 +266,11 @@ sub prepfile{
 
 	if ( $config{'MASTER'} ) {
 		# Check if we can route this request
-		open METADATA , '>', "$config{'SAVEDIR'}/$request->{'tempfile'}.txt"  or 
-			die "Unable to open MetaFile $config{'SAVEDIR'}/$request->{'tempfile'}.txt for writing";
+		unless (open METADATA , '>', "$config{'SAVEDIR'}/$request->{'tempfile'}.txt")  { 
+			wlog("PREP: ERROR: Unable to open MetaFile $config{'SAVEDIR'}/$request->{'tempfile'}.txt for writing");
+			$prep{'message'} = "Unable to open Metadata file - Cant continue\n";
+			return(\%prep);	
+		}
         	print METADATA "OFPC-Master request report\n" .
 			"User: $request->{'user'}\n" .
                        	"User comment: $request->{'comment'}\n" .
@@ -348,8 +352,11 @@ sub prepfile{
 			$prep{'message'} = $result->{'message'};
 		}
 
-		open METADATA , '>', "$config{'SAVEDIR'}/$request->{'tempfile'}.txt"  or 
-			die "Unable to open MetaFile $config{'SAVEDIR'}/$request->{'tempfile'}.txt for writing";
+		unless (open METADATA , '>', "$config{'SAVEDIR'}/$request->{'tempfile'}.txt" ) { 
+			wlog("PREP: ERROR: Unable to open MetaFile $config{'SAVEDIR'}/$request->{'tempfile'}.txt for writing");
+			$prep{'message'} = "Unable to open Metadata file - Cant continue\n";
+			return(\%prep);	
+		}
         	print METADATA "OFPC-slave request report\n" .
 			"User: $request->{'user'}\n" .
                        	"User comment: $request->{'comment'}\n" .
@@ -405,6 +412,97 @@ sub getmd5{
 	close(MD5);
 	return($md5);
 }
+
+=head2 getstatus
+	Get the status of a slave, or bunch of slaves if this is a master device
+=cut
+
+sub getstatus{
+	my $request=shift;
+	my $exec=0;
+	my %stat = ( 
+		success => 0,
+		ofpctype => 0,		# Master or slave
+		nodename => 0,		# Name of the node
+		firstpacket => 0,	# Oldest packet timestamp
+		packetspace => 0,	# Space available in PCAP partition
+		packetused => 0,
+		sessionspace => 0,	# Space available in session data partition
+		sessionused => 0,	# Space consumed by session data (excluding DB)
+		savespace => 0,		# Space availabe in the savepath
+		saveused => 0,		# Space availabe in the savepath
+		comms => 0,		# Communication with slaves (master only)
+		ld1 => 0,		# UNIX load average 1,5, and 15
+		ld5 => 0,
+		ld15 => 0,
+		message => 0,		# Message for error text
+	);
+
+	unless ($config{'MASTER'}) { 	# Process as a slave. Don't check master specific stuff like comms
+		$stat{'ofpctype'} = "SLAVE";
+		$stat{'nodename'} = $config{'NODENAME'};
+
+		# Get timestamp of oldest pcap buffer
+		opendir(DIR,$config{'BUFFER_PATH'});
+		my @files=readdir(DIR);
+		@files=sort(@files);
+
+		# A sorted dir could also include other files. We can apply a check for the daemonlogger prfix
+		# to make sure we don't end up with some other crap, or ".",".." etc
+
+		my $oldestfile=0;
+		while ($oldestfile !~ /$config{'NODENAME'}-pcap/) {
+			$oldestfile=shift(@files);
+		}
+
+		if ( $oldestfile =~ /$config{'NODENAME'}-pcap\.([0-9]+)/ ) {
+			$stat{'firstpacket'} = $1;
+		}
+
+		# Get disk space info
+		my $packetref=df("$config{'BUFFER_PATH'}");
+		$stat{'packetspace'} = $packetref->{'per'};
+		$stat{'packetused'} = $packetref->{'used'};
+		
+		my $sessionref=df("$config{'SESSION_DIR'}");
+		$stat{'sessionspace'} = $sessionref->{'per'};
+		$stat{'sessionused'} = $sessionref->{'used'};
+
+		my $saveref=df("$config{'SAVEDIR'}");
+		$stat{'savespace'} = $saveref->{'per'};
+		$stat{'saveused'} = $saveref->{'used'};
+	
+		# Grab uptime data
+		my $uptime=`uptime`;
+		chomp $uptime;
+		if ($uptime =~ /load average.*:\s*([0-9]\.[0-9]+),*\s*([0-9]\.[0-9]+),*\s*([0-9]\.[0-9]+)/){ 
+			$stat{'ld1'} = $1;
+			$stat{'ld5'} = $2;
+			$stat{'ld15'} = $3;
+		}
+
+		# Check we are providing back some valid data
+
+		if ($stat{'packetspace'} and $stat{'savespace'} and
+				$stat{'sessionspace'} and
+				$stat{'ld1'} and
+				$stat{'ld5'} and
+				$stat{'ld15'} and
+				$stat{'nodename'} ) {
+			
+			$stat{'success'} = 1; 	
+		}
+
+
+	} else {
+		wlog("Recieved MASTER STATUS request - Not implemented");
+		$stat{'message'} = "Master status not implemented yet";
+		$stat{'ofpctype'} = "MASTER";
+	}
+
+	return(\%stat);
+}
+
 
 =head2 comms
 	Communicate with the client, and if a valid request is made add it on to the processqueue
@@ -483,7 +581,7 @@ sub comms{
 			} 
 			case /^REQ/ {	
 				my $reqcmd;
-				# OFPC request. Made up of ACTION||
+				# OFPC request. Made up of ACTION||...stuff
 				if ($buf =~ /REQ:\s*(.*)/) {
 					$reqcmd=$1;
 					#print "DEBUG: $client_ip: REQ -> $reqcmd\n" if ($debug);
@@ -549,7 +647,26 @@ sub comms{
 	                        				shutdown($client,2);	# CLose client
 							} 
 						} elsif ($request->{'action'} eq "status") {
-							wlog ("COMMS: $client_ip Recieved Status Request");	
+							wlog ("COMMS: $client_ip Recieved Status Request");
+							my $status=getstatus($request);
+							my $statmsg="$status->{'success'}||" .
+									"$status->{'ofpctype'}||".
+									"$status->{'nodename'}||" .
+									"$status->{'firstpacket'}||" .
+									"$status->{'packetspace'}||" .
+									"$status->{'packetused'}||" .
+									"$status->{'sessionspace'}||" .
+									"$status->{'sessionused'}||".
+									"$status->{'savespace'}||" .
+									"$status->{'saveused'}||".
+									"$status->{'ld1'}||" .
+									"$status->{'ld5'}||" .
+									"$status->{'ld15'}||" .
+									"$status->{'comms'}||" .
+									"$status->{'message'}||" .
+									"\n";
+							print $client "STATUS: $statmsg";
+	                        			shutdown($client,2);
 						}
 					} else {
 						wlog("COMMS: $client_ip: BAD request $request->{'msg'}");
@@ -744,16 +861,24 @@ sub doslave{
 	print "DEBUG: Got buffers @pcaproster\n" if ($debug);
 
 	(my $filename, my $size, my $md5) = doExtract($bpf,\@pcaproster,$request->{'tempfile'});
-	$result{'filename'} = $filename;
-	$result{'success'} = 1;
-	$result{'message'} = "Success";
-	$result{'md5'} = $md5;
-	$result{'size'} = $size;
-	wlog("SLAVE: Extraction complete: Result: $filename, $size, $md5");   
+	if ($filename) {
+		$result{'filename'} = $filename;
+		$result{'success'} = 1;
+		$result{'message'} = "Success";
+		$result{'md5'} = $md5;
+		$result{'size'} = $size;
+		wlog("SLAVE: Extraction complete: Result: $filename, $size, $md5");   
+	} else {
+		wlog("SLAVE: Problem found while performing doExtract Result: $filename, $size, $md5");   
+	}
 	
 	# Create extraction Metadata file
 	
-	open METADATA , '>', "$config{'SAVEDIR'}/$filename.txt"  or die "Unable to open MetaFile $config{'SAVEDIR'}/$filename.txt for writing";
+	unless ( open METADATA , '>', "$config{'SAVEDIR'}/$filename.txt" ) { 
+			wlog("PREP: ERROR: Unable to open MetaFile $config{'SAVEDIR'}/$request->{'tempfile'}.txt for writing");
+			$result{'message'} = "Unable to open Metadata file  $config{'SAVEDIR'}/$request->{'tempfile'}.txt for writing";
+			return(\%result);
+	}
 	print METADATA "Extract Report - Slave action\n";
 	print METADATA "User: $request->{'user'}\n" .
 			"Filename: $request->{'filename'}\n" .
@@ -783,7 +908,6 @@ sub runq {
 			if ($config{'MASTER'}) {
 
 				(my $slavehost,my $slaveport,my $slaveuser,my $slavepass)=routereq($request->{'device'});
-				print "Slavehost is $slavehost\n";
 
 				if ($slavehost) { 		# If this request is routable....
 					$request->{'slavehost'} = $slavehost;
@@ -800,13 +924,13 @@ sub runq {
 						$pcaps{$request->{'rid'}}="ERROR" ; # Report FAIL 
 					}
 				} else {
-					wlog("RUNQ : $pcaps{$request->{'rid'}}: No ofpc-route to $request->{'device'}. Cant extract.");
+					wlog("RUNQ : No ofpc-route to $request->{'device'}. Cant extract.");
 					$pcaps{$request->{'rid'}}="NOROUTE"; # Report FAIL 
 				}
 			} else {
 				my $result = doslave($request,$rid);
 				if ($result->{'success'}) {
-                			wlog("RUNQ : SLAVE: Request: $request->{'rid'} Success. File: $result->{'filename'} $result->{'filesize'} now cached on SLAVE in $config{'SAVEDIR'}"); 
+                			wlog("RUNQ : SLAVE: Request: $request->{'rid'} Success. File: $result->{'filename'} $result->{'size'} now cached on SLAVE in $config{'SAVEDIR'}"); 
 					$pcaps{$request->{'rid'}}=$result->{'filename'};
 				} else {
                 			wlog("RUNQ: SLAVE: Request: $request->{'rid'} Result: Failed, $result->{'message'}.");    
@@ -885,7 +1009,7 @@ sub findBuffers {
 
 	print "DEBUG: WARNING vdebug not enabled to inspect pcap filename selection\n" if ($debug and not $vdebug);
 
-	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-pcap.*`;
+	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/ofpc-$config{'NODENAME'}-pcap.*`;
         foreach(@pcaptemp) {
                 chomp $_;
                 push(@pcaps,$_);
@@ -951,7 +1075,7 @@ sub findBuffers {
         unless ( $timeHash{$timestampArray[$location]} eq "TARGET" ) {
                 push(@TARGET_PCAPS,$timeHash{$timestampArray[$location]});
         } else {
-                print "Skipping got target\n" if ($verbose);
+                print "DEBUG Skipping got target\n" if ($debug);
         }
 
         while($precount >= 1) {
@@ -1025,7 +1149,7 @@ sub doExtract{
         print " - Merge command is \"$config{'MERGECAP'} -w $config{'SAVEDIR'}/$mergefile  @outputpcaps\" \n" if ($debug);
 
         if (system("$config{'MERGECAP'} -w $config{'SAVEDIR'}/$mergefile @outputpcaps")) {
-                die("Problem merging pcap file!\n Run in verbose mode to debug\n");
+		return(0,0,0);
         }
 
 	# Calculate a filesize (in human readable format), and a MD5
@@ -1101,6 +1225,9 @@ my $numofusers=keys (%userlist);
 unless ($numofusers) {
 	die "No users defined in config file.\n";
 }
+
+wlog("*********** OpenFPC $openfpcver **********");
+wlog("**    http://www.openfpc.org    **");
 
 if ($config{'MASTER'}) {
         wlog("CONF: Starting OFPC Node \"$config{'NODENAME'}\" as a MASTER");
