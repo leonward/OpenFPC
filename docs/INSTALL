@@ -11,7 +11,7 @@ then will store it to disk where a perl agent will load the sessions into a DB.
 Session data will take up a lot of space in the DB, but its not necessary
 or the job of OpenFPC to retain session data beyond the time of the last pcap data.
 
-For session data to be present in OpenFPC, cxtracker and cxtracker2db.pl
+For session data to be present in OpenFPC, cxtracker and ofcp-cx2db.pl
 needs to be running.
 
 You can now use the OpenFPC webgui to search connection, click on the connection
