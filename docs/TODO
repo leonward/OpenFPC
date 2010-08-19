@@ -1,0 +1,20 @@
+# TODO
+
+- GUI required
+  Right now openfpc works for connection search and logline, but adding the following will allow integration with the ofpc-queued. 
+   a) Calling ofpc-client for session extraction from the local archive (need to know what arbs needed to pass it, and how we want the file saved (path and file name)).
+   b) Authentication, or should we rely on apache htaccess/mod_auth etc?
+
+- Installer
+  We need a shellscript or deb/rpm stuff.
+
+- Init scripts.
+  ...
+
+- openfpc-client:
+  *Fill inn functions that needs to be in place*
+
+
+- Distributed system (ofpc master mode). 
+  Let's leave this for now, it's wise to get a 1.0 release out first, the nice-to-have can come later.
+
