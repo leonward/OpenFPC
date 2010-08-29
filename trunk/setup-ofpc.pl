@@ -25,11 +25,12 @@ use warnings;
 use Getopt::Long;
 use Data::Dumper;
 use File::Copy;
+use Mysql;
 
 # Confguration Defaults
 my $debug=0;
-my $file="./myopenfpc.conf";
-my @configfiles=("/etc/ofpc.conf", "./etc/ofpc.conf");
+my $file="/etc/openfpc/myopenfpc.conf";		# The name of the output config file
+my @configfiles=("/etc/ofpc.conf", "./etc/ofpc.conf");		# List if config files to use in order.
 my (%userlist, %oldconfig, %question,%validation,%cmdargs,@qlist);
 
 # Some system defaults. If there isn't a config files to read for current values, lets give the user a 
@@ -55,6 +56,7 @@ my %config=(
 		DAEMONLOGGER => "daemonlogger",
 		CXTRACKER => "cxtracker",
 		ENABLE_IP_V6 => "0",
+		ENABLE_SESSION => "0",
 		OFPC_Q_PID => "/tmp/ofpc-queued.pid",
 		SLAVEROUTE => "0",
                 );  
@@ -64,15 +66,20 @@ my %config=(
 # For version 0.2, I've disabled the GUI to get a release out while fixing some of the problems there.
 # So i'm not asking GUI questions, commented out. - Leon
 
+my @sessionq=(
+	"SESSION_DIR",
+	"SESSION_DB_NAME",
+	"SESSION_DB_USER",
+	"SESSION_DB_PASS",
+	"ENABLE_IP_V6",
+	);
+
 my @slavesimple=(
 	"NODENAME",
 	"BUFFER_PATH",
 	"SAVEDIR",
-#	"SESSION_DIR",
-#	"SESSION_DB_NAME",
-#	"SESSION_DB_USER",
-#	"SESSION_DB_PASS",
 	"INTERFACE",
+	"ENABLE_SESSION",
 	"DONE");
 
 my @slaveadvanced=(
@@ -81,17 +88,13 @@ my @slaveadvanced=(
 	"INTERFACE",
 	"BUFFER_PATH",
 	"SAVEDIR",
-#	"SESSION_DIR",
-#	"SESSION_DB_NAME",
-#	"SESSION_DB_USER",
-#	"SESSION_DB_PASS",
 	"OFPC_PORT",
 	"VERBOSE",
 	"DONE",
 	"DAEMONLOGGER",
 	"FILE_SIZE",
-#	"ENABLE_IP_V6",
 	"OFPC_Q_PID",
+	"ENABLE_SESSION",
 	);
 
 my @master=(
@@ -100,6 +103,8 @@ my @master=(
 	);
 
 # This is a hash of things we need to configure. It contains the variable, and the question to present to the user
+
+$question{'ENABLE_SESSION'} = "Enable session capture/search on this node?\nNote: This requires cxtracker and mysql.";
 $question{'NODENAME'} = "Enter a name for this OFPC node e.g. \"London\"";
 $question{'OFPCUSER'} = "What system User ID would you like to run the ofpc process as?";
 $question{'INTERFACE'} = "What interface do you want daemonlogger to run on?";
@@ -111,7 +116,7 @@ $question{'SESSION_DIR'} =  "Path to store session data (Text flow records)";
 $question{'SESSION_DB_NAME'} = "Name of the session database (MYSQL)";
 $question{'SESSION_DB_USER'} = "Enter the username for the Database user";
 $question{'SESSION_DB_PASS'} = "Enter the password for the Database user";
-$question{'DONE'} = "Are you happy that configuration is complete y/n";
+$question{'DONE'} = "Are you happy that configuration is complete and OpenFPC is allowed to start up? y/n";
 $question{'DAEMONLOGGER'} = "Path to daemonlogger";
 $question{'FILE_SIZE'} = "Size of each buffer file. E.g. \"2G\" = 2 GB, \"10M\" = 10 MB";
 $question{'ENABLE_IP_V6'} = "Enable IPv6 Support? \n (1=on, 0=off)";
@@ -157,6 +162,25 @@ sub askq{
 			print "No validation performed on $key\n" if ($debug);
 			return($response);
 		}
+	}
+}
+
+sub interview{
+	# Interview the user for the answers to the question array passed
+	my $qnum=0;
+	my @questions=@_;
+	my $qcount=@questions;
+	foreach my $key (@questions) {
+		$qnum++;
+		# If there is a value already set in the config file, provide it as
+		# a default value (press enter to keep it).
+		print "\n------ Question $qnum/$qcount -----------------------\n";
+		if (defined $config{$key}) {
+			$config{$key}=askq($key,$config{$key});
+		} else {
+			$config{$key}=askq($key,"");
+		}
+		print "Setting $key to $config{$key}\n" if ($debug);
 	}
 }
 
@@ -209,8 +233,9 @@ if (defined $cmdargs{'file'}) {
 	} 
 }
 
+print "* Reading existing config file $file\n" if ($debug);
 if (-f $file) {
-	open(CONFIG,'<', "$file") or die("cant open config file $file");
+	open(CONFIG,'<', "$file") or die("ERRPR: Can't open config file $file\n");
 	while(<CONFIG>) {
         	chomp;
 	        if ( $_ =~ m/^[a-zA-Z]/) {
@@ -225,7 +250,6 @@ if (-f $file) {
 	close CONFIG;
 }
 
-print "* Reading existing config file $file\n" if ($debug);
 if (defined $cmdargs{'advanced'}) { 				# Advanced requested
 	if (defined $cmdargs{'master'} ) { 			# Advanced master
 		$config{'MASTER'} = 1;
@@ -245,22 +269,22 @@ if (defined $cmdargs{'advanced'}) { 				# Advanced requested
 }
 
 #print Dumper %config if ($debug);
-my $qcount=@qlist;
-my $qnum=0;
 
 # Ask questions to user and save the answer in a hash
-foreach my $key (@qlist) {
-	$qnum++;
-	# If there is a value already set in the config file, provide it as
-	# a default value (press enter to keep it).
-	print "\n------ Question $qnum/$qcount -----------------------\n";
-	if (defined $config{$key}) {
-		$config{$key}=askq($key,$config{$key});
-	} else {
-		$config{$key}=askq($key,"");
-	}
-	print "Setting $key to $config{$key}\n" if ($debug);
-}
+#foreach my $key (@qlist) {
+#	$qnum++;
+#	# If there is a value already set in the config file, provide it as
+#	# a default value (press enter to keep it).
+#	print "\n------ Question $qnum/$qcount -----------------------\n";
+#	if (defined $config{$key}) {
+#		$config{$key}=askq($key,$config{$key});
+#	} else {
+#		$config{$key}=askq($key,"");
+#	}
+#	print "Setting $key to $config{$key}\n" if ($debug);
+#}
+
+interview(@qlist);
 
 # Add users for ofpc-queued
 # Here
@@ -306,7 +330,7 @@ while ($moreusers) {
 
 
 
-open(NEWCONFIG,'>', "$config{'saveconfig'}") or die("cant open file $config{'saveconfig'}");
+open(NEWCONFIG,'>', "$config{'saveconfig'}") or die("ERROR: Can't open file $config{'saveconfig'}");
 
 print NEWCONFIG "# OpenFPC configuration file.
 # Part of the OpenFPC project http://openfpc.org
@@ -326,10 +350,26 @@ close($config{'saveconfig'});
 # Backup existing config, and replace it with our new file.
 my $epoch=time();
 if ( -f $file) {
-	move($file,"$file.backup.$epoch") or die ("Unable to backup $file to $file.backup.$epoch");
+	move($file,"$file.backup.$epoch") or die ("ERROR: Unable to backup $file to $file.backup.$epoch - Check file permissions\n");
 }
-move($config{'saveconfig'},$file) or die ("Unable to save config to file $file");
+move($config{'saveconfig'},$file) or die ("ERROR: Unable to save config to file $file. Check file permissions\n");
 
 print "\n\n* Backed up old config as $file.backup.$epoch\n";
 print "* Wrote config file $file\n";
+
+# Perform follow-up actions based on user input
+
+if ($config{'ENABLE_SESSION'})  {
+	print "*******************************\n";
+	print "* Session capture setup\n";
+	interview(@sessionq);
+	
+	unless ( -d $config{'SESSION_DIR'} )  {
+		print "- Creating $config{'SESSION_DIR'}\n";
+		mkdir($config{'SESSION_DIR'})  or die("Unable to mkdir $config{'SESSION_DIR'}");
+	}
+
+}
+
+# Creating required dirs
 

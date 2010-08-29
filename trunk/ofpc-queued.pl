@@ -271,7 +271,7 @@ sub prepfile{
 			$prep{'message'} = "Unable to open Metadata file - Cant continue\n";
 			return(\%prep);	
 		}
-        	print METADATA "OFPC-Master request report\n" .
+        	print METADATA "###################################\nOFPC-Master request report\n" .
 			"User: $request->{'user'}\n" .
                        	"User comment: $request->{'comment'}\n" .
                        	"Time: $request->{'rtime'}\n";
