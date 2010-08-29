@@ -24,7 +24,7 @@
 # ---------------- Nothing to do below here -------------
 # List of config files to try in order
 
-CONFIG_FILES="./myopenfpc.conf /etc/openfpc/openfpc.conf" 
+CONFIG_FILES="/etc/openfpc/openfpc.conf ./myopenfpc.conf" 
 
 
 # Read the first config file found in order above.
@@ -53,7 +53,7 @@ CXPIDFILE=/var/run/cxtracker.pid
 
 if [ "$DONE" != "y" ] 
 then
-	echo -e "[!] Configuration not complete, Done not marked in $CONFIG \n    Have you run ./install-opefpc ?"
+	echo -e "[!] Configuration not complete.\n    Have you run ./install-openfpc.sh ?"
 	exit 1
 fi
 
@@ -275,12 +275,15 @@ function status()
 		let EPOC_DELTA=($EPOC_LAST-$EPOC_FIRST)/60/60
 		SIZE=$(du $BUFFER_PATH -h | awk '{print $1}')
 		USED=$(df $BUFFER_PATH -h |grep ^/ |awk '{print $5}')
-		DPID=$(cat $PID_PATH/$PID_FILE)
-		if ps $DPID  > /dev/null
+		if [ -f $PID_PATH/$PID_FILE ]
 		then
-			echo "[*] Traffic buffer (Daemonlogger) running with pid $DPID "
+			DPID=$(cat $PID_PATH/$PID_FILE)
+			if ps $DPID  > /dev/null
+			then
+				echo "[*] Traffic buffer (Daemonlogger) running with pid $DPID "a
+			fi
 		else
-			echo "[!] Traffic buffer (Daemonlogger) not running"
+				echo "[!] Traffic buffer (Daemonlogger) not running"
 		fi
 
 		echo -e " -  Time now                $NOW"
