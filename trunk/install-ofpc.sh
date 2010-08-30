@@ -24,6 +24,8 @@ openfpcver="0.2"
 TARGET_DIR="/opt/openfpc"
 CONF_DIR="/etc/openfpc"
 INSTALL_FILES="ofpc-client.pl openfpc openfpc.conf ofpc-queued.pl setup-ofpc.pl"
+WWW_FILES="index.php bluegrade.png"
+WWW_DIR="$TARGET_DIR/www"
 PERL_MODULES="Parse.pm Request.pm"
 INIT_SCRIPTS="openfpc"
 INIT_DIR="/etc/init.d/" 
@@ -114,6 +116,29 @@ function doinstall()
 		cp ofpc/$file $PERL_LIB_DIR/ofpc/$file
 	done
 
+
+	###### WWW files #####
+
+	if [ -d $WWW_DIR ] 
+	then
+		echo -e " *  Found $WWW_DIR"
+	else
+		mkdir --parent $WWW_DIR || die "[!] Unable to mkdir $WWW_DIR"
+	fi
+
+	for file in $WWW_FILES
+	do
+		echo -e " -  Installing $file"
+		cp www/$file $WWW_DIR/$file
+	done
+
+	# Add openfpc config in apache
+	cp etc/openfpc.apache2.conf /etc/apache2/sites-available/openfpc
+	a2ensite openfpc
+	service apache2 reload
+
+	###### init #######
+
         for file in $INIT_SCRIPTS
         do
 		echo -e " -  Installing $INIT_DIR/$file"
@@ -147,7 +172,7 @@ function doinstall()
 
     $ sudo $TARGET_DIR/setup-ofpc.pl -c $CONF_DIR/openfpc.conf 
 
-    For more informaiton, and advanced setup options take a look at $TARGET_DIR/setup-openfpc.pl --help
+    For more information, and advanced setup options take a look at $TARGET_DIR/setup-openfpc.pl --help
     You may also want to check the status of OpenFPC's dependancies 
      
 "
@@ -168,6 +193,11 @@ function remove()
 			echo -e " -  $INIT_DIR/$file doesn't exist - Won't try to stop"
 		fi
 	done
+
+	echo -e "[*] Disabling OpenFPC GUI"
+	a2dissite openfpc
+	service apache2 reload
+	rm /etc/apache2/sites-available/openfpc
 	
 	echo -e "[*] Removing files..."
 
@@ -192,6 +222,27 @@ function remove()
 			echo -e "    $PERL_LIB_DIR/ofpc/$file Not found"
 		fi
 	done
+
+	echo -e "[*] Removing WWW files"
+	for file in $WWW_FILES
+	do
+		if [ -f $WWW_DIR/$file ]
+		then	
+			rm $WWW_DIR/$file  || echo -e "[!] Unable to delete $WWW_DIR/$file"
+		else
+			echo -e "    $WWW_DIR/$file Not found"
+		fi
+	done
+
+	# Remove the password file if it has been created
+	[ -f $TARGET_DIR/apache2.passwd ] && rm $TARGET_DIR/apache2.passwd
+
+	if [ -d $WWW_DIR ] 
+	then
+		rm -r $WWW_DIR  || echo -e "[!] Unable to delete $WWW_DIR"
+		echo -e " -  Removed $WWW_DIR"
+	fi
+	rm -r $WWW_DIR
 
 	echo -e "[*] Removing Symlinks..."
 	for file in $INIT_SCRIPTS
@@ -330,9 +381,9 @@ case $1 in
                 installstatus
         ;;
 	reinstall)
-		echo Running REINSTALL
+		echo [*] Running REINSTALL remove
 		remove
-		echo And installing...
+		echo [*] Running REINSTALL install
 		doinstall
 	;;
      *)
