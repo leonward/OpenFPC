@@ -25,18 +25,18 @@ use warnings;
 use Getopt::Long;
 use Data::Dumper;
 use File::Copy;
-use Mysql;
 
 # Confguration Defaults
 my $debug=0;
 my $file="/etc/openfpc/myopenfpc.conf";		# The name of the output config file
-my @configfiles=("/etc/ofpc.conf", "./etc/ofpc.conf");		# List if config files to use in order.
+my @configfiles=("/etc/openfpc/openfpc.conf", "./openfpc.conf");		# List if config files to use in order.
 my (%userlist, %oldconfig, %question,%validation,%cmdargs,@qlist);
 
 # Some system defaults. If there isn't a config files to read for current values, lets give the user a 
 # hint to take something sensible.
 
 my %config=( 
+		INSTALL_DIR => "/opt/openfpc/",
 		NODENAME => "Unnamed",
                 OFPCUSER => "root",  
                 saveconfig => "./myofpc.conf",
@@ -233,7 +233,7 @@ if (defined $cmdargs{'file'}) {
 	} 
 }
 
-print "* Reading existing config file $file\n" if ($debug);
+print "* Reading existing config file $file\n" ;
 if (-f $file) {
 	open(CONFIG,'<', "$file") or die("ERRPR: Can't open config file $file\n");
 	while(<CONFIG>) {
@@ -289,6 +289,7 @@ interview(@qlist);
 # Add users for ofpc-queued
 # Here
 print "\n------ OpenFPC User definition ------\n";
+print "* Current Users:\n";
 foreach my $user (keys %userlist){
 	print "* Found existing user - $user\n";
 	print "  Keep user? (y/n) : ";
@@ -305,7 +306,7 @@ foreach my $user (keys %userlist){
 }
 
 my $moreusers=0;
-print "\n------ New Users ------\n";
+print "\n------ Add new users ------\n";
 print "*  Add a new OpenFPC user? (y/n)";
 my $tmpin=<STDIN>;
 if ($tmpin =~ m/(y|yes)/i ) {
@@ -371,5 +372,44 @@ if ($config{'ENABLE_SESSION'})  {
 
 }
 
+# Enable/change password for GUI
+print "\n-----OpenFPC GUI password (Apache Basic Auth) -----\n\n" .
+      "OpenFPC Doesn't yet have it's own built in GUI access control system. \n".
+      "To keep things safe for now we use Apache's built in auth capability\n"; 
+
+my ($guiuser,$guipass);
+unless ( -f "$config{'INSTALL_DIR'}/apache2.passwd" ) {
+	print "* No apache passwd file found. Creating one...\n";
+	print "  Username: ";
+	$guiuser=<STDIN>;
+	chomp $guiuser;
+	print "  Password: ";
+	$guipass=<STDIN>;
+	chomp $guipass;
+
+	unless ( system("htpasswd -cb $config{'INSTALL_DIR'}/apache2.passwd $guiuser $guipass")) {
+		print "* Password updated\n";
+	} else {
+		print "* Unable to create passwd file. You will have to create it by hand\n";
+	}
+} else {
+	print "* Found existing Apache passwd file, not creating one.\n" .
+	      "  Hint: You can use the below command to edit it by hand\n\n" .
+	      "  \$ htpasswd $config{'INSTALL_DIR'}/apache2.passwd\n";
+}
+
 # Creating required dirs
+
+
+# Complete
+
+print "
+**************************
+* Setup complete!
+
+You can now start OpenFPC with the command
+
+ \$ sudo service openfpc start
+
+\n";
 
