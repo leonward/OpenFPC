@@ -1263,7 +1263,7 @@ $listenSocket->autoflush(1);
 
 if ($daemon) {
 	print "[*] OpenFPC Queued - Daemonizing\n";
-	print " -  Leon Ward\n";
+	print " -  Leon Ward http://www.openfpc.org/\n";
 
 	chdir '/' or die "Can't chdir to /: $!";
 	umask 0;
