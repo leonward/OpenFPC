@@ -47,7 +47,7 @@ openfpcver=0.2
 PID_FILE=openfpc-dl
 PID_PATH=/var/run
 FILENAME=openfpc-pcap
-OPENFPCQD=./ofpc-queued.pl
+OPENFPCQD=$INSTALL_DIR/ofpc-queued.pl
 CXPIDFILE=/var/run/cxtracker.pid 
 
 
@@ -126,21 +126,27 @@ function openfpcqstop()
 
 function cxtrackerstart()
 {
-	if [ -f $CXPIDFILE ] 
+	if [ $ENABLE_SESSION == 1 ] 
 	then
-		CXPID=$(cat $CXPIDFILE)
-		if ps $CXPID > /dev/null
+		echo "[*] Session search enabled"
+		if [ -f $CXPIDFILE ] 
 		then
-			echo -e  "[!] cxtracker already running"
-			return
+			CXPID=$(cat $CXPIDFILE)
+			if ps $CXPID > /dev/null
+			then
+				echo -e  "[!] cxtracker already running"
+				return
+			fi
 		fi
-	fi
-	CMD="$CXTRACKER \
-		-i $INTERFACE \
-		-d $SESSION_DIR \
-		-D"
+		CMD="$CXTRACKER \
+			-i $INTERFACE \
+			-d $SESSION_DIR \
+			-D"
 
-	$CMD
+		$CMD
+	else 
+		echo "[*] Session search disabled on this host"
+	fi
 }
 
 
