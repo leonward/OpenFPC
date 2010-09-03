@@ -321,7 +321,7 @@ sub request{
 					$result{'size'} = $xfer->{'size'};
 					$result{'message'} = $xfer->{'message'};
 					$result{'filename'} = $xfer->{'filename'};
-
+					$result{'filetype'} = $filetype;
 					if ($xfer->{'success'}) {
 						$result{'success'} = 1;
 					}
@@ -339,6 +339,7 @@ sub request{
 					$result{'size'} = $xfer->{'size'};
 					$result{'message'} = $xfer->{'message'};
 					$result{'filename'} = $xfer->{'filename'};
+					$result{'filetype'} = $filetype;
 
 					if ($xfer->{'success'}) {
 						$result{'success'} = 1;
