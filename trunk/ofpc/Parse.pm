@@ -28,6 +28,42 @@ require Exporter;
 @EXPORT = qw(ALL);
 $VERSION = '0.2';
 
+=head2 ParseSessionToLogline
+
+	Take a hashref of session id's (sip,dip etc) and return a "logline" that
+	can be made in an ofpc-vX request.
+	- Leon
+=cut
+
+sub sessionToLogline{
+	# ofpc-v1 type:event sip:1.1.1.1 dip:1.1.1.1 spt:3432 dpt:1234 proto:tcp time:246583 msg:Some freeform text
+	# Take in a hash of session data, and return a "ofpc-v1" log format
+	my $timeoffset=600;
+	my $now=time();
+	my $req=shift;
+	my $logline = "ofpc-v1 ";
+	
+	if ($req->{'stime'} or $req->{'etime'}) {
+		$logline .= "type:search ";
+	} else {
+		$logline .= "type:event ";
+	}
+	$logline .= "sip:$req->{'sip'} " if ($req->{'sip'});
+	$logline .= "dip:$req->{'dip'} " if ($req->{'dip'});
+	$logline .= "dpt:$req->{'dpt'} " if ($req->{'dpt'});
+	$logline .= "spt:$req->{'spt'} " if ($req->{'spt'});
+
+	unless ($req->{'timestamp'}) { 	
+		# No timestamp specified, lets assume a NOW - $timeoffset seconds
+		$req->{'timestamp'} = $now - $timeoffset;
+	}
+	$logline .= "timestamp:$req->{'timestamp'} ";
+
+	return($logline);
+}
+
+
+
 sub parselog{
         # Recieve a logline, and return a ref to a hash that contains its data if valid
         my $logline=shift;
