@@ -197,7 +197,7 @@ sub decoderequest($){
 
 	# fetch 	Fetch pcap and return to client/server
 	# store		Request data for extraction, and disconnect.
-	# status	Provide status of slave device (FUTURE)
+	# status	Provide status of device 
 	# replay	Replay traffic (FUTURE)
 
 	$request{'action'} = lc $request{'action'};
@@ -664,6 +664,7 @@ sub comms{
 									"$status->{'ld15'}||" .
 									"$status->{'comms'}||" .
 									"$status->{'message'}||" .
+									"$openfpcver" .
 									"\n";
 							print $client "STATUS: $statmsg";
 	                        			shutdown($client,2);
@@ -856,9 +857,20 @@ sub doslave{
 	my $bpf=mkBPF($request);
 	print "DEBUG: BPF is $bpf\n" if ($debug);
 
-	my @pcaproster=findBuffers($request->{'timestamp'}, 5);
+	# Here
+	# Do we have a single timestamp or pair of them.
+	# Single= event sometime in the middle of a session
+	# stime/etime = a search window to look over
 
-	print "DEBUG: Got buffers @pcaproster\n" if ($debug);
+	my @pcaproster=();
+	if ( $request->{'stime'} and $request->{'etime'} ) {
+		@pcaproster=bufferRange($request->{'stime'}, $request->{'etime'});
+	} else  {
+		# Event, single look over roster
+		@pcaproster=findBuffers($request->{'timestamp'}, 2);
+	} 
+
+	print "DEBUG: PCAP roster for extract is:  @pcaproster\n" if ($debug);
 
 	(my $filename, my $size, my $md5) = doExtract($bpf,\@pcaproster,$request->{'tempfile'});
 	if ($filename) {
@@ -985,6 +997,49 @@ sub mkBPF($) {
                 $bpfstring = $bpfstring . $_ . " ";
         }   
         return($bpfstring);
+}
+
+
+=head2 bufferRange
+	Return an array of filenames of PCAP files to serch over
+	Expects a startfilename, and an endfilename
+=cut
+
+
+sub bufferRange {
+	my $starttimestamp=shift;
+	my $endtimestamp=shift;
+	my $include=0;
+	my @pcaps=();
+	my @tmp=();	# temp array for a call to findBuffers;
+	my $vdebug=1;
+
+	@tmp=findBuffers($starttimestamp,0);
+	my $startfile=@tmp[0];		# Grab expected -1
+	@tmp=findBuffers($endtimestamp,0);
+	my $endfile=@tmp[0];		# Grab expected +1 
+
+	print "\nbufferRange mode \n".
+		"Starting seach in $startfile ($starttimestamp)\n".
+		"Ending search in $endfile ($endtimestamp)\n" if ($vdebug);
+
+	# Look for files between startfile and endfile
+	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/ofpc-$config{'NODENAME'}-pcap.*`;	
+        foreach(@pcaptemp) {
+                chomp $_;
+		if ($_ =~ /$startfile/) {
+			$include=1;
+		} elsif ($_ =~ /$endfile/ ) {
+			$include=0;
+		}
+                push(@pcaps,$_) if ($include);
+		if ($vdebug) {
+			print "DBEUG: Including $_ \n" if ($include);
+			print "DEBUG: NOT include $_ \n" unless ($include);
+		}
+        }
+
+	return(@pcaps);
 }
 
 
@@ -1205,7 +1260,7 @@ if ($help) {
 
 wlog("CONF: Reading config file $CONFIG_FILE");
 
-unless ($CONFIG_FILE) { die "Unable to find a config file. See help (--help)"; }
+unless ($CONFIG_FILE) { die "Unable to find a config file. See help (--help)\n"; }
 open my $config, '<', $CONFIG_FILE or die "Unable to open config file $CONFIG_FILE $!";
 while(<$config>) {
         chomp;
