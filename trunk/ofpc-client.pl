@@ -148,16 +148,17 @@ sub displayResult{
 	if ($result{'success'} == 1) { 			# Request is Okay and being processed
 		unless ($cmdargs{'gui'}) {  		# Command line output
 			if ($request{'action'} eq "fetch") {	
-				print 	"##########################################\n" .
+				print 	"# Fetch ####################################\n" .
 					"Filename: $result{'filename'} \n" .
 					"Size    : $result{'size'}\n" .
 					"MD5     : $result{'md5'}\n";
 			} elsif ($request{'action'} eq "store") {
+				print 	"# Store ####################################\n" .
 				print 	"Queue Position: $result{'position'} \n".
 					"Remote File   : $result{'filename'}\n" .
 					"Result        : $result{'message'}\n";
 			} elsif ($request{'action'} eq "status" ) {
-				print 	"##########################################\n" .
+				print 	"# Status ###################################\n" .
 					" OpenFPC Node name   :  $result{'nodename'}\n".
 					" OpenFPC Node Type   :  $result{'ofpctype'} \n".
 					" Oldest Packet       :  $result{'firstpacket'} \n".
@@ -266,7 +267,13 @@ if ($cmdargs{'help'}) {
 # Check we have enough constraints to make an extraction with.
 if ($request{'action'} =~ m/(fetch|store)/)  {
 	unless ($request{'logline'} or ($cmdargs{'sip'} or $cmdargs{'dip'} or $cmdargs{'spt'} or $cmdargs{'dpt'} )) {
-		showhelp;
+		unless ($cmdargs{'gui'} )  {
+			showhelp;
+		} else {
+			$result{'message'} = "Insufficient Constraints added. Please add some session identifiers";
+			displayResult($cmdargs{'gui'});
+			exit 1;
+		}
 		print "Error: This action requres a request line or session identifiers\n\n";
 		exit;
 	}
