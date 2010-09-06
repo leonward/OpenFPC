@@ -65,13 +65,21 @@ if ($notdstport)  $dstport = strip_not($dstport);
 
 switch ($op) {
 
-    case "search":
+    case "Search connection table":
 
         $out = mainDisplay();
 	$out .= showResults();
         //$data = doSessionQuery();
         //pollParse($data);
         break;
+
+    case "Extract pcap":
+        $out = mainDisplay();
+        //$data = doSessionQuery();
+	$out .= extractPcapFromSearch();	
+        //pollParse($data);
+        break;
+        
         
     case "dump":
 	$out = mainDisplay();
@@ -87,7 +95,8 @@ switch ($op) {
 
     case "Fetch pcap":
 
-	$out = extractPcapFromLog("fetch");
+	$out = mainDisplay();
+	$out .= extractPcapFromLog("fetch");
 	break;
 
     default:
@@ -163,7 +172,8 @@ function mainDisplay() {
     $out .= "</div></td>";
 
     $out .= "<td width=40 valign=middle align=center><div style=\"font-size: 10px; color: #DEDEDE\">";
-    $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"search\">";
+    $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"Search connection table\">";
+    $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"Extract pcap\">";
     $out .= "</div></td>";
     
     $out .= "</font></td></tr></table></form></div>";
@@ -241,7 +251,7 @@ function extractPcapFromLog($action) {
 		}
 	} else {
 		$infomsg = "Error: $message<br>";
-		$infomsg .= "$e";
+		#$infomsg .= "$e";
 		$out .= infoBox($infomsg);
 	}
 	$out .= "<!-- /extractPcapFromLog -->\n";
@@ -285,6 +295,49 @@ function extractPcapFromSession() {
 	$out .= infoBox($infobox);	
 	return $out;
 }
+
+// The "Extract pcap" button doesn't search the DB for session data, it just extracts as requested.
+// Why? Well there are two answers to that. 
+// 1) I think there will be times when people don't track connection data (storage, CPU, IO limits)
+// 2) On a master device, there won't be a central DB to search over. This way a quick extraction can
+// take place.
+// -Leon 
+
+function extractPcapFromSearch() {
+	global $ofpcuser, $ofpcpass,$ofpc_client, $start_date, $srcip, $dstip, $srcport, $dstport, $protocol;
+	$exec = "$ofpc_client -u $ofpcuser -p $ofpcuser --gui ";
+
+	if ($srcip) { $exec .= " --src-addr " . $srcip ; }
+	if ($dstip) { $exec .= " --dst-addr " . $dstip ; }
+	if ($srcport) { $exec .= " --src-port " . $srcport ; }
+	if ($dstport) { $exec .= " --dst-port " . $dstport ; }
+	if ($protocol) { $exec .= " --proto " . $protocol ; }
+
+	$e = escapeshellcmd($exec);
+	$shellresult = shell_exec($e);
+
+	list($result,$action,$filename,$size,$md5,$expected_md5,$position,$message) = explode(",",$shellresult);
+	$pathfile=explode("/",$filename);       # Break path and filename from filename 
+	$file=array_pop($pathfile);             # Pop last element of path/file array
+
+	if ($result) {
+		$infobox .= "Exec: $exec <br>";
+		$infobox .= "MD5: $md5 <br>";
+		$infobox .= "Size: $size <br>";
+		serv_pcap("$filename","$file");
+		exit(0);
+	} else {
+		$infobox ="Error: $message <br>";
+		#$infobox .= "Error: $exec <br>";
+	}
+
+	$out .= infoBox($infobox);	
+	return $out;
+}
+
+
+
+
 
 function dumpDisplay() {
     global $openfpcdir, $tcpdump, $ipv, $mergecap, $mrgtmpdir;
