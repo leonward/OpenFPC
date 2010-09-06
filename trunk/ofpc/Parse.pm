@@ -131,6 +131,17 @@ sub OFPC1Event{
 	if ($logline =~ m/proto:(tcp|udp|icmp)\s/i) {
                 $event{'proto'} = $1; 
         }
+
+	# Handle protocol if specified by a number
+	# Right now, i'm not sure if this will 'just work', or if we need to convert into tcp etc.
+	# If it works, I can just add the valid entries into the above (tcp|etc).
+	# -Leon
+
+	if ($logline =~ m/proto:(6|1|17)\s/i) {
+                $event{'proto'} = $1; 
+        }
+	
+	
 	if ($logline =~ m/timestamp:\s*(\d{1,20})/) { 
 		#m/timestamp:\s*(\d*)\s/ ) { 
         	$event{'timestamp'}=$1;
