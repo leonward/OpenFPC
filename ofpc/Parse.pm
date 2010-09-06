@@ -30,7 +30,7 @@ $VERSION = '0.2';
 
 =head2 ParseSessionToLogline
 
-	Take a hashref of session id's (sip,dip etc) and return a "logline" that
+	Take a hashref of session id's (sip,dip,timestamp etc) and return a "logline" that
 	can be made in an ofpc-vX request.
 	- Leon
 =cut
@@ -52,12 +52,19 @@ sub sessionToLogline{
 	$logline .= "dip:$req->{'dip'} " if ($req->{'dip'});
 	$logline .= "dpt:$req->{'dpt'} " if ($req->{'dpt'});
 	$logline .= "spt:$req->{'spt'} " if ($req->{'spt'});
+	$logline .= "stime:$req->{'stime'} " if ($req->{'stime'});
+	$logline .= "etime:$req->{'etime'} " if ($req->{'etime'});
+	$logline .= "etime:$req->{'timestamp'} " if ($req->{'timestamp'});
+	
 
-	unless ($req->{'timestamp'}) { 	
+	unless ($req->{'timestamp'} or ($req->{'stime'} and $req->{'etime'})) { 	
 		# No timestamp specified, lets assume a NOW - $timeoffset seconds
+		print "No timestamp specified - Assuming now - timeoffset seconds\n";
 		$req->{'timestamp'} = $now - $timeoffset;
+		$logline .= "timestamp:$req->{'timestamp'} ";
 	}
-	$logline .= "timestamp:$req->{'timestamp'} ";
+
+
 
 	return($logline);
 }
@@ -78,7 +85,7 @@ sub parselog{
                 %eventdata=ofpc::Parse::Exim4($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=ofpc::Parse::SnortSyslog($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=ofpc::Parse::SnortFast($logline); if ($eventdata{'parsed'} ) { last; }
-		print Dumper %eventdata;
+		print Dumper $logline;
                 return(0, "Unable to parse log message");
         }   
  
@@ -86,6 +93,8 @@ sub parselog{
                 print "   ---Decoded Event---\n" .
                        "   Type: $eventdata{'type'}\n" .
                        "   Timestamp: $eventdata{'timestamp'} (" . localtime($eventdata{'timestamp'}) . ")\n" .
+		       "   stime: $eventdata{'stime'} \n" .
+		       "   etime: $eventdata{'etime'} \n" .
                        "   SIP: $eventdata{'sip'}\n" .
                        "   DIP: $eventdata{'dip'}\n" .
                        "   SPT: $eventdata{'spt'}\n" .
@@ -118,6 +127,8 @@ sub OFPC1Event{
 		'timestamp' => 0,
 		'bpf' => 0,
 		'device' => 0,
+		'stime' => 0,
+		'etime' => 0,
 		'parsed' => 0
 		);
 
@@ -146,6 +157,16 @@ sub OFPC1Event{
 		#m/timestamp:\s*(\d*)\s/ ) { 
         	$event{'timestamp'}=$1;
 	} 
+	
+	if ($logline =~ m/stime:\s*(\d{1,20})/) { 
+		#m/timestamp:\s*(\d*)\s/ ) { 
+        	$event{'stime'}=$1;
+	} 
+	
+	if ($logline =~ m/etime:\s*(\d{1,20})/) { 
+		#m/timestamp:\s*(\d*)\s/ ) { 
+        	$event{'etime'}=$1;
+	} 
 
 	
         if ($logline =~ /sip:\s*(\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b)/) {
@@ -161,12 +182,16 @@ sub OFPC1Event{
         if ($logline =~ /dpt:\s*(\d{1,5})/) {
                         $event{'dpt'} = $1;
 	}
-
 	# ofpc-v1 Events start with ofpc-v1 type:event
-	if ( ($logline =~/^ofpc-v1\s*type:\s*event/i) and $event{'timestamp'}) {
+	# here
+	if ( ($logline =~/^ofpc-v1\s*type:\s*event/i) and ($event{'timestamp'})) {
 		$event{'parsed'}=1;
-	
 	}
+	
+	if ( ($logline =~/^ofpc-v1\s*type:\s*search/i) and ($event{'stime'} and $event{'etime'})) {
+		$event{'parsed'}=1;
+	}
+
 	print Dumper %event;
 	return(%event);
 

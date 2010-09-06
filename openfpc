@@ -91,6 +91,10 @@ function clean()
 
 function openfpcqstart() 
 {
+	if [ "$IAM" != "root" ]
+	then
+		die "[!] Must be root"
+	fi
 	if [ -f $OFPC_Q_PID ] 
 	then
 		QPID=$(cat $OFPC_Q_PID) || QPID=none
@@ -111,6 +115,10 @@ function openfpcqstart()
 
 function openfpcqstop()
 {
+	if [ "$IAM" != "root" ]
+	then
+		die "[!] Must be root"
+	fi
 	if [ -f $OFPC_Q_PID ] 
 	then
 		QPID=$(cat $OFPC_Q_PID) || QPID=none
@@ -350,11 +358,23 @@ case $1 in
 	clean)
 		clean	
 	;;
+	dlstart)
+		daemonloggerstart
+	;;
+	dlstop)
+		daemonloggerstop
+	;;
 	cxstart)
 		cxtrackerstart
 	;;
 	cxstop)
 		cxtrackerstop
+	;;	
+	qstop)
+		openfpcqstop	
+	;;	
+	qstart)
+		openfpcqstart
 	;;	
 	test)
 		cxtrackerstop
@@ -370,14 +390,25 @@ case $1 in
 		status
 	;;
 	*)
-		echo -e " Usage"
-		echo -e " --------------"
-		echo -e " openfpc start"
-		echo -e " openfpc stop"
-		echo -e " openfpc status - Show buffer status"	
-		echo -e " openfpc clean  - Delete old buffers"	
-		echo -e " openfpc cxstart  - Start cxtracker only"
-		echo -e " openfpc cxstop   - Stop cxtracker only"
+
+
+echo -e "
+
+Usage 
+-------------------------
+openfpc start      - Start all OpenFPC services
+openfpc stop       - Stop all OpenFPC services
+
+openfpc status     - Show OpenFPC status
+openfpc clean      - Delete old buffers
+
+openfpc cxstart    - Start cxtracker only
+openfpc cxstop     - Stop cxtracker only
+openfpc dlstart    - Daemonlogger start
+openfpc dlstop     - Daemonlogger stop
+openfpc qstop      - OpenFPC Queued stop
+openfpc qstart     - OpenFPC Queued start
+"	
 		
 	;;
 esac

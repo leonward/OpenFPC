@@ -288,6 +288,7 @@ sub request{
 							ld1 => 0,
 							ld5 => 0,
 							ld15 => 0,	
+							version => 0,
 						);
 
                                         if ($data =~ /^STATUS:\s*(.*)/) {
@@ -307,7 +308,8 @@ sub request{
                                                 $status{'ld5'},
                                                 $status{'ld15'},
                                                 $status{'comms'},
-                                                $status{'message'} )= split(/\|\|/,$statresp);	
+                                                $status{'message'} ,
+						$status{'version'} )= split(/\|\|/,$statresp);	
 					return %status;
 			} case /PCAP/ {
 					my $filetype;

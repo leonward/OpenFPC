@@ -100,46 +100,25 @@ sub showhelp{
   --comment or -m 			Comment for session
   --device 				Slave device to extract from (via master --server)
 
-  -------- Constraints -------
-
+  -------- Traffic Constraints -------
+  
   --logline or -e <line>		Logline, must be supported by ofpc::Parse
   --src-addr <host>			Source IP
   --dst-addr <host>			Destination IP
   --src-port <port>			Source Port
   --dst-port <port>			Destination Port
   --vlan <vlan>				VLAN ID (NOT DONE YET)
+
+  -------- Time Constraints -------
+
   --timestamp	<timestamp>		Event timestamp
-  --eachway <count>			Numer of files to search over  (NOT DONE YET)
+  --eachway <count>			Expand timestamp over extra files (NOT DONE YET)
+  --stime				Start timestamp
+  --etime                               End timestamp
 
 EOF
 }
 
-sub sessionToLogline{
-	# ofpc-v1 type:event sip:1.1.1.1 dip:1.1.1.1 spt:3432 dpt:1234 proto:tcp time:246583 msg:Some freeform text
-	# Take in a hash of session data, and return a "ofpc-v1" log format
-
-	my $req=shift;
-	my $logline = "ofpc-v1 ";
-	
-	if ($req->{'stime'} or $req->{'etime'}) {
-		$logline .= "type:search ";
-	} else {
-		$logline .= "type:event ";
-	}
-	$logline .= "sip:$req->{'sip'} " if ($req->{'sip'});
-	$logline .= "dip:$req->{'dip'} " if ($req->{'dip'});
-	$logline .= "dpt:$req->{'dpt'} " if ($req->{'dpt'});
-	$logline .= "spt:$req->{'spt'} " if ($req->{'spt'});
-
-	unless ($req->{'timestamp'}) { 	
-		# No timestamp specified, lets assume a NOW - $timeoffset seconds
-		$req->{'timestamp'} = $now - $timeoffset;
-		print "DEBUG: No --timestamp specified, defaulting to last $timeoffset seconds ($req->{'timestamp'})\n" if ($debug);
-	}
-	$logline .= "timestamp:$req->{'timestamp'} ";
-
-	return($logline);
-}
 
 sub displayResult{
 	# TODO, why the hell is $result a global?
@@ -148,20 +127,21 @@ sub displayResult{
 	if ($result{'success'} == 1) { 			# Request is Okay and being processed
 		unless ($cmdargs{'gui'}) {  		# Command line output
 			if ($request{'action'} eq "fetch") {	
-				print 	"# Fetch ####################################\n" .
+				print 	"#####################################\n" .
 					"Filename: $result{'filename'} \n" .
 					"Size    : $result{'size'}\n" .
 					"MD5     : $result{'md5'}\n";
 			} elsif ($request{'action'} eq "store") {
-				print 	"# Store ####################################\n" .
-				print 	"Queue Position: $result{'position'} \n".
+				print 	"#####################################\n" .
+				 	"Queue Position: $result{'position'} \n".
 					"Remote File   : $result{'filename'}\n" .
 					"Result        : $result{'message'}\n";
 			} elsif ($request{'action'} eq "status" ) {
-				print 	"# Status ###################################\n" .
+				print 	"####################################\n" .
 					" OpenFPC Node name   :  $result{'nodename'}\n".
 					" OpenFPC Node Type   :  $result{'ofpctype'} \n".
-					" Oldest Packet       :  $result{'firstpacket'} \n".
+					" OpenFPC Version     :  $result{'version'} \n".
+					" Oldest Packet       :  $result{'firstpacket'} (" . localtime($result{'firstpacket'}) .")\n".
 					" Packet utilization  :  $result{'packetspace'}\% \n" .
 					" Session utilization :  $result{'sessionspace'}\% \n" .
 					" Storage utilization :  $result{'savespace'}\% \n" .
@@ -222,8 +202,11 @@ GetOptions (    'u|user=s' => \$cmdargs{'user'},
                 'dst-port=s' => \$cmdargs{'dpt'},
                 'proto=s' => \$cmdargs{'proto'},
 		'device=s' => \$cmdargs{'device'},
+		'stime=s' =>  \$cmdargs{'stime'},
+		'etime=s' => \$cmdargs{'etime'},
                 );
 
+# Need to tidy this up.
 if ($cmdargs{'user'}) { $request{'user'} = $cmdargs{'user'}; }
 if ($cmdargs{'server'}) { $config{'server'} = $cmdargs{'server'}; }
 if ($cmdargs{'port'}) { $config{'port'} = $cmdargs{'port'}; }
@@ -235,6 +218,10 @@ if ($cmdargs{'password'}) { $request{'password'} = $cmdargs{'password'}; }
 if ($cmdargs{'comment'}) { $request{'comment'} = $cmdargs{'comment'}; }
 if ($cmdargs{'device'}) { $request{'device'} = $cmdargs{'device'}; }
 if ($cmdargs{'zip'}) { $request{'filetype'} = "ZIP"; }
+
+$request{'stime'} 	= $cmdargs{'stime'} 	if ($cmdargs{'stime'});
+$request{'etime'} 	= $cmdargs{'etime'} 	if ($cmdargs{'etime'});
+
 
 if ($cmdargs{'debug'}) { 
 	$debug=1;
@@ -292,7 +279,7 @@ if ($cmdargs{'gui'}) {
 
 # Convert session info into a "logline" to make a request.
 unless ($cmdargs{'logline'}) {
-	my $logline=sessionToLogline(\%cmdargs);
+	my $logline=ofpc::Parse::sessionToLogline(\%cmdargs);
 	$request{'logline'} = $logline;	
 	print "Logline created from session IDs: $request{'logline'}\n" if ($debug);
 }
