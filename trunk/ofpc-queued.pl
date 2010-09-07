@@ -1015,9 +1015,9 @@ sub bufferRange {
 	my $vdebug=1;
 
 	@tmp=findBuffers($starttimestamp,0);
-	my $startfile=@tmp[0];		# Grab expected -1
+	my $startfile=$tmp[0];		# Grab expected -1
 	@tmp=findBuffers($endtimestamp,0);
-	my $endfile=@tmp[0];		# Grab expected +1 
+	my $endfile=$tmp[0];		# Grab expected +1 
 
 	print "\nbufferRange mode \n".
 		"Starting seach in $startfile ($starttimestamp)\n".
