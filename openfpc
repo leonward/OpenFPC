@@ -46,7 +46,7 @@ TCPDUMPOPTS="-Z root"
 openfpcver=0.2
 PID_FILE=openfpc-dl
 PID_PATH=/var/run
-FILENAME=openfpc-pcap
+FILENAME=ofpc-
 OPENFPCQD=$INSTALL_DIR/ofpc-queued.pl
 CXPIDFILE=/var/run/cxtracker.pid 
 
@@ -337,9 +337,12 @@ function status()
 			echo -e "[!] cxtracker not running"
 		fi
 	fi
-	SESSION_LAG=$(ls -l $SESSION_DIR |grep -v failed | grep -v total | wc -l)
-	echo -e " -  Session tempdir         $SESSION_DIR" 
-	echo -e " -  Session lag             $SESSION_LAG"
+	if [ $ENABLE_SESSION == 1 ]
+	then
+		SESSION_LAG=$(ls -l $SESSION_DIR |grep -v failed | grep -v total | wc -l)
+		echo -e " -  Session tempdir         $SESSION_DIR" 
+		echo -e " -  Session lag             $SESSION_LAG"
+	fi
 
 }
 
