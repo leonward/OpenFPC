@@ -24,6 +24,7 @@ openfpcver="0.2"
 TARGET_DIR="/opt/openfpc"
 CONF_DIR="/etc/openfpc"
 INSTALL_FILES="ofpc-client.pl openfpc openfpc.conf ofpc-queued.pl setup-ofpc.pl"
+PROG_FILES="ofpc-client.pl ofpc-queued.pl setup-ofpc.pl"
 WWW_FILES="index.php bluegrade.png"
 WWW_DIR="$TARGET_DIR/www"
 PERL_MODULES="Parse.pm Request.pm"
@@ -32,11 +33,12 @@ INIT_DIR="/etc/init.d/"
 REQUIRED_BINS="tcpdump date mergecap perl tshark"
 LOCAL_CONFIG="/etc/openfpc/openfpc.conf"
 PERL_LIB_DIR="/usr/local/lib/site_perl"
+BIN_DIR="/usr/local/bin"
 
+DEPSOK=0			# Track if obvious deps are met
 DISTRO="AUTO"		# Try to work out what distro we are installing on
 # DISTRO="RH"		# force to RedHat
 # DISTRO="Debian" 	# Force to Debian / Ubuntu
-
 
 
 IAM=$(whoami)
@@ -57,6 +59,68 @@ function chkroot()
 	fi
 }
 
+function checkdeps()
+{
+	if [ "$DISTRO" == "DEBIAN" ] 
+	then
+		DEPS="apache2 daemonlogger tcpdump tshark libarchive-zip-perl libfilesys-df-perl " 
+	elif [ "$DISTRO" == "REDHAT" ] 
+	then
+		DEPS=""
+	else
+		echo -e "Package checking only supported on Debian/Redhat OSs"
+		echo "Use --force to skip checks, and fix problems by hand"
+	fi
+
+	# Check if some obvious dependencies are met	
+	for dep in $DEPS
+	do
+		echo -e " -  Checking for $dep ..."
+		if  dpkg --status $dep > /dev/null 2>&1
+		then
+			echo -e "    $dep Okay"
+		else
+			DEPSOK=1
+			echo -e " !  ERROR: Package $dep is not installed."
+		fi
+	done	
+
+
+	if [ "$DEPSOK" != 0 ]
+	then
+		echo -e "--------------------------------"
+		echo -e "Problem with above dependencies, please install them before continuing"
+		if [ "$DISTRO" == "DEBIAN" ] 
+		then
+			echo -e "Hint: sudo apt-get install $DEPS\n"
+		else 
+			echo -e "Hint: yum install $DEPS\n"
+		fi
+
+		exit 1
+	fi
+
+	# Extra warning for cxtracker as it's not included in either of the distros we work with
+	# 
+	if which cxtracker
+	then
+		echo "* Found cxtracker in your path!"
+	else
+		echo -e "
+###########################################################
+# WARNING: No cxtracker found in path!
+###########################################################
+# This may be Okay if you expect it not to be found.
+# cxtracker likely isn't included as part of your distro's
+# package manager. Go grab it from www.openfpc.org/downloads
+# Without cxtracker OpenFPC will function, but you loose 
+# the ability to search flow/connection data in the web UI.
+# All PCAP capture and extraction capabilities will still function.
+# -Leon
+###########################################################
+"
+	fi 
+}
 
 function doinstall()
 {
@@ -116,6 +180,14 @@ function doinstall()
 		cp ofpc/$file $PERL_LIB_DIR/ofpc/$file
 	done
 
+	###### Programs ######
+
+	for file in $PROG_FILES
+	do
+		echo -e " -  Installing application $file"
+		cp $file $BIN_DIR
+	
+	done
 
 	###### WWW files #####
 
@@ -132,10 +204,12 @@ function doinstall()
 		cp www/$file $WWW_DIR/$file
 	done
 
+	echo -e "[*] -------- Enabling and restarting Apache2 --------"	
 	# Add openfpc config in apache
 	cp etc/openfpc.apache2.conf /etc/apache2/sites-available/openfpc
 	a2ensite openfpc
 	service apache2 reload
+	echo -e "-----------------------------------------------------"
 
 	###### init #######
 
@@ -197,7 +271,21 @@ function remove()
 	echo -e "[*] Disabling OpenFPC GUI"
 	a2dissite openfpc
 	service apache2 reload
-	rm /etc/apache2/sites-available/openfpc
+	[ -f /etc/apache2/sites-available/openfpc ] && rm /etc/apache2/sites-available/openfpc 
+
+
+	echo -e "[*] Removing ofpc-progs ..."
+
+	for file in $PROG_FILES
+	do
+		if [ -f $BIN_DIR/$file ] 
+		then
+			echo -e "    Removed   $BIN_DIR/$file"
+			rm $BIN_DIR/$file || echo -e "unable to delete $BIN_DIR/$file"
+		else
+			echo -e "    Not Found $BIN_DIR/$file"	
+		fi
+	done
 	
 	echo -e "[*] Removing files..."
 
@@ -237,12 +325,12 @@ function remove()
 	# Remove the password file if it has been created
 	[ -f $TARGET_DIR/apache2.passwd ] && rm $TARGET_DIR/apache2.passwd
 
+	echo -e "[*] Removing ofpc wwwroot"
 	if [ -d $WWW_DIR ] 
 	then
 		rm -r $WWW_DIR  || echo -e "[!] Unable to delete $WWW_DIR"
 		echo -e " -  Removed $WWW_DIR"
 	fi
-	rm -r $WWW_DIR
 
 	echo -e "[*] Removing Symlinks..."
 	for file in $INIT_SCRIPTS
@@ -348,7 +436,7 @@ function installstatus()
 
 echo -e "
 **************************************************************************
- *  OpenFPC installer - leon@rm-rf.co.uk v$openfpcver
+ *  OpenFPC installer - Leon Ward (leon@openfpc.org) v$openfpcver
     A set if scripts to help manage and find data in a large network traffic
     archive. 
 
@@ -372,6 +460,10 @@ fi
 
 case $1 in  
         install)
+		checkdeps
+                doinstall
+        ;;
+        forceinstall)
                 doinstall
         ;;
         remove)
@@ -387,10 +479,11 @@ case $1 in
 		doinstall
 	;;
      *)
-                echo -e " install   - Install the system"
-                echo -e " remove     - Remove the system"
-                echo -e " status     - Check install status"
-                echo -e " reinstall  - Re-install system"
+                echo -e " install   	- Install the system"
+                echo -e " forceinstall  - Install the system without checking for deps"
+                echo -e " remove     	- Remove the system"
+                echo -e " status     	- Check install status"
+                echo -e " reinstall  	- Re-install system"
 		echo -e "\n Example:"
 		echo -e " $ sudo ./install-openfpc install"
         ;;
