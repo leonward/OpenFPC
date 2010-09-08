@@ -45,7 +45,8 @@ my %config=(
 		OFPC_PORT => "4242",
 		MASTER => 0,
 		BUFFER_PATH => "/var/tmp/openfpc",
-		FILE_SIZE => "10M",
+	 	FILE_SIZE => "1G",
+	 #	FILE_SIZE => "10M",
 		DISK_SPACE => "50",
 		SESSION_DB_NAME => "openfpc",
 		SESSION_DB_USER => "openfpc",
@@ -288,7 +289,7 @@ interview(@qlist);
 
 # Add users for ofpc-queued
 # Here
-print "\n------ OpenFPC User definition ------\n";
+print "\n------ OpenFPC User definitions ------\n";
 print "* Current Users:\n";
 foreach my $user (keys %userlist){
 	print "* Found existing user - $user\n";
@@ -369,7 +370,6 @@ if ($config{'ENABLE_SESSION'})  {
 		print "- Creating $config{'SESSION_DIR'}\n";
 		mkdir($config{'SESSION_DIR'})  or die("Unable to mkdir $config{'SESSION_DIR'}");
 	}
-
 }
 
 # Enable/change password for GUI
@@ -413,3 +413,7 @@ You can now start OpenFPC with the command
 
 \n";
 
+if ($config{'ENABLE_SESSION'})  {
+	print "WARNING: Use ofpc-dbmain.sh to create your session database\n";
+	print "  \$ /opt/openfpc/ofpc-dbmaint.sh create\n";
+}

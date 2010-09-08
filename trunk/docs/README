@@ -7,22 +7,7 @@ Notes on actions that can be sent by client to master or slave devices.
 fetch         Fetch pcap and return to client/server
 store         Request data for extraction, and disconnect.
 status        Provide status of slave device
-ctxsum        Get traffic/connection summary between starttime/endtime
-ctxall        Get traffic/connection tables between starttime/endtime
+ctxsum        Get traffic/connection summary between starttime/endtime	FUTURE
+ctxall        Get traffic/connection tables between starttime/endtime	FUTURE
 replay        Replay traffic (FUTURE)
-
-OpenFPC-v1\n
-<userid>||<action>||<device>||<filename>||<filetype>||<logformat>||<data>
-
-
-userid = Username
-action = Action to take (e.g. fetch)
-device = slave device to request from
-filename = request a filename to create
-filetype = ZIP or PCAP
-logformat = format of logs, e.g. snort
-data = the request log-line
-
-
-Status format
 
