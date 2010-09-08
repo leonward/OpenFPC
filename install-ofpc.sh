@@ -23,7 +23,7 @@
 openfpcver="0.2"
 TARGET_DIR="/opt/openfpc"
 CONF_DIR="/etc/openfpc"
-INSTALL_FILES="ofpc-client.pl openfpc openfpc.conf ofpc-queued.pl setup-ofpc.pl"
+INSTALL_FILES="ofpc-client.pl openfpc openfpc.conf ofpc-queued.pl setup-ofpc.pl ofpc-dbmaint.sh"
 PROG_FILES="ofpc-client.pl ofpc-queued.pl setup-ofpc.pl"
 WWW_FILES="index.php bluegrade.png"
 WWW_DIR="$TARGET_DIR/www"
@@ -63,7 +63,7 @@ function checkdeps()
 {
 	if [ "$DISTRO" == "DEBIAN" ] 
 	then
-		DEPS="apache2 daemonlogger tcpdump tshark libarchive-zip-perl libfilesys-df-perl " 
+		DEPS="apache2 daemonlogger tcpdump tshark libarchive-zip-perl libfilesys-df-perl libapache2-mod-php5 mysql-server" 
 	elif [ "$DISTRO" == "REDHAT" ] 
 	then
 		DEPS=""
@@ -75,13 +75,13 @@ function checkdeps()
 	# Check if some obvious dependencies are met	
 	for dep in $DEPS
 	do
-		echo -e " -  Checking for $dep ..."
+		echo -e "[-] Checking for $dep ..."
 		if  dpkg --status $dep > /dev/null 2>&1
 		then
 			echo -e "    $dep Okay"
 		else
 			DEPSOK=1
-			echo -e " !  ERROR: Package $dep is not installed."
+			echo -e "[!] ERROR: Package $dep is not installed."
 		fi
 	done	
 
@@ -92,8 +92,10 @@ function checkdeps()
 		echo -e "Problem with above dependencies, please install them before continuing"
 		if [ "$DISTRO" == "DEBIAN" ] 
 		then
+			echo -e "As you're running a distro based on Debian..."
 			echo -e "Hint: sudo apt-get install $DEPS\n"
 		else 
+			echo -e "As you're running a distro based on RedHat..."
 			echo -e "Hint: yum install $DEPS\n"
 		fi
 
@@ -110,6 +112,7 @@ function checkdeps()
 ###########################################################
 # WARNING: No cxtracker found in path!
 ###########################################################
+# Don't Panic! 
 # This may be Okay if you expect it not to be found.
 # cxtracker likely isn't included as part of your distro's
 # package manager. Go grab it from www.openfpc.org/downloads
