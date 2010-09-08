@@ -49,7 +49,7 @@ PID_PATH=/var/run
 FILENAME=ofpc-
 OPENFPCQD=$INSTALL_DIR/ofpc-queued.pl
 CXPIDFILE=/var/run/cxtracker.pid 
-
+CX2DB_PID_FILE="/var/run/ofpc-cx2db.pid"
 
 if [ "$DONE" != "y" ] 
 then
@@ -134,6 +134,11 @@ function openfpcqstop()
 
 function cxtrackerstart()
 {
+	if [ "$IAM" != "root" ]
+	then
+		die "[!] Must be root"
+	fi
+
 	if [ $ENABLE_SESSION == 1 ] 
 	then
 		echo "[*] Session search enabled"
@@ -152,6 +157,30 @@ function cxtrackerstart()
 			-D"
 
 		$CMD
+		echo "[*] Starting OpenFPC Connection -> Connection inserter"
+
+		if [ -f $CX2DB_PID_FILE ] 
+		then
+			CX2DB_PID=$(cat $CX2DB_PID_FILE) || CX2DB_PID=none
+			if ps $CX2DB_PID > /dev/null 2>&1
+			then
+				echo -e "[*] OpenFPC Connection to DB already running as Pid: $CX2DB_PID"
+			fi
+		fi
+			
+			ofpc-cx2db.pl --daemon --config $CONFIG
+			# Sleep for 2 seconds to make sure we can connect to the local DB
+			# TODO: Make cx2db connect to the DB before it daemonizes
+
+			sleep 1 
+	  		CX2DB_PID=$(cat $CX2DB_PID_FILE) || CX2DB_PID=none
+
+	                if ps $CX2DB_PID > /dev/null 2>&1
+       		       	then
+                        	echo -e "[-] OpenFPC Connection -> DB running as Pid: $CX2DB_PID"
+                	else   	
+                        	echo -e "[!] OpenFPC Connection -> DB FAILED TO START"
+			fi
 	else 
 		echo "[*] Session search disabled on this host"
 	fi
@@ -294,7 +323,7 @@ function status()
 			DPID=$(cat $PID_PATH/$PID_FILE)
 			if ps $DPID  > /dev/null
 			then
-				echo "[*] Traffic buffer (Daemonlogger) running with pid $DPID "a
+				echo "[*] Traffic buffer (Daemonlogger) running with pid $DPID "
 			fi
 		else
 				echo "[!] Traffic buffer (Daemonlogger) not running"
@@ -383,10 +412,12 @@ case $1 in
 		cxtrackerstop
 	;;
 	restart)
+		cxtrackerstop
 		daemonloggerstop
 		openfpcqstop
 		sleep 2
 		daemonloggerstart
+		cxtrackerstart
 		openfpcqstart	
 	;;
 	status)
