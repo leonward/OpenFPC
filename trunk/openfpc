@@ -151,10 +151,18 @@ function cxtrackerstart()
 				return
 			fi
 		fi
-		CMD="$CXTRACKER \
-			-i $INTERFACE \
-			-d $SESSION_DIR \
-			-D"
+		# Check if we have cxtracker 
+		if  $CXTRACKER -h > /dev/null  2>&1
+		then
+			CMD="$CXTRACKER \
+				-i $INTERFACE \
+				-d $SESSION_DIR \
+				-D"
+		else
+			echo -e "[!] Cant exec cxtracker \"$CXTRACKER\""
+			echo -e "    Install cxtracker to enable session search"
+			return
+		fi
 
 		$CMD
 		echo "[*] Starting OpenFPC Connection -> Connection inserter"
