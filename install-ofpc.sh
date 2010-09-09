@@ -63,7 +63,7 @@ function checkdeps()
 {
 	if [ "$DISTRO" == "DEBIAN" ] 
 	then
-		DEPS="apache2 daemonlogger tcpdump tshark libarchive-zip-perl libfilesys-df-perl libapache2-mod-php5 mysql-server" 
+		DEPS="apache2 daemonlogger tcpdump tshark libarchive-zip-perl libfilesys-df-perl libapache2-mod-php5 mysql-server php5-mysql" 
 	elif [ "$DISTRO" == "REDHAT" ] 
 	then
 		DEPS=""
@@ -106,7 +106,7 @@ function checkdeps()
 	# 
 	if which cxtracker
 	then
-		echo "* Found cxtracker in your path!"
+		echo "* Found cxtracker in your \$PATH (good)"
 	else
 		echo -e "
 ###########################################################
@@ -432,7 +432,7 @@ function installstatus()
 	then
 		echo -e "  Installation Okay"
 	else
-		echo -e "  Install has problems"
+		echo -e "  OpenFPC Not installed correctly"
 	fi
 	echo -e "--------------------------------"
 }
