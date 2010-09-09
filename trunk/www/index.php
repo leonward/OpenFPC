@@ -17,22 +17,42 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 # --------------------------------------------------------------------------
 
+
+// Read in configuration from openfpc.conf
+$configfile="/etc/openfpc/openfpc.conf";
+$file = fopen($configfile, "r");
+
+// Save config and users into an array
+while ( $line = fgets($file, 200) ) {
+#	print "$line<br>";
+	if ( preg_match("/^USER/", "$line")) {
+		list ($tmp,$user,$pass) = (explode("=",$line));
+		$users["$user"] = $pass;
+	}
+
+	list ($configkey,$configval) = (explode("=",$line));
+	$config["$configkey"] = $configval;
+}
+fclose($file);
+
 // openfpc Database Settings
 $dbhost = "127.0.0.1";
-$dbuser = "ofpc";
-$dbpass = "ofpc";
-$dbname = "ofpc";
+$dbuser = $config["SESSION_DB_USER"];
+$dbpass = $config["SESSION_DB_PASS"];
+$dbname = $config["SESSION_DB_NAME"];
 
 //OFPC Queue Daemon Settings
-$ofpcuser = "ofpc";
-$ofpcpass = "ofpc";
+$ofpcuser = $config["GUIUSER"];
+$ofpcpass = $config["GUIPASS"];
+
+print "user= $ofpcuser pass= $ofpcpass\n";
 
 // Settings
 $maxRows = 20;
-$openfpcdir = "/var/tmp/openfpc/";
-$mrgtmpdir = "/tmp/merge/";
-$tcpdump = "/usr/sbin/tcpdump";
-$mergecap = "/usr/bin/mergecap";
+#$openfpcdir = "/var/tmp/openfpc/";
+#$mrgtmpdir = "/tmp/merge/";
+#$tcpdump = "/usr/sbin/tcpdump";
+#$mergecap = "/usr/bin/mergecap";
 $ofpc_client = "/opt/openfpc/ofpc-client.pl";
 
 // Variable Initialization
@@ -269,7 +289,7 @@ function extractPcapFromSession() {
 	$sudate = dd2unix($sddate);
 	$eudate = dd2unix($eddate);
 
-	$exec = "$ofpc_client -u $ofpcuser -p $ofpcuser " . 
+	$exec = "$ofpc_client -u $ofpcuser -p $ofpcpass " . 
 		" --gui " .
 		" --timestamp " . $sudate .
 		" --src-addr "  . $array["src_ip"] .
@@ -305,7 +325,7 @@ function extractPcapFromSession() {
 
 function extractPcapFromSearch() {
 	global $ofpcuser, $ofpcpass,$ofpc_client, $start_date, $srcip, $dstip, $srcport, $dstport, $protocol;
-	$exec = "$ofpc_client -u $ofpcuser -p $ofpcuser --gui ";
+	$exec = "$ofpc_client -u $ofpcuser -p $ofpcpass --gui ";
 
 	if ($srcip) { $exec .= " --src-addr " . $srcip ; }
 	if ($dstip) { $exec .= " --dst-addr " . $dstip ; }
@@ -320,8 +340,8 @@ function extractPcapFromSearch() {
 	$pathfile=explode("/",$filename);       # Break path and filename from filename 
 	$file=array_pop($pathfile);             # Pop last element of path/file array
 
-	if ($result) {
-		$infobox .= "Exec: $exec <br>";
+	if ($result == 1 ) {
+		#$infobox .= "Exec: $exec <br>";
 		$infobox .= "MD5: $md5 <br>";
 		$infobox .= "Size: $size <br>";
 		serv_pcap("$filename","$file");
