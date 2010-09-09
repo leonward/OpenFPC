@@ -7,7 +7,7 @@
 
 TARPATH=~
 SRCPATH=..
-PROG_FILES="ofpc-client.pl install-ofpc.sh openfpc openfpc.conf ofpc-queued.pl setup-ofpc.pl"
+PROG_FILES="ofpc-client.pl install-ofpc.sh openfpc openfpc.conf ofpc-queued.pl setup-ofpc.pl ofpc-dbmaint.sh"
 PERL_MODS="Parse.pm Request.pm"
 WWW_FILES="index.php bluegrade.png"
 CGI_FILES="extract.cgi"
