@@ -38,6 +38,7 @@ my (%userlist, %oldconfig, %question,%validation,%cmdargs,@qlist);
 my %config=( 
 		INSTALL_DIR => "/opt/openfpc/",
 		NODENAME => "Unnamed",
+		GUIUSER => "gui",
                 OFPCUSER => "root",  
                 saveconfig => "./myofpc.conf",
 		SAVEDIR => "/tmp",
@@ -81,6 +82,8 @@ my @slavesimple=(
 	"SAVEDIR",
 	"INTERFACE",
 	"ENABLE_SESSION",
+	"GUIUSER",
+	"GUIPASS",
 	"DONE");
 
 my @slaveadvanced=(
@@ -96,6 +99,8 @@ my @slaveadvanced=(
 	"FILE_SIZE",
 	"OFPC_Q_PID",
 	"ENABLE_SESSION",
+	"GUIUSER",
+	"GUIPASS",
 	);
 
 my @master=(
@@ -105,7 +110,7 @@ my @master=(
 
 # This is a hash of things we need to configure. It contains the variable, and the question to present to the user
 
-$question{'ENABLE_SESSION'} = "Enable session capture/search on this node?\nNote: This requires cxtracker and mysql.";
+$question{'ENABLE_SESSION'} = "Enable session capture/search on this node?\nNote: This requires cxtracker and mysql \n (1=on|0=off).";
 $question{'NODENAME'} = "Enter a name for this OFPC node e.g. \"London\"";
 $question{'OFPCUSER'} = "What system User ID would you like to run the ofpc process as?";
 $question{'INTERFACE'} = "What interface do you want daemonlogger to run on?";
@@ -123,6 +128,8 @@ $question{'FILE_SIZE'} = "Size of each buffer file. E.g. \"2G\" = 2 GB, \"10M\" 
 $question{'ENABLE_IP_V6'} = "Enable IPv6 Support? \n (1=on, 0=off)";
 $question{'OFPC_Q_PID'} = "PID file location for queue daemon";
 $question{'SLAVEROUTE'} = "File for slave routing information";
+$question{'GUIUSER'} = "OpenFPCQ user ID to use when extracting pcaps via OpenFPC GUI \n(Note: this username/password needs to be in the OpenFPC user definition below)";
+$question{'GUIPASS'} = "OpenFPCQ password for this user\n(Note: this username/password needs to be in the OpenFPC user definition below)";
 
 # Input validations to make sure we get valid data as part of the setup questions.
 # Format is a key, and then a pcre to m/$stuff/.
@@ -347,17 +354,6 @@ foreach (keys %config) {
 foreach (keys %userlist) {
 	print NEWCONFIG "USER=$_=$userlist{$_}\n";
 }
-close($config{'saveconfig'});
-
-# Backup existing config, and replace it with our new file.
-my $epoch=time();
-if ( -f $file) {
-	move($file,"$file.backup.$epoch") or die ("ERROR: Unable to backup $file to $file.backup.$epoch - Check file permissions\n");
-}
-move($config{'saveconfig'},$file) or die ("ERROR: Unable to save config to file $file. Check file permissions\n");
-
-print "\n\n* Backed up old config as $file.backup.$epoch\n";
-print "* Wrote config file $file\n";
 
 # Perform follow-up actions based on user input
 
@@ -372,7 +368,20 @@ if ($config{'ENABLE_SESSION'})  {
 	}
 }
 
+# Backup existing config, and replace it with our new file.
+close($config{'saveconfig'});
+my $epoch=time();
+if ( -f $file) {
+	move($file,"$file.backup.$epoch") or die ("ERROR: Unable to backup $file to $file.backup.$epoch - Check file permissions\n");
+}
+move($config{'saveconfig'},$file) or die ("ERROR: Unable to save config to file $file. Check file permissions\n");
+
+print "\n\n* Backed up old config as $file.backup.$epoch\n";
+print "* Wrote config file $file\n";
+######## Config file complete #########
+
 # Enable/change password for GUI
+print "\n************* IMPORTANT README *******************\n";
 print "\n-----OpenFPC GUI password (Apache Basic Auth) -----\n\n" .
       "OpenFPC Doesn't yet have it's own built in GUI access control system. \n".
       "To keep things safe for now we use Apache's built in auth capability\n"; 
@@ -402,9 +411,15 @@ unless ( -f "$config{'INSTALL_DIR'}/apache2.passwd" ) {
 
 
 # Complete
+if ($config{'ENABLE_SESSION'})  {
+	print "\n-----OpenFPC Session DB Creation/Setup -----\n\n" ;
+	print "Use ofpc-dbmaint.sh to create and maintain your mysql session DB\n";
+	print "This is only required on systems where session capture is enabled\n\n";
+	print "  \$ /opt/openfpc/ofpc-dbmaint.sh create\n";
+}
 
 print "
-**************************
+**************************************************
 * Setup complete!
 
 You can now start OpenFPC with the command
@@ -412,8 +427,3 @@ You can now start OpenFPC with the command
  \$ sudo service openfpc start
 
 \n";
-
-if ($config{'ENABLE_SESSION'})  {
-	print "WARNING: Use ofpc-dbmain.sh to create your session database\n";
-	print "  \$ /opt/openfpc/ofpc-dbmaint.sh create\n";
-}
