@@ -59,7 +59,6 @@ sub sessionToLogline{
 
 	unless ($req->{'timestamp'} or ($req->{'stime'} and $req->{'etime'})) { 	
 		# No timestamp specified, lets assume a NOW - $timeoffset seconds
-		print "No timestamp specified - Assuming now - timeoffset seconds\n";
 		$req->{'timestamp'} = $now - $timeoffset;
 		$logline .= "timestamp:$req->{'timestamp'} ";
 	}
