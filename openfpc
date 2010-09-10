@@ -139,6 +139,12 @@ function cxtrackerstart()
 		die "[!] Must be root"
 	fi
 
+	if [ "$MASTER" == 1 ] 
+	then
+		echo "[*] Master mode - Not starting Connection Tracker"
+		return
+	fi
+
 	if [ $ENABLE_SESSION == 1 ] 
 	then
 		echo "[*] Session search enabled"
@@ -201,6 +207,14 @@ function cxtrackerstop()
 	then
 		die "[!] Must be root"
 	fi
+
+	if [ "$MASTER" == 1 ] 
+	then
+		echo "[*] Master mode - Not touching cxtracker" 
+		return
+	fi
+
+
 	if [ -f $CXPIDFILE ] 
 	then
 		CXPID=$(cat $CXPIDFILE)
@@ -229,6 +243,12 @@ function daemonloggerstart()
 	if [ "$IAM" != "root" ]
 	then
 		die "[!] Must be root"
+	fi
+	
+	if [ "$MASTER" == 1 ] 
+	then
+		echo "[*] Master mode - Not starting Traffic Buffer"
+		return
 	fi
 
 	if [ -f $PID_PATH/$PID_FILE ] 
@@ -296,6 +316,11 @@ function daemonloggerstop()
 	if [ "$IAM" != "root" ]
 	then
 		die "[!] Must be root"
+	fi
+	if [ "$MASTER" == 1 ] 
+	then
+		echo "[*] Master mode - Not touching daemonlogger" 
+		return
 	fi
 
 	if [ -f $PID_PATH/$PID_FILE ] 

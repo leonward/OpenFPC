@@ -45,8 +45,6 @@ $dbname = $config["SESSION_DB_NAME"];
 $ofpcuser = $config["GUIUSER"];
 $ofpcpass = $config["GUIPASS"];
 
-print "user= $ofpcuser pass= $ofpcpass\n";
-
 // Settings
 $maxRows = 20;
 #$openfpcdir = "/var/tmp/openfpc/";
@@ -130,7 +128,7 @@ echo mainHeading() . $out . mainFooting();
 // Operational Functions
 
 function mainDisplay() {
-    global $major, $minor, $build, $pollTime, $dbname, $start_date, $end_date;
+    global $config, $major, $minor, $build, $pollTime, $dbname, $start_date, $end_date;
     global $srcip, $dstip, $srcport, $dstport, $ipv, $protocol;
     global $notdstip, $notsrcip, $notsrcport, $notdstport;
     $out = "";
@@ -192,7 +190,9 @@ function mainDisplay() {
     $out .= "</div></td>";
 
     $out .= "<td width=40 valign=middle align=center><div style=\"font-size: 10px; color: #DEDEDE\">";
-    $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"Search connection table\">";
+    if ($config["ENABLE_SESSION"] == 1) { # Only show search button if search is enabled
+        $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"Search connection table\">";
+    } 
     $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"Extract pcap\">";
     $out .= "</div></td>";
     
@@ -347,7 +347,9 @@ function extractPcapFromSearch() {
 		serv_pcap("$filename","$file");
 		exit(0);
 	} else {
-		$infobox ="Error: $message <br>";
+		$infobox .= "Result: $result <br>";
+		$infobox .= "Error: $message <br>";
+		$infobox .= "Size: $size <br>";
 		#$infobox .= "Error: $exec <br>";
 	}
 
