@@ -23,8 +23,8 @@
 openfpcver="0.2"
 TARGET_DIR="/opt/openfpc"
 CONF_DIR="/etc/openfpc"
-INSTALL_FILES="ofpc-client.pl openfpc openfpc.conf ofpc-queued.pl setup-ofpc.pl ofpc-dbmaint.sh"
-PROG_FILES="ofpc-client.pl ofpc-queued.pl setup-ofpc.pl"
+INSTALL_FILES="ofpc-cx2db.pl ofpc-client.pl openfpc openfpc.conf ofpc-queued.pl setup-ofpc.pl ofpc-dbmaint.sh"
+PROG_FILES="ofpc-client.pl ofpc-queued.pl setup-ofpc.pl ofpc-cx2db.pl"
 WWW_FILES="index.php bluegrade.png"
 WWW_DIR="$TARGET_DIR/www"
 PERL_MODULES="Parse.pm Request.pm"
@@ -63,7 +63,7 @@ function checkdeps()
 {
 	if [ "$DISTRO" == "DEBIAN" ] 
 	then
-		DEPS="apache2 daemonlogger tcpdump tshark libarchive-zip-perl libfilesys-df-perl libapache2-mod-php5 mysql-server php5-mysql" 
+		DEPS="apache2 daemonlogger tcpdump tshark libarchive-zip-perl libfilesys-df-perl libapache2-mod-php5 mysql-server php5-mysql libdatetime-perl" 
 	elif [ "$DISTRO" == "REDHAT" ] 
 	then
 		DEPS=""
