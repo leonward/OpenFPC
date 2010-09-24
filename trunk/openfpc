@@ -26,18 +26,30 @@
 
 CONFIG_FILES="/etc/openfpc/openfpc.conf ./myopenfpc.conf" 
 
+# Check if we have been passed a config file as $2.
+# read the first config file found in order above.
 
-# Read the first config file found in order above.
-
-for CONFIG in $CONFIG_FILES
-do
-	if [ -f $CONFIG ]
+if [ $2 ] 
+then
+	if [ -f $2 ] 
 	then
-		echo "[*] Reading configuration file $CONFIG"
-		source $CONFIG
-		break
-	fi
-done
+		echo "[*] Reading configuration file $2"
+		source $2 
+	else
+		echo -e "[!] Error: Cant find config file $2"
+		exit 1
+	fi 
+else 
+	for CONFIG in $CONFIG_FILES
+	do
+		if [ -f $CONFIG ]
+		then
+			echo "[*] Reading configuration file $CONFIG"
+			source $CONFIG
+			break
+		fi
+	done
+fi
 
 IAM=$(whoami)
 DATE=$(date)
@@ -461,20 +473,24 @@ case $1 in
 
 echo -e "
 
-Usage 
--------------------------
-openfpc start      - Start all OpenFPC services
-openfpc stop       - Stop all OpenFPC services
+    Usage 
+    openpfc <action> <configfile>
 
-openfpc status     - Show OpenFPC status
-openfpc clean      - Delete old buffers
+    Note: If config file is not specified it will search some default locations
 
-openfpc cxstart    - Start cxtracker only
-openfpc cxstop     - Stop cxtracker only
-openfpc dlstart    - Daemonlogger start
-openfpc dlstop     - Daemonlogger stop
-openfpc qstop      - OpenFPC Queued stop
-openfpc qstart     - OpenFPC Queued start
+	-------------------------
+	openfpc start      - Start all OpenFPC services
+	openfpc stop       - Stop all OpenFPC services
+
+	openfpc status     - Show OpenFPC status
+	openfpc clean      - Delete old buffers
+
+	openfpc cxstart    - Start cxtracker only
+	openfpc cxstop     - Stop cxtracker only
+	openfpc dlstart    - Daemonlogger start
+	openfpc dlstop     - Daemonlogger stop
+	openfpc qstop      - OpenFPC Queued stop
+	openfpc qstart     - OpenFPC Queued start
 "	
 		
 	;;
