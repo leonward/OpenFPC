@@ -30,6 +30,7 @@ use ofpc::Parse;
 use Getopt::Long;
 use Switch;
 use Digest::MD5(qw(md5_hex));
+use Term::ReadKey;
 
 my $now=time();
 my $openfpcver="0.2";
@@ -295,9 +296,12 @@ unless ($request{'user'}) {
 
 unless ($request{'password'}) {
 	print "Password for user $request{'user'} : ";
-	my $userpass=<STDIN>;
+	ReadMode 'noecho';
+	my $userpass = ReadLine 0;
 	chomp $userpass;
 	$request{'password'} = $userpass;
+	ReadMode 'normal';
+	print "\n";
 }
 
 my $sock = IO::Socket::INET->new(
