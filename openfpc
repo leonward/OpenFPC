@@ -33,10 +33,11 @@ if [ $2 ]
 then
 	if [ -f $2 ] 
 	then
-		echo "[*] Reading configuration file $2"
-		source $2 
+		CONFIG=$2
+		echo "[*] Reading configuration file $CONFIG"
+		source $CONFIG
 	else
-		echo -e "[!] Error: Cant find config file $2"
+		echo -e "[!] Error: Cant find config file $CONFIG"
 		exit 1
 	fi 
 else 
