@@ -39,7 +39,7 @@ my (%config,$verbose);
 my $version=0.1;
 
 # Hint: "ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp timestamp:1274864808 msg:Some freeform text";
-my %cmdargs=( user => "ofpc",
+my %cmdargs=( user => 0,
 	 	password => 0, 
 		server => "localhost",
 		port => "4242",
@@ -283,7 +283,15 @@ unless ($cmdargs{'logline'}) {
 	$request{'logline'} = $logline;	
 	print "Logline created from session IDs: $request{'logline'}\n" if ($debug);
 }
-# Unless user has passed a password via -p, lets request one.
+
+# Unless user has passed a user and password via cmdargs, lets request one.
+unless ($request{'user'}) {
+	print "Username: ";
+	my $username=<STDIN>;
+	chomp $username;
+	$request{'user'} = $username;
+}
+
 
 unless ($request{'password'}) {
 	print "Password for user $request{'user'} : ";

@@ -241,7 +241,7 @@ sub decoderequest($){
 
 sub prepfile{
 	my $request=shift;
-	my @ziplist=();		# List of files to zip up
+	my @slavefiles=();		# List of files to zip up
 	my $multifile=0;
 	my $meta=0;
 	my %prep=(
@@ -253,7 +253,7 @@ sub prepfile{
 			size => 0,
 	);	
 
-	# If a zip file is requested, set prep to gather a zip
+	# If a specific filetype is requested, set prep to gather it 
 	if ($request->{'filetype'} eq "ZIP") {
 		$multifile=1;
 		$prep{'filetype'} = "ZIP";		
@@ -280,7 +280,7 @@ sub prepfile{
 		unless ($slavehost) { 	# If request isn't routeable....
 					# Request from all devices
 			$multifile=1;	# Fraged request will be a multi-file return so we use a ZIP to combine
-			$prep{'filetype'} = "ZIP";
+
 			foreach (keys %route) {
  				($slavehost,$slaveport,$slaveuser,$slavepass)=routereq($_);
 				$request->{'slavehost'} = $slavehost;
@@ -291,7 +291,7 @@ sub prepfile{
 				my $result=domaster($request);
 				if ($result->{'success'}) {
 					wlog("Adding $result->{'filename'} to zip list") if ($verbose);
-					push (@ziplist, $result->{'filename'});
+					push (@slavefiles, $result->{'filename'});
 				} else {
 					$prep{'message'} = $result->{'message'};
 					wlog("Error: $result->{'message'}");
@@ -320,7 +320,7 @@ sub prepfile{
 				$prep{'md5'} = $result->{'md5'};
 				$prep{'filetype'} = "PCAP";
 				$prep{'filename'}="$result->{'filename'}";
-       				push (@ziplist, $result->{'filename'});
+       				push (@slavefiles, $result->{'filename'});
 				wlog("PREP: Added $result->{'filename'} to zip list") if ($verbose);
 			} else {
 				$prep{'message'} = $result->{'message'};
@@ -338,7 +338,10 @@ sub prepfile{
 
 		}
         	close METADATA;
-		push (@ziplist,"$request->{'tempfile'}.txt");
+		# If we are sending back a zip, add the report file
+		if ($prep{'filetype'} eq "ZIP") {
+			push (@slavefiles,"$request->{'tempfile'}.txt");
+		}
 
 	} else { 	# Do slave stuff, no routing etc just extract the data and make a report
    		my $result = doslave($request,$rid);
@@ -360,36 +363,58 @@ sub prepfile{
         	print METADATA "OFPC-slave request report\n" .
 			"User: $request->{'user'}\n" .
                        	"User comment: $request->{'comment'}\n" .
-                       	"Time: $request->{'rtime'}\n" .
+                       	"Time    : $request->{'rtime'}\n" .
 			"Filename: $result->{'filename'}\n" .
 			"Size    : $result->{'size'}\n" .
 			"MD5     : $prep{'md5'}\n" .
 			"Error   : $result->{'message'}\n" ;
 		close(METADATA);
-		push(@ziplist,"$request->{'tempfile'}.txt");
-		push(@ziplist,$request->{'tempfile'});
+		if ($prep{'filetype'} eq "ZIP") {
+			push(@slavefiles,"$request->{'tempfile'}.txt");
+		}
+		push(@slavefiles,$request->{'tempfile'});
 	}
 
-	# Now we have the file(s) we want to rtn to the client, lets zip if reqd
+	# Now we have the file(s) we want to rtn to the client, lets zip or merge as requested
 	if ($multifile) {
-		$prep{'filetype'} = "ZIP";
-		my $zip = Archive::Zip->new();
-		foreach my $filename (@ziplist) {
-			if ( -f "$config{'SAVEDIR'}/$filename" ) {
-				$zip->addFile("$config{'SAVEDIR'}/$filename","$filename");
-			} else {
-				wlog("ZIP : Cant find $config{'SAVEDIR'}/$filename to add to zip! - Skipping"); 
+		if ( $prep{'filetype'} eq "PCAP" ) {
+			# @slavefiles is a list of pcaps w/o a path, we need then with a path to merge
+			# @mergefiles is a temp array of just that.
+			my @mergefiles=();
+			foreach (@slavefiles) {
+				push(@mergefiles, "$config{'SAVEDIR'}/$_");
 			}
-		}
-		if ($zip->writeToFileNamed("$config{'SAVEDIR'}/$request->{'tempfile'}.zip") !=AZ_OK ) {
-			wlog("PREP: ERROR: Problem creating $config{'SAVEDIR'}/$request->{'tempfile'}.zip");
+			my $mergecmd="$config{'MERGECAP'} -w $config{'SAVEDIR'}/$request->{'tempfile'}.pcap @mergefiles";
+			print "DEBUG: Merge cmd is $mergecmd\n" if ($debug);
+        		unless (system($mergecmd)) {
+				wlog("PREP: Created $config{'SAVEDIR'}/$request->{'tempfile'}.pcap created");	
+				$prep{'filename'}="$request->{'tempfile'}.pcap";
+				$prep{'success'} = 1;
+				$prep{'md5'} = getmd5("$config{'SAVEDIR'}/$prep{'filename'}");
+			} else {
+				wlog("PREP: ERROR merging $config{'SAVEDIR'}/$request->{'tempfile'}.pcap");	
+				$prep{'message'} = "Unable to master-merge!";
+			}
+				
 		} else {
-			wlog("PREP: Created $config{'SAVEDIR'}/$request->{'tempfile'}.zip");
-			$prep{'filename'}="$request->{'tempfile'}.zip";
-			$prep{'success'} = 1;
-			$prep{'md5'} = getmd5("$config{'SAVEDIR'}/$prep{'filename'}");
-		}
-	}
+			my $zip = Archive::Zip->new();
+			foreach my $filename (@slavefiles) {
+				if ( -f "$config{'SAVEDIR'}/$filename" ) {
+					$zip->addFile("$config{'SAVEDIR'}/$filename","$filename");
+				} else {
+					wlog("ZIP : Cant find $config{'SAVEDIR'}/$filename to add to zip! - Skipping"); 
+				}
+			}
+			if ($zip->writeToFileNamed("$config{'SAVEDIR'}/$request->{'tempfile'}.zip") !=AZ_OK ) {
+				wlog("PREP: ERROR: Problem creating $config{'SAVEDIR'}/$request->{'tempfile'}.zip");
+			} else {
+				wlog("PREP: Created $config{'SAVEDIR'}/$request->{'tempfile'}.zip");
+				$prep{'filename'}="$request->{'tempfile'}.zip";
+				$prep{'success'} = 1;
+				$prep{'md5'} = getmd5("$config{'SAVEDIR'}/$prep{'filename'}");
+			}
+		} 
+	}	
 	return(\%prep);
 
 }
@@ -443,16 +468,28 @@ sub getstatus{
 		$stat{'nodename'} = $config{'NODENAME'};
 
 		# Get timestamp of oldest pcap buffer
-		opendir(DIR,$config{'BUFFER_PATH'});
+		unless (opendir(DIR,$config{'BUFFER_PATH'}) ) {
+			$stat{'message'} = "Unable to open buffer path $config{'BUFFER_PATH'}";
+			return \%stat;
+		} 
 		my @files=readdir(DIR);
+		unless (@files) {
+			$stat{'message'} = "Unable to open buffer path $config{'BUFFER_PATH'}";
+			return \%stat;
+		}
 		@files=sort(@files);
-
+		foreach (@files) {
+			print "File $_\n";
+		}
 		# A sorted dir could also include other files. We can apply a check for the daemonlogger prfix
 		# to make sure we don't end up with some other crap, or ".",".." etc
 
 		my $oldestfile=0;
-		while ($oldestfile !~ /$config{'NODENAME'}-pcap/) {
-			$oldestfile=shift(@files);
+		foreach (@files) {
+			if ($_  !~ /$config{'NODENAME'}-pcap/) {
+				$oldestfile=$_;
+				last;
+			}
 		}
 
 		if ( $oldestfile =~ /$config{'NODENAME'}-pcap\.([0-9]+)/ ) {
@@ -1287,7 +1324,7 @@ wlog("**    http://www.openfpc.org    **");
 if ($config{'MASTER'}) {
         wlog("CONF: Starting OFPC Node \"$config{'NODENAME'}\" as a MASTER");
 	if ($config{'SLAVEROUTE'}) {
-		open SLAVEROUTE, '<', $config{'SLAVEROUTE'} or die "Unable to open slave route file $config{'slaveroute'} $!";
+		open SLAVEROUTE, '<', $config{'SLAVEROUTE'} or die "Unable to open slave route file $config{'SLAVEROUTE'} \n";
 		wlog("CONF: Reading route file $config{'SLAVEROUTE'}");
 		while(<SLAVEROUTE>) {
 			chomp $_;
