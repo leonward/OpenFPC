@@ -488,6 +488,6 @@ case $1 in
                 echo -e " status     	- Check install status"
                 echo -e " reinstall  	- Re-install system"
 		echo -e "\n Example:"
-		echo -e " $ sudo ./install-openfpc install"
+		echo -e " $ sudo ./install-ofpc install"
         ;;
 esac
