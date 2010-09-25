@@ -231,13 +231,13 @@ if ($cmdargs{'debug'}) {
 
 if ($debug) {
 	print "----Config----\n".
-	"Server:		$config{'server'}\n" .
-	"Port:		$config{'port'}\n" .
-	"User: 		$request{'user'}\n" .
-	"Action:	$request{'action'}\n" .
-	"Logtype:	$request{'logtype'}\n" .
-	"Logline:	$request{'logline'}\n" .
-	"Filename:	$cmdargs{'filename'}\n" .
+	"Server   :  $config{'server'}\n" .
+	"Port     :  $config{'port'}\n" .
+	"User     :  $request{'user'}\n" .
+	"Action   :  $request{'action'}\n" .
+	"Logtype  :  $request{'logtype'}\n" .
+	"Logline  :  $request{'logline'}\n" .
+	"Filename :  $cmdargs{'filename'}\n" .
 	"\n";
 }
 
