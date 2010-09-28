@@ -52,7 +52,7 @@ GetOptions(
    'dir=s'         => \$SDIR,
    'debug'         => \$DEBUG,
    'daemon'        => \$DAEMON,
-   'config=s'		 => \$CONFFILE,
+   'config=s'      => \$CONFFILE,
 );
 my  $FDIR          = "$SDIR/failed/";
 
