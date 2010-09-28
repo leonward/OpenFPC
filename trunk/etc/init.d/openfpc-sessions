@@ -1,0 +1,103 @@
+#!/bin/sh
+#
+### BEGIN INIT INFO
+# Provides:          openfpc-sessions
+# Required-Start:    $network
+# Required-Stop:     $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Network Connection Tracker
+# Description:       This is a network security tool designed to 
+#                    collect statistical information about network traffic
+### END INIT INFO
+
+# Check if we have been passed a config file as $2.
+# read the first config file found in order above.
+CONFIG_FILES="/etc/openfpc/openfpc.conf"
+
+if [ $2 ]; then
+   if [ -f $2 ]; then
+      CONFIG=$2
+      echo "[*] Reading configuration file $CONFIG"
+      source $CONFIG
+   else
+      echo -e "[!] Error: Cant find config file $CONFIG"
+      exit 1
+   fi
+else
+   for CONFIG in $CONFIG_FILES; do
+      if [ -f $CONFIG ]; then
+         echo "[*] Reading configuration file $CONFIG"
+         source $CONFIG
+         break
+      fi
+   done
+fi
+
+# We'll add up all the options above and use them
+NAME=cxtracker
+DAEMON=/usr/bin/$NAME
+PIDFILE=$NAME-$NODENAME.pid
+PIDPATH=/var/run
+
+# See how we were called.
+case "$1" in
+  start)
+#	chown -R ${CXT_UID}.${CXT_GID} ${CXT_ARCHIVE_DIR}/
+        if [ -f $PIDPATH/$PIDFILE ]; then
+           CXPID=$(cat $PIDPATH/$PIDFILE)
+           if ps $CXPID > /dev/null; then
+              echo -e  "[!] cxtracker already running with pid: $CXPID"
+              exit 1
+           fi
+        fi
+        rm -f $PIDPATH/$PIDFILE 2>&1 &
+	echo -n "Starting $NAME ..."
+	$DAEMON -i $INTERFACE -d $SESSION_DIR -p $PIDFILE -P $PIDPATH/ -D > /var/log/$NAME.log  2>&1
+	echo " done."
+	;;
+  stop)
+        echo -n "Stopping $NAME ..."
+	start-stop-daemon --oknodo --stop --quiet --pidfile=$PIDPATH/$PIDFILE --exec $DAEMON
+	rm -f $PIDPATH//$PIDFILE 2>&1 &
+	echo " done."
+	;;
+  status)
+        # Show the rules and counters
+	if [ -s $PIDPATH//$PIDFILE ]; then
+	  echo -n "$NAME running with PID: "
+          cat $PIDPATH/$PIDFILE
+	  #echo -n "Dumping $NAME stats"
+	  #kill -USR1 `cat $PIDFILE`
+          #echo " done."
+	else 
+	  echo "$NAME not running!"
+        fi
+	;;
+  now)
+        # Dump all on-going connections 
+	echo -n "Dumping $NAME connections going on right now"
+	kill -USR2 `cat $PIDPATH/$PIDFILE`
+        echo
+	;;
+  hup)
+        # Make certain all is running
+	echo -n "HUP'ing $NAME "
+#        chown -R ${CXT_UID}.${CXT_GID} ${CXT_ARCHIVE_DIR}/
+	kill -HUP `cat $PIDPATH/$PIDFILE` 
+        echo " done."
+	;;
+  restart)
+        $0 stop
+        $0 start
+        ;;
+  force-reload)
+        $0 stop
+        $0 start
+        ;;
+  *)
+        echo "Usage: $0 {start|stop|restart|status|force-reload}"
+        exit 1
+esac
+
+exit 0
