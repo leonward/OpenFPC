@@ -19,7 +19,7 @@ if [ $2 ]; then
    if [ -f $2 ]; then
       CONFIG=$2
       echo "[*] Reading configuration file $CONFIG"
-      source $CONFIG
+      . $CONFIG
    else
       echo -e "[!] Error: Cant find config file $CONFIG"
       exit 1
@@ -28,7 +28,7 @@ else
    for CONFIG in $CONFIG_FILES; do
       if [ -f $CONFIG ]; then
          echo "[*] Reading configuration file $CONFIG"
-         source $CONFIG
+         . $CONFIG
          break
       fi
    done
@@ -88,13 +88,9 @@ case "$1" in
         stopproc
 	;;
   status)
-        # Show the rules and counters
 	if [ -s $PIDPATH/$PIDFILE ]; then
 	  echo -n "$NAME running with PID: "
           cat $PIDPATH/$PIDFILE
-	  #echo -n "Dumping $NAME stats"
-	  #kill -USR1 `cat $PIDFILE`
-          #echo " done."
 	else 
 	  echo "$NAME not running!"
         fi
