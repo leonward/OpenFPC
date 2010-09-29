@@ -1,0 +1,149 @@
+#!/bin/bash 
+
+#########################################################################################
+# Copyright (C) 2010 Edward Fjellskål
+# Copyright (C) 2009 Leon Ward 
+# OpenFPC - Part of the OpenFPC - (Full Packet Capture) project
+#
+# Contact: leon@rm-rf.co.uk, edwardfjellskaal@gmail.com
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#########################################################################################
+
+# ---------------- Nothing to do below here -------------
+# List of config files to try in order
+
+CONFIG_FILES="/etc/openfpc/openfpc.conf "
+
+# Check if we have been passed a config file as $2.
+# read the first config file found in order above.
+
+if [ $2 ]; then
+   if [ -f $2 ]; then
+      CONFIG=$2
+      echo "[*] Reading configuration file $CONFIG"
+      source $CONFIG
+   else
+      echo -e "[!] Error: Cant find config file $CONFIG"
+      exit 1
+   fi 
+else 
+   for CONFIG in $CONFIG_FILES; do
+      if [ -f $CONFIG ]; then
+         echo "[*] Reading configuration file $CONFIG"
+         source $CONFIG
+         break
+      fi
+   done
+fi
+
+IAM=$(whoami)
+DATE=$(date)
+PATH=$PATH:/sbin:/usr/sbin
+TCPDUMPOPTS="-Z root" 	
+openfpcver=0.2
+PID_FILE=openfpc-dl
+PID_PATH=/var/run
+FILENAME=ofpc-
+
+if [ "$DONE" != "y" ]; then
+   echo -e "[!] Configuration not complete.\n    Have you run ./install-openfpc.sh ?"
+   exit 1
+fi
+
+if [ "$MULTI_BUFFER" == "1" ]; then
+   CURRENT=$(cat $CURRENT_FILE 2>/dev/null) || CURRENT="SINGLE"
+else
+   CURRENT="SINGLE"
+fi
+
+function die() {
+   echo $1
+   exit 1
+}
+
+function openfpcqstart() {
+   /etc/init.d/openfpc-queued start $2
+}
+
+function openfpcqstop() {
+   /etc/init.d/openfpc-queued stop $2
+}
+
+function openfpcqstatus() {
+   /etc/init.d/openfpc-queued status $2
+}
+
+function status() {
+   openfpcqstatus
+}
+
+case $1 in 
+	start)
+		openfpcqstart
+	;;
+	stop)
+		openfpcqstop
+	;;
+	qstop)
+		openfpcqstop	
+	;;	
+	qstart)
+		openfpcqstart
+	;;	
+	restart)
+		openfpcqstop
+		sleep 1
+		openfpcqstart	
+	;;
+	status)
+		status
+	;;
+	*)
+
+         echo -e "
+ Note: If config file is not specified it will search some default locations
+
+ Usage:
+
+   Master:
+   openpfc-master <action> <configfile>
+   ---------------------------
+   openfpc-master start  <config>   - Start all OpenFPC Master services
+   openfpc-master stop   <config>   - Stop all OpenFPC Master services
+   openfpc-master status <config>   - Show OpenFPC Master status
+   ---------------------------
+
+   Slaves:
+   openpfc-master <slave>
+   ---------------------------
+   openfpc-master start  <slave>    - Start all OpenFPC services on <slave>
+   openfpc-master stop   <slave>    - Stop all OpenFPC services <slave>
+   openfpc-master status <slave>    - Show OpenFPC status on <slave>
+   openfpc-master clean  <slave>    - Delete old buffers on <slave>
+
+   openfpc-master cxstart   <slave> - Start cxtracker on <slave>
+   openfpc-master cxstop    <slave> - Stop cxtracker on <slave>
+   openfpc-master cxrestart <slave> - Restart cxtracker on <slave>
+   openfpc-master dlstart   <slave> - Start daemonlogger on <slave>
+   openfpc-master dlstop    <slave> - Stop daemonlogger on <slave>
+   openfpc-master dlrestart <slave> - Restart daemonlogger on <slave>
+   openfpc-master qstart    <slave> - Start OpenFPC Queued on <slave>
+   openfpc-master qstop     <slave> - Stop OpenFPC Queued on <slave>
+   openfpc-master qrestart  <slave> - Restart OpenFPC Queued on <slave>
+   ---------------------------
+"	
+	;;
+esac
