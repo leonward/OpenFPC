@@ -1,0 +1,24 @@
+openfpc for Debian
+------------------
+
+OpenFPC packet for debian is split into three packages.
+
+  * openfpc-master
+      This is to be used in an environment where you want to manage
+      lots of slaves from one central host, to keep better track on
+      auditlogs, users, and firewall/vpn access to slaves. This
+      package can not co-exist with openfpc-slave.
+
+  * openfpc-slave
+      This is to be deployed on the actual sensor that is sniffing
+      the network and storing packages (and also session data via 
+      cxtracker). This package can not co-exist with openfpc-master.
+
+  * openfpc-client
+      The client that the security analyst/operators should use to
+      search for and extract the actuall pcap data that they are
+      looking for. openfpc-client can talk to both a openfpc-master 
+      or a openfpc-slave. This package also has no conflicts with
+      openfpc-master or openfpc-slave.
+
+ -- Edward Fjellskål <edward.fjellskaal@gmail.com>  Sat, 25 Sep 2010 19:37:33 +0200

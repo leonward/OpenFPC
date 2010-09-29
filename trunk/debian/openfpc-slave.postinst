@@ -1,0 +1,26 @@
+#!/bin/sh
+
+if ! getent passwd openfpc >/dev/null; then
+       adduser --quiet --system --group --no-create-home --home /nsm_data/ --shell /usr/sbin/nologin openfpc
+fi
+
+HOSTNAME=`hostname -s`
+OFPC_DIR=/var/lib/openfpc
+SENSOR_DIR=$OFPC_DIR/$HOSTNAME/pcap
+
+if [ ! -d $SENSOR_DIR ]; then
+        if [ -w $OFPC_DIR ]; then
+                mkdir -vp $SENSOR_DIR || exit 74
+                chown -vR openfpc:openfpc $OFPC_DIR || exit 74
+        else
+                echo "Can't create folder in $OFPC_DIR. Please inspect."
+#                exit 77
+        fi
+fi
+
+update-rc.d  openfpc-slave defaults
+
+# openfpc.apache2.conf
+a2ensite openfpc
+service apache2 reload
+

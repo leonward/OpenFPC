@@ -1,0 +1,75 @@
+Source: openfpc
+Priority: optional
+Maintainer: Edward Fjellskål <edward.fjellskaal@gmail.com>
+Build-Depends: debhelper (>= 7)
+Standards-Version: 3.8.3
+Section: net
+Homepage: http://www.openfpc.org/
+
+Package: openfpc-client
+Section: net
+Priority: optional
+Architecture: all
+Depends: ${shlibs:Depends}, ${misc:Depends}, libarchive-zip-perl, libfilesys-df-perl, libdatetime-perl
+Recommends: wireshark
+Description: OpenFPC - An Open Full Packet Capture Setup
+ OpenFPC is a set of scripts that combine to provide
+ a lightweight full-packet network traffic recorder
+ & buffering tool. It's design goal is to allow non-expert
+ users to deploy a distributed network traffic recorder
+ on COTS hardware while integrating into existing alert
+ and log tools.
+ .
+ openfpc-client can be installed on any system that will
+ be used to contact a openfpc-master or openfpc-slaves in
+ a openfpc installation.
+ openfpc-client can be installed on the same host as the
+ openfpc-master or openfpc-slave.
+ .
+ For more information, visit the OpenFPC project home at
+ http://www.openfpc.org
+
+Package: openfpc-master
+Section: net
+Priority: optional
+Architecture: all
+Depends: ${shlibs:Depends}, ${misc:Depends}, libarchive-zip-perl, libfilesys-df-perl, libdatetime-perl, tshark, tcpdump
+Conflicts: openfpc-slave
+Description: OpenFPC - An Open Full Packet Capture Setup
+ OpenFPC is a set of scripts that combine to provide
+ a lightweight full-packet network traffic recorder
+ & buffering tool. It's design goal is to allow non-expert
+ users to deploy a distributed network traffic recorder
+ on COTS hardware while integrating into existing alert
+ and log tools.
+ .
+ openfpc-master is best installed on a system that will
+ be used to manage all the slaves in a openfpc installation.
+ You can install openfpc-client on the same host if desired.
+ .
+ For more information, visit the OpenFPC project home at
+ http://www.openfpc.org
+
+Package: openfpc-slave
+Section: net
+Priority: optional
+Architecture: all
+Depends: ${shlibs:Depends}, ${misc:Depends}, libarchive-zip-perl, libfilesys-df-perl, libdatetime-perl, daemonlogger, tshark, tcpdump
+Conflicts: openfpc-master
+Description: OpenFPC - An Open Full Packet Capture Setup
+ OpenFPC is a set of scripts that combine to provide
+ a lightweight full-packet network traffic recorder
+ & buffering tool. It's design goal is to allow non-expert
+ users to deploy a distributed network traffic recorder
+ on COTS hardware while integrating into existing alert
+ and log tools.
+ .
+ openfpc-slave is to be installed on the system that will
+ be used for packet capturing.
+ You can install openfpc-client on the same host if desired.
+ It is recomended to do so if you want to be able to handle
+ pcap extractions from that host only.
+ .
+ For more information, visit the OpenFPC project home at
+ http://www.openfpc.org
+
