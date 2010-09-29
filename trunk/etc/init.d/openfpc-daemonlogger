@@ -22,7 +22,7 @@ if [ $2 ]; then
    if [ -f $2 ]; then
       CONFIG=$2
       echo "[*] Reading configuration file $CONFIG"
-      source $CONFIG
+      . $CONFIG
    else
       echo -e "[!] Error: Cant find config file $CONFIG"
       exit 1
@@ -31,17 +31,13 @@ else
    for CONFIG in $CONFIG_FILES; do
       if [ -f $CONFIG ]; then
          echo "[*] Reading configuration file $CONFIG"
-         source $CONFIG
-         break
+         . $CONFIG
+         #break
       fi
    done
 fi
 
-LOGGER_PATH=`which $DAEMONLOGGER`
-if [ "$LOGGER_PATH" == "" ]; then
-   echo "[!] Binary for $DAEMONLOGGER is not in path!"
-   exit
-fi
+LOGGER_PATH=`which daemonlogger` || die "[!] Binary for daemonlogger was not found in path."
 
 if ! test -x $LOGGER_PATH ; then
     echo "[!] $LOGGER_PATH dosent exist or is not executable."
@@ -223,6 +219,16 @@ case "$1" in
     restart
     #cleandisk
     ;;
+  status)
+    # Show the rules and counters
+    if [ -s $PIDPATH/$PIDFILE ]; then
+      echo -n "daemonlogger running with PID: "
+      cat $PIDPATH/$PIDFILE
+    else
+      echo "$NAME not running!"
+    fi
+    ;;
+
   cleandisk)
     cleandisk
     ;;
