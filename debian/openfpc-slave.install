@@ -1,0 +1,8 @@
+etc/init.d/openfpc-cxtracker etc/init.d
+etc/init.d/openfpc-daemonlogger etc/init.d
+etc/init.d/openfpc-cx2db etc/init.d
+etc/init.d/openfpc-queued etc/init.d
+
+etc/openfpc.apache2.conf /etc/apache2/sites-available/
+
+debian/debian.confs/openfpc-master.conf etc/openfpc/
