@@ -10,7 +10,9 @@
 # Description:       openfpc-pcap logs pcaps and organize in daily dirs
 ### END INIT INFO
 
-MAX_DISK_USE=5
+# Change this maybe? Put it in openfpc.conf?
+# "./openfpc-pcap cleandisk" can be use to clean up!
+MAX_DISK_USE=98
 
 # Check if we have been passed a config file as $2.
 # read the first config file found in order above.

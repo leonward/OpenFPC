@@ -40,27 +40,35 @@ DAEMON=/usr/bin/$NAME
 PIDFILE=$NAME-$NODENAME.pid
 PIDPATH=/var/run
 
+startproc() {
+    if [ -f $PIDPATH/$PIDFILE ]; then
+       CXPID=$(cat $PIDPATH/$PIDFILE)
+       if ps $CXPID > /dev/null; then
+          echo -e  "[!] cxtracker already running with pid: $CXPID"
+          exit 1
+       fi
+    fi
+    rm -f $PIDPATH/$PIDFILE 2>&1 &
+    echo -n "Starting $NAME ..."
+    $DAEMON -i $INTERFACE -d $SESSION_DIR -p $PIDFILE -P $PIDPATH/ -D > /var/log/$NAME.log  2>&1
+    echo " done."
+}
+
+stopproc() {
+    echo -n "Stopping $NAME ..."
+    start-stop-daemon --oknodo --stop --quiet --pidfile=$PIDPATH/$PIDFILE --exec $DAEMON
+    rm -f $PIDPATH/$PIDFILE 2>&1 &
+    echo " done."
+}
+
 # See how we were called.
 case "$1" in
   start)
 #	chown -R ${CXT_UID}.${CXT_GID} ${CXT_ARCHIVE_DIR}/
-        if [ -f $PIDPATH/$PIDFILE ]; then
-           CXPID=$(cat $PIDPATH/$PIDFILE)
-           if ps $CXPID > /dev/null; then
-              echo -e  "[!] cxtracker already running with pid: $CXPID"
-              exit 1
-           fi
-        fi
-        rm -f $PIDPATH/$PIDFILE 2>&1 &
-	echo -n "Starting $NAME ..."
-	$DAEMON -i $INTERFACE -d $SESSION_DIR -p $PIDFILE -P $PIDPATH/ -D > /var/log/$NAME.log  2>&1
-	echo " done."
+        startproc
 	;;
   stop)
-        echo -n "Stopping $NAME ..."
-	start-stop-daemon --oknodo --stop --quiet --pidfile=$PIDPATH/$PIDFILE --exec $DAEMON
-	rm -f $PIDPATH//$PIDFILE 2>&1 &
-	echo " done."
+        stopproc
 	;;
   status)
         # Show the rules and counters
@@ -88,12 +96,12 @@ case "$1" in
         echo " done."
 	;;
   restart)
-        $0 stop
-        $0 start
+        stopproc
+        startproc
         ;;
   force-reload)
-        $0 stop
-        $0 start
+        stopproc
+        startproc
         ;;
   *)
         echo "Usage: $0 {start|stop|restart|status|force-reload}"

@@ -80,6 +80,7 @@ if ($CONFFILE) {
 		}
    }
 
+        $PIDFILE = "/var/run/ofpc-cx2db-" . $CONFIG{'NODENAME'} . ".pid" if (defined $CONFIG{'NODENAME'});
 	$DB_NAME = $CONFIG{'SESSION_DB_NAME'} if (defined $CONFIG{'SESSION_DB_NAME'});
 	$DB_USERNAME = $CONFIG{'SESSION_DB_USER'} if (defined $CONFIG{'SESSION_DB_USER'});
 	$DB_PASS = $CONFIG{'SESSION_DB_PASS'} if (defined $CONFIG{'SESSION_DB_PASS'});

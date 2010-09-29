@@ -1,0 +1,111 @@
+#!/bin/sh
+#
+### BEGIN INIT INFO
+# Provides:          openfpc-queued
+# Required-Start:    $network
+# Required-Stop:     $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: queued controlls the openfpc setup
+# Description:       This is perl daemon administrates all
+#                    the activities for a master/slave node
+### END INIT INFO
+
+# Check if we have been passed a config file as $2.
+# read the first config file found in order above.
+CONFIG_FILES="/etc/openfpc/openfpc.conf"
+
+if [ $2 ]; then
+   if [ -f $2 ]; then
+      CONFIG=$2
+      echo "[*] Reading configuration file $CONFIG"
+      source $CONFIG
+   else
+      echo -e "[!] Error: Cant find config file $CONFIG"
+      exit 1
+   fi
+else
+   for CONFIG in $CONFIG_FILES; do
+      if [ -f $CONFIG ]; then
+         echo "[*] Reading configuration file $CONFIG"
+         source $CONFIG
+         break
+      fi
+   done
+fi
+
+function die() {
+   echo $1
+   exit 1
+}
+
+# We'll add up all the options above and use them
+NAME=ofpc-queued
+DAEMON=`which ofpc-queued.pl` || die "[!] $NAME.pl program not found in path."
+PIDFILE=$OFPC_Q_PID
+LOG_FILE=/var/log/$NAME.log
+
+stopproc() {
+  echo -n "Stopping $NAME ..."
+  if [ -f $PIDFILE ]; then
+    kill `cat $PIDFILE` >$LOG_FILE
+    if [ $? = 0 ]; then
+      echo "Success."
+      rm -vf $PIDFILE >$LOG_FILE
+    else
+      kill -9 `cat $PIDFILE` >$LOG_FILE
+      if [ $? = 0 ]; then
+         echo "Success."
+         rm -vf $PIDFILE >$LOG_FILE
+      else
+         echo "Failed."
+      fi
+    fi
+  fi
+}
+
+startproc() {
+   if [ -f $PIDFILE ]; then
+       QDPID=$(cat $PIDFILE)
+       if ps $QDPID > /dev/null; then
+          echo -e  "[!] $NAME already running with pid: $QDPID"
+          exit 1
+       fi
+    fi
+    rm -vf $PIDFILE >$LOG_FILE
+    echo "[*] Starting $NAME (OpenFPC Queue Daemon)"
+    $DAEMON -c $CONFIG --daemon >$LOG_FILE
+    echo " done."
+}
+
+# See how we were called.
+case "$1" in
+  start)
+        startproc
+	;;
+  stop)
+        stopproc
+	;;
+  status)
+        # Show the rules and counters
+	if [ -s $PIDFILE ]; then
+	  echo -n "$NAME running with PID: "
+          cat $PIDFILE
+	else 
+	  echo "$NAME not running!"
+        fi
+	;;
+  restart)
+        stopproc
+        startproc
+        ;;
+  force-reload)
+        stopproc
+        startproc
+        ;;
+  *)
+        echo "Usage: $0 {start|stop|restart|status|force-reload}"
+        exit 1
+esac
+
+exit 0
