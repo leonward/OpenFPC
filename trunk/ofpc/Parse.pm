@@ -28,42 +28,55 @@ require Exporter;
 @EXPORT = qw(ALL);
 $VERSION = '0.2';
 
-=head2 ParseSessionToLogline
+=head2 sessionToLogline
 
 	Take a hashref of session id's (sip,dip,timestamp etc) and return a "logline" that
 	can be made in an ofpc-vX request.
+
+	# Examples of output:
+	# ofpc-v1 type:event sip:1.1.1.1 dip:1.1.1.1 spt:3432 dpt:1234 proto:tcp time:246583 msg:Some freeform text
+	# ofpc-v1-bpf type:search bpf: host 1.1.1.1 and not tcp port 22 stime: 12345 etime: 43213
 	- Leon
 =cut
 
 sub sessionToLogline{
-	# ofpc-v1 type:event sip:1.1.1.1 dip:1.1.1.1 spt:3432 dpt:1234 proto:tcp time:246583 msg:Some freeform text
-	# Take in a hash of session data, and return a "ofpc-v1" log format
+	# Take in a hash of session data, and return a "ofpc" log format
+
 	my $timeoffset=600;
 	my $now=time();
 	my $req=shift;
-	my $logline = "ofpc-v1 ";
+	my $logline;
+
+	if ($req->{'bpf'}) {
+		$logline = "ofpc-v1-bpf ";
+	} else {
+		$logline = "ofpc-v1 ";
+	}
 	
 	if ($req->{'stime'} or $req->{'etime'}) {
 		$logline .= "type:search ";
 	} else {
 		$logline .= "type:event ";
 	}
-	$logline .= "sip:$req->{'sip'} " if ($req->{'sip'});
-	$logline .= "dip:$req->{'dip'} " if ($req->{'dip'});
-	$logline .= "dpt:$req->{'dpt'} " if ($req->{'dpt'});
-	$logline .= "spt:$req->{'spt'} " if ($req->{'spt'});
+
+	if ($req->{'bpf'}) {
+		$logline .= "bpf: $req->{'bpf'} ";
+	} else {
+		$logline .= "sip:$req->{'sip'} " if ($req->{'sip'});
+		$logline .= "dip:$req->{'dip'} " if ($req->{'dip'});
+		$logline .= "dpt:$req->{'dpt'} " if ($req->{'dpt'});
+		$logline .= "spt:$req->{'spt'} " if ($req->{'spt'});
+	}	
+
 	$logline .= "stime:$req->{'stime'} " if ($req->{'stime'});
 	$logline .= "etime:$req->{'etime'} " if ($req->{'etime'});
 	$logline .= "etime:$req->{'timestamp'} " if ($req->{'timestamp'});
-	
 
 	unless ($req->{'timestamp'} or ($req->{'stime'} and $req->{'etime'})) { 	
 		# No timestamp specified, lets assume a NOW - $timeoffset seconds
 		$req->{'timestamp'} = $now - $timeoffset;
 		$logline .= "timestamp:$req->{'timestamp'} ";
 	}
-
-
 
 	return($logline);
 }
@@ -84,6 +97,8 @@ sub parselog{
                 %eventdata=ofpc::Parse::Exim4($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=ofpc::Parse::SnortSyslog($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=ofpc::Parse::SnortFast($logline); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=ofpc::Parse::ofpcv1BPF($logline); if ($eventdata{'parsed'} ) { last; }
+		print "TOOOOOOOO\n";
 		print Dumper $logline;
                 return(0, "Unable to parse log message");
         }   
@@ -379,7 +394,9 @@ sub SnortFast{
 		'timestamp' => 0,
 		'bpf' => 0,
 		'device' => 0,
-		'parsed' => 0
+		'parsed' => 0,
+		'stime' => 0,
+		'etime' => 0,
 		);
 
 	#05/14-09:01:49.390801  [**] [1:12628:2] RPC portmap Solaris sadmin port query udp portmapper sadmin port query attempt [**] [Classification: Decode of an RPC Query] [Priority: 2] {UDP} 192.168.133.50:666 -> 192.168.10.90:32772
@@ -424,6 +441,60 @@ sub SnortFast{
 
 }
 
+sub foofoo{
 
+	print "foo";
+}
+
+sub ofpcv1BPF{
+
+	# User defined BPF
+	my %event=(
+		'type' => "ofpc-v1-bpf",
+		'spt' => 0,
+		'dpt' => 0,
+		'sip' => 0,
+		'dip' => 0,
+		'proto' => 0,
+		'msg' => 0,
+		'timestamp' => 0,
+		'bpf' => 0,
+		'device' => 0,
+		'parsed' => 0,
+		'stime' => 0,
+		'etime' => 0,
+		);
+
+	#BPF: host 1.1.1.1 and tcp port 22 timestamp:12345
+
+	my $logline=shift;
+
+	if ($logline =~ m/^(ofpc-v1-bpf)\s+.*bpf:\s+(.*)(timestamp|stime|etime)/i) {
+                $event{'msg'} = "User requested BPF: $logline"; 
+		$event{'bpf'} = $2;
+        }
+
+	if ($logline =~ m/timestamp:\s*(\d{1,20})/) { 
+		#m/timestamp:\s*(\d*)\s/ ) { 
+        	$event{'timestamp'}=$1;
+	} 
+	
+	if ($logline =~ m/stime:\s*(\d{1,20})/) { 
+		#m/timestamp:\s*(\d*)\s/ ) { 
+        	$event{'stime'}=$1;
+	} 
+	
+	if ($logline =~ m/etime:\s*(\d{1,20})/) { 
+		#m/timestamp:\s*(\d*)\s/ ) { 
+        	$event{'etime'}=$1;
+	} 
+
+
+	if (( $event{'bpf'} and $event{'timestamp'}) or ( $event{'bpf'} and ($event{'stime'} and $event{'etime'}))) {
+		$event{'parsed'}=1;
+	}
+	
+	return(%event);
+}
 
 1;
