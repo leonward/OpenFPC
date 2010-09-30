@@ -145,9 +145,7 @@ sub decoderequest($){
 	$request{'rtime'} = gmtime();
 
         unless ($argnum == 8 ) {
-                if ($debug) {
-                        print "-D  Bad request, only $argnum args. Expected 8\n";
-                }
+                wlog("-D  Bad request, only $argnum args. Expected 8\n") if $debug;
 		$request{'msg'} = "Bad request. Only $argnum args. Expected 8\n";
                 return(\%request);
         }
@@ -166,7 +164,7 @@ sub decoderequest($){
 	# Check logline is valid
 	my ($eventdata, $error)=ofpc::Parse::parselog($request{'logline'});
 
-	print "LEON : DEBUG $eventdata->{'bpf'} was the bpf\n";
+	wlog("DEBUG: The bpf used is \"$eventdata->{'bpf'}\"") if $debug;
 
 	unless ($eventdata) {
 		wlog("ERROR: Cannot parse logline-> $error");
@@ -192,11 +190,6 @@ sub decoderequest($){
 	unless ($request{'filetype'}) {
 		$request{'filetype'} = "PCAP";
 	}
-
-	#if ($debug) {
-	#	print "DEBUG Dumping request in decoderequest\n";
-	#	print Dumper %request;
-        #}
 
 	# Check action: Valid actions are:
 
@@ -394,7 +387,7 @@ sub prepfile{
 				push(@mergefiles, "$config{'SAVEDIR'}/$_");
 			}
 			my $mergecmd="$config{'MERGECAP'} -w $config{'SAVEDIR'}/$request->{'tempfile'}.pcap @mergefiles";
-			print "DEBUG: Merge cmd is $mergecmd\n" if ($debug);
+			wlog("DEBUG: Merge cmd is $mergecmd\n") if $debug;
         		unless (system($mergecmd)) {
 				wlog("PREP: Created $config{'SAVEDIR'}/$request->{'tempfile'}.pcap created");	
 				$prep{'filename'}="$request->{'tempfile'}.pcap";
@@ -582,9 +575,9 @@ sub comms{
                         			for (1..$clen) {
                                 			$challenge="$challenge" . int(rand(99));
                         			}
-                        			print "DEBUG: $client_ip: Sending challenge: $challenge\n" if ($debug);
+                        			wlog("DEBUG: $client_ip: Sending challenge: $challenge\n") if $debug;
                         			print $client "CHALLENGE: $challenge\n";
-                        			print "DEBUG: $client_ip: Waiting for response to challenge\n" if ($debug);
+                        			wlog("DEBUG: $client_ip: Waiting for response to challenge\n") if $debug;
                         			#my $expResp="$challenge$userlist{$reqh->{'user'}}";
                         			$state{'response'}=md5_hex("$challenge$userlist{$state{'user'}}");
 					} else {
@@ -596,12 +589,12 @@ sub comms{
 					print $client "AUTH FAIL: Bad user $state{'user'}\n";
 				}
 			} case /RESPONSE/ {
-				print "DEBUG: $client_ip: Got RESPONSE\n" if ($debug);
+				wlog("DEBUG: $client_ip: Got RESPONSE\n") if ($debug);
 				if ($buf =~ /RESPONSE:*\s*(.*)/) {
 					my $response=$1;
 					if ($debug) {
-                                		print "DEBUG: $client_ip: Expected resp: $state{'response'}-\n";
-                                		print "DEBUG: $client_ip: Real resp    : $response\n";
+                                		wlog("DEBUG: $client_ip: Expected resp: $state{'response'}-\n");
+                                		wlog("DEBUG: $client_ip: Real resp    : $response\n");
                         		}
                         		# Check response hash
                         		if ( $response eq $state{'response'} ) {	
@@ -614,7 +607,7 @@ sub comms{
 						print $client "AUTH FAIL\n";
 					}
 				} else {
-					print "DEBUG $client_ip: Bad USER: request $buf\n " if ($debug);
+					wlog("DEBUG $client_ip: Bad USER: request $buf\n") if ($debug);
 					print $client "ERROR: Bad password request\n";
 				}
 			} 
@@ -628,7 +621,7 @@ sub comms{
 				# OFPC request. Made up of ACTION||...stuff
 				if ($buf =~ /REQ:\s*(.*)/) {
 					$reqcmd=$1;
-					print "DEBUG: $client_ip: REQ -> $reqcmd\n" if ($debug);
+					wlog("DEBUG: $client_ip: REQ -> $reqcmd\n") if $debug;
 
 					my $request=decoderequest($reqcmd);
 
@@ -643,7 +636,7 @@ sub comms{
 
 							$queue->enqueue($request);
 							#Say thanks and disconnect
-							print "DEBUG: $client_ip: RID: $request->{'rid'}: Queue action requested. Position $position. Disconnecting\n" if ($debug);
+							wlog("DEBUG: $client_ip: RID: $request->{'rid'}: Queue action requested. Position $position. Disconnecting\n") if $debug;
 							print $client "QUEUED: $position\n";
 							shutdown($client,2);
 
@@ -723,17 +716,17 @@ sub comms{
 	                        		shutdown($client,2);
 					}
 				} else {
-					wlog("DEBUG: $client_ip: BAD REQ -> $reqcmd");
+					wlog("DEBUG: $client_ip: BAD REQ -> $reqcmd") if $debug;
 					print $client "ERROR bad request\n";
 	                        	shutdown($client,2);
 				}
 
 			} case /OFPC-v1/ {
-				print "DEBUG $client_ip: GOT version, sending OFPC-v1 OK\n" if ($debug);
+				wlog("DEBUG $client_ip: GOT version, sending OFPC-v1 OK\n") if $debug;
 	       	                print $client "OFPC-v1 OK\n" ;
 
 			} else {
-				print "DEBUG: $client_ip : Unknown request. ->$buf<-\n" if ($debug);	
+				wlog("DEBUG: $client_ip : Unknown request. \"$buf\"\n") if $debug;	
 	                        #shutdown($client,2);
 	                }
 	        }
@@ -926,7 +919,7 @@ sub doslave{
 		@pcaproster=findBuffers($request->{'timestamp'}, 2);
 	} 
 
-	print "DEBUG: PCAP roster for extract is:  @pcaproster\n" if ($debug);
+	wlog("DEBUG: PCAP roster for extract is:  @pcaproster\n") if $debug;
 
 	(my $filename, my $size, my $md5) = doExtract($bpf,\@pcaproster,$request->{'tempfile'});
 	if ($filename) {
@@ -1090,8 +1083,8 @@ sub bufferRange {
 		}
                 push(@pcaps,$_) if ($include);
 		if ($vdebug) {
-			print "DBEUG: Including $_ \n" if ($include);
-			print "DEBUG: NOT include $_ \n" unless ($include);
+			wlog("VDBEUG: Including $_ \n") if ($include);
+			wlog("VDEBUG: NOT include $_ \n") unless ($include);
 		}
         }
 
@@ -1118,7 +1111,7 @@ sub findBuffers {
 	my $vdebug=0;	# Enable this to debug the pcap selection process
 			# It's VERY verbose, so it's off even when debugging is enabled
 
-	print "DEBUG: WARNING vdebug not enabled to inspect pcap filename selection\n" if ($debug and not $vdebug);
+	wlog("DEBUG: WARNING vdebug not enabled to inspect pcap filename selection\n") if ($debug and not $vdebug);
 
 	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/ofpc-$config{'NODENAME'}-pcap.*`;
         foreach(@pcaptemp) {
@@ -1126,7 +1119,7 @@ sub findBuffers {
                 push(@pcaps,$_);
         }
 
-        print "DEBUG: $numberOfFiles requested each side of target timestamp ($targetTimeStamp) \n" if ($debug);
+        wlog("DEBUG: $numberOfFiles requested each side of target timestamp ($targetTimeStamp) \n") if $debug;
 
         $targetTimeStamp=$targetTimeStamp-0.5;                  # Remove risk of TARGET conflict with file timestamp.   
         push(@timestampArray, $targetTimeStamp);                # Add target timestamp to an array of all file timestamps
@@ -1159,8 +1152,8 @@ sub findBuffers {
                if ( "$timeHash{$_}" eq "TARGET" ) {
                         $location=$count - 1;
                         if ($debug and $vdebug) {
-                                print "DEBUG: Got TARGET match of $_ in array location $count\n";
-                                print "DEBUG: Pcap file at previous to TARGET is in location $location -> filename $timeHash{$timestampArray[$location]} \n";
+                                wlog("DEBUG: Got TARGET match of $_ in array location $count\n"); 
+                                wlog("DEBUG: Pcap file at previous to TARGET is in location $location -> filename $timeHash{$timestampArray[$location]} \n");
                         }
                         last;
                 } elsif ( "$_" == "$targetTimeStamp" ) {     # If the timestamp of the pcap file is identical to the timestamp
@@ -1186,7 +1179,7 @@ sub findBuffers {
         unless ( $timeHash{$timestampArray[$location]} eq "TARGET" ) {
                 push(@TARGET_PCAPS,$timeHash{$timestampArray[$location]});
         } else {
-                print "DEBUG Skipping got target\n" if ($debug);
+                wlog("DEBUG Skipping got target\n") if ($debug);
         }
 
         while($precount >= 1) {
@@ -1240,7 +1233,7 @@ sub doExtract{
 	my $tempdir=tempdir(CLEANUP => 1);
 	
         my @outputpcaps=();
-        print "DEBUG: Doing Extraction with BPF $bpf into tempdir $tempdir\n" if ($debug);
+        wlog("DEBUG: Doing Extraction with BPF $bpf into tempdir $tempdir\n") if ($debug);
 
         foreach (@filelist){
                 (my $pcappath, my $pcapid)=split(/\./, $_);
@@ -1248,7 +1241,7 @@ sub doExtract{
                 my $filename="$tempdir/$mergefile-$pcapid.pcap";
                 push(@outputpcaps,$filename);
                 my $exec="$config{'TCPDUMP'} -r $_ -w $filename $bpf > /dev/null 2>&1";
-		print "DEBUG: Exec: $exec\n" if ($debug);
+		wlog("DEBUG: Exec: $exec\n") if ($debug);
                 `$exec`;
         }
 
@@ -1306,7 +1299,7 @@ GetOptions (    'c|conf=s' => \$CONFIG_FILE,
                 );
 if ($debug) { 
 	$verbose=1;
-	print "DEBUG = ON!\n"
+	wlog("DEBUG Enabled\n");
 }
 
 if ($help) { 
@@ -1361,7 +1354,7 @@ if ($config{'MASTER'}) {
 }
 
 # Start listener
-print "*  Starting listener on TCP:$config{'OFPC_PORT'}\n" if ($debug);
+wlog("*  Starting listener on TCP:$config{'OFPC_PORT'}\n") if ($debug);
 my $listenSocket = IO::Socket::INET->new(
                                 LocalPort => $config{'OFPC_PORT'},
                                 Proto => 'tcp',

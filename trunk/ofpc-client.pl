@@ -211,18 +211,17 @@ GetOptions (    'u|user=s' => \$cmdargs{'user'},
                 );
 
 # Need to tidy this up.
-if ($cmdargs{'user'}) { $request{'user'} = $cmdargs{'user'}; }
-if ($cmdargs{'server'}) { $config{'server'} = $cmdargs{'server'}; }
-if ($cmdargs{'port'}) { $config{'port'} = $cmdargs{'port'}; }
-if ($cmdargs{'filename'}) { $request{'filename'} = $cmdargs{'filename'}; }
-if ($cmdargs{'logtype'}) { $request{'logtype'} = $cmdargs{'logtype'}; }
-if ($cmdargs{'action'}) { $request{'action'} = $cmdargs{'action'}; }
-if ($cmdargs{'logline'}) { $request{'logline'} = $cmdargs{'logline'}; }
-if ($cmdargs{'password'}) { $request{'password'} = $cmdargs{'password'}; }
-if ($cmdargs{'comment'}) { $request{'comment'} = $cmdargs{'comment'}; }
-if ($cmdargs{'device'}) { $request{'device'} = $cmdargs{'device'}; }
-if ($cmdargs{'zip'}) { $request{'filetype'} = "ZIP"; }
-if ($cmdargs{'bpf'}) { $request{'bpf'} = $cmdargs{'bpf'}; }
+$request{'user'} 	= $cmdargs{'user'}	if $cmdargs{'user'};
+$config{'server'} 	= $cmdargs{'server'}	if $cmdargs{'server'}; 
+$config{'port'} 	= $cmdargs{'port'}	if $cmdargs{'port'};
+$request{'filename'} 	= $cmdargs{'filename'}	if $cmdargs{'filename'};
+$request{'logtype'} 	= $cmdargs{'logtype'}   if $cmdargs{'logtype'};
+$request{'action'} 	= $cmdargs{'action'}	if $cmdargs{'action'};
+$request{'logline'} 	= $cmdargs{'logline'}	if $cmdargs{'logline'};
+$request{'password'} 	= $cmdargs{'password'}  if $cmdargs{'password'};
+$request{'comment'} 	= $cmdargs{'comment'}   if $cmdargs{'comment'};
+$request{'device'} 	= $cmdargs{'device'}	if $cmdargs{'device'};
+$request{'filetype'} 	= "ZIP"			if $cmdargs{'zip'};
 $request{'bpf'}		= $cmdargs{'bpf'}	if $cmdargs{'bpf'};
 $request{'stime'} 	= $cmdargs{'stime'} 	if ($cmdargs{'stime'});
 $request{'etime'} 	= $cmdargs{'etime'} 	if ($cmdargs{'etime'});
