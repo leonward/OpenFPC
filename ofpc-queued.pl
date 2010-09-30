@@ -131,6 +131,7 @@ sub decoderequest($){
 			spt	=>	0,
 			dpt	=>	0,
 			msg	=>	0,
+			bpf     =>	0,
 			rtime	=>	0,
 			timestamp =>	0,
 			stime	=>	0,
@@ -164,6 +165,9 @@ sub decoderequest($){
 
 	# Check logline is valid
 	my ($eventdata, $error)=ofpc::Parse::parselog($request{'logline'});
+
+	print "LEON : DEBUG $eventdata->{'bpf'} was the bpf\n";
+
 	unless ($eventdata) {
 		wlog("ERROR: Cannot parse logline-> $error");
 		return(\%request);
@@ -178,6 +182,7 @@ sub decoderequest($){
 		$request{'stime'} = $eventdata->{'stime'};
 		$request{'etime'} = $eventdata->{'etime'};
 		$request{'proto'} = $eventdata->{'proto'};
+		$request{'bpf'} = $eventdata->{'bpf'};
 	}
 	unless ($request{'comment'}) {
 		$request{'comment'} = "No comment";
@@ -343,7 +348,11 @@ sub prepfile{
 			push (@slavefiles,"$request->{'tempfile'}.txt");
 		}
 
-	} else { 	# Do slave stuff, no routing etc just extract the data and make a report
+	} else { 	
+		#####################################
+		# Slave stuff
+		# Do slave stuff, no routing etc just extract the data and make a report
+
    		my $result = doslave($request,$rid);
 
 		if ($result->{'success'}) {
@@ -478,9 +487,7 @@ sub getstatus{
 			return \%stat;
 		}
 		@files=sort(@files);
-		foreach (@files) {
-			print "File $_\n";
-		}
+
 		# A sorted dir could also include other files. We can apply a check for the daemonlogger prfix
 		# to make sure we don't end up with some other crap, or ".",".." etc
 
@@ -621,8 +628,10 @@ sub comms{
 				# OFPC request. Made up of ACTION||...stuff
 				if ($buf =~ /REQ:\s*(.*)/) {
 					$reqcmd=$1;
-					#print "DEBUG: $client_ip: REQ -> $reqcmd\n" if ($debug);
+					print "DEBUG: $client_ip: REQ -> $reqcmd\n" if ($debug);
+
 					my $request=decoderequest($reqcmd);
+
 					if ($request->{'valid'} == 1) {					# Valid request then...		
 						# Generate a rid (request ID for this.... request!).
 						# Unless action is something we need to wait for, lets close connection
@@ -642,6 +651,8 @@ sub comms{
 							# Create a tempfilename for this store request
 							$request->{'tempfile'}=time() . "-" . $request->{'rid'} . ".pcap";
 							wlog("COMMS: $client_ip: RID: $request->{'rid'} Request OK -> WAIT!\n");
+
+							# Prep result of the request for delivery (route/extract/compress etc etc)
 							my $prep = prepfile($request);
 							my $xferfile=$prep->{'filename'};
 
@@ -883,6 +894,7 @@ sub doslave{
 	my $extractcmd;
 	my $request=shift;
 	my @cmdargs=();
+	my $bpf;
 	my %result=( filename => 0,
 			success => 0,
 			message => 0,
@@ -891,8 +903,15 @@ sub doslave{
 		);
 
 	wlog("SLAVE: Request: $request->{'rid'} User: $request->{'user'} Action: $request->{'action'}");
-	my $bpf=mkBPF($request);
-	print "DEBUG: BPF is $bpf\n" if ($debug);
+	
+	# Unless we have been given a real bpf from the user, make our own
+	unless ($request->{'bpf'} ) {
+		$bpf=mkBPF($request);
+	} else {
+		$bpf=$request->{'bpf'};
+	}
+
+	wlog("SLAVE: Request: $request->{'rid'} User: $request->{'user'} BPF: $bpf");
 
 	# Here
 	# Do we have a single timestamp or pair of them.
@@ -1107,7 +1126,7 @@ sub findBuffers {
                 push(@pcaps,$_);
         }
 
-        print "DEBUG: $numberOfFiles requested each side of target timestamp \n" if ($debug);
+        print "DEBUG: $numberOfFiles requested each side of target timestamp ($targetTimeStamp) \n" if ($debug);
 
         $targetTimeStamp=$targetTimeStamp-0.5;                  # Remove risk of TARGET conflict with file timestamp.   
         push(@timestampArray, $targetTimeStamp);                # Add target timestamp to an array of all file timestamps
@@ -1315,7 +1334,7 @@ close $config;
 
 my $numofusers=keys (%userlist);
 unless ($numofusers) {
-	die "$numofusers users defined in config file.\n";
+	die "$numofusers users defined in config file. You need to add some.\n";
 }
 
 wlog("*********** OpenFPC $openfpcver **********");

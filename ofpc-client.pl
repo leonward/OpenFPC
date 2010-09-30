@@ -66,6 +66,7 @@ my %request=(	user => 0,
 		dip => 0,
 		spt => 0,
 		dpt => 0,
+		bpf => 0,
 		proto => 0,
 		timestamp => 0,
 		stime => 0,
@@ -103,6 +104,7 @@ sub showhelp{
 
   -------- Traffic Constraints -------
   
+  --bpf					Specify constraints with a BPF syntax
   --logline or -e <line>		Logline, must be supported by ofpc::Parse
   --src-addr <host>			Source IP
   --dst-addr <host>			Destination IP
@@ -205,6 +207,7 @@ GetOptions (    'u|user=s' => \$cmdargs{'user'},
 		'device=s' => \$cmdargs{'device'},
 		'stime=s' =>  \$cmdargs{'stime'},
 		'etime=s' => \$cmdargs{'etime'},
+		'bpf=s' => \$cmdargs{'bpf'},
                 );
 
 # Need to tidy this up.
@@ -219,7 +222,8 @@ if ($cmdargs{'password'}) { $request{'password'} = $cmdargs{'password'}; }
 if ($cmdargs{'comment'}) { $request{'comment'} = $cmdargs{'comment'}; }
 if ($cmdargs{'device'}) { $request{'device'} = $cmdargs{'device'}; }
 if ($cmdargs{'zip'}) { $request{'filetype'} = "ZIP"; }
-
+if ($cmdargs{'bpf'}) { $request{'bpf'} = $cmdargs{'bpf'}; }
+$request{'bpf'}		= $cmdargs{'bpf'}	if $cmdargs{'bpf'};
 $request{'stime'} 	= $cmdargs{'stime'} 	if ($cmdargs{'stime'});
 $request{'etime'} 	= $cmdargs{'etime'} 	if ($cmdargs{'etime'});
 
@@ -254,7 +258,7 @@ if ($cmdargs{'help'}) {
 
 # Check we have enough constraints to make an extraction with.
 if ($request{'action'} =~ m/(fetch|store)/)  {
-	unless ($request{'logline'} or ($cmdargs{'sip'} or $cmdargs{'dip'} or $cmdargs{'spt'} or $cmdargs{'dpt'} )) {
+	unless ($request{'logline'} or ($cmdargs{'bpf'} or $cmdargs{'sip'} or $cmdargs{'dip'} or $cmdargs{'spt'} or $cmdargs{'dpt'} )) {
 		unless ($cmdargs{'gui'} )  {
 			showhelp;
 		} else {
@@ -315,8 +319,9 @@ unless ($sock) {
 	exit 1;
 }
 
-
+print "DEBUG: Connected to $config{'server'}\n" if ($debug);
 %result=ofpc::Request::request($sock,\%request);
+print "DEBUG: Sent Request\n" if ($debug);
 close($sock);
 
 displayResult($cmdargs{'gui'});

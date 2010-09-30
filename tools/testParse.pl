@@ -21,7 +21,8 @@ my $auto=0;
 #my $input="ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp time:1274864808 msg:Some freeform text";
 #my $input="ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 spt:222 timestamp:1274864808";
 #my $input="ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 spt:222 timestamp:1274864808";
-my $input="ofpc-v1 type:search dip:192.168.222.1 dpt:22 stime:1283171182 etime:1283174182";
+#my $input="ofpc-v1 type:search dip:192.168.222.1 dpt:22 stime:1283171182 etime:1283174182";
+my $input="ofpc-v1-bpf host 1.1.1.1 and host 2.2.2.2 not tcp port 23 stime:1274864808 etime:1274864899";
 
 my %eventdata = ();
 
@@ -29,6 +30,7 @@ my %eventdata = ();
 if ($auto) {
 	print "* Autodetect type\n";
 	while (1) {
+		%eventdata=ofpc::Parse::ofpcv1bpf($input); if ($eventdata{'parsed'} ) { last; }
 		%eventdata=ofpc::Parse::OFPC1Event($input); if ($eventdata{'parsed'} ) { last; }
 		%eventdata=ofpc::Parse::SF49IPS($input); if ($eventdata{'parsed'} ) { last; }
 		%eventdata=ofpc::Parse::Exim4($input); if ($eventdata{'parsed'} ) { last; }
@@ -39,7 +41,7 @@ if ($auto) {
 } else { # Manual 
 	print "* Manual type set\n";
 
-	%eventdata=ofpc::Parse::OFPC1Event($input);
+	%eventdata=ofpc::Parse::ofpcv1BPF($input);
 }
 	if ($eventdata{'type'}) {
 		print "\nGot event type $eventdata{'type'}\n";
