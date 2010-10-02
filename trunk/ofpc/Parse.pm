@@ -98,8 +98,6 @@ sub parselog{
                 %eventdata=ofpc::Parse::SnortSyslog($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=ofpc::Parse::SnortFast($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=ofpc::Parse::ofpcv1BPF($logline); if ($eventdata{'parsed'} ) { last; }
-		print "TOOOOOOOO\n";
-		print Dumper $logline;
                 return(0, "Unable to parse log message");
         }   
  
@@ -238,7 +236,6 @@ sub SF49IPS{
         	$event{'timestamp'}=`date --date='$1' +%s`;
 		chomp $event{'timestamp'};
         }   
-	# Here	
 	if ($logline =~ m/( high| medium| low)\s+(.*) \//) {
 		$event{'device'} = $2;
 	}
@@ -330,6 +327,8 @@ sub SnortSyslog{
 		'timestamp' => 0,
 		'bpf' => 0,
 		'device' => 0,
+		'stime' => 0,
+		'etime' => 0,
 		'parsed' => 0
 		);
 
@@ -425,12 +424,22 @@ sub SnortFast{
                         $event{'dip'} = $2;
                }
         } elsif (($event{'proto'} eq "TCP") | ($event{'proto'} eq "UDP")) {
-                if ($logline =~ /((\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b):(\d+)) -> ((\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b):(\d+))/) {
+                if ($logline =~ /((\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b):(\d*)) -> ((\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b):(\d*))/) {
                         $event{'sip'} = $2;
                         $event{'dip'} = $5;
-                        $event{'spt'} = $3;
-                        $event{'dpt'} = $6;
                 }
+
+		# Grab a spt if there is one (user may want to remove it to grab more data)
+                if ($logline =~ /((\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b):(\d+)) *->/) {
+                        $event{'spt'} = $3;
+		}
+
+		# Grab a dpt if there is one (user may want to remove it to grab more data)
+                if ($logline =~ /-> *((\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b):(\d+))/) {
+                        $event{'dpt'} = $3;
+		}
+		# Here
+		
 	}
 
 	if ( ($event{'sip'} or $event{'dip'}) and $event{'proto'} and $event{'timestamp'} ) {
