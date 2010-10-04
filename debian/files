@@ -1,3 +1,4 @@
-openfpc-client_0.2-1_all.deb net optional
-openfpc-master_0.2-1_all.deb net optional
-openfpc-slave_0.2-1_all.deb net optional
+openfpc-common_0.2-3_all.deb net optional
+openfpc-client_0.2-3_all.deb net optional
+openfpc-master_0.2-3_all.deb net optional
+openfpc-slave_0.2-3_all.deb net optional

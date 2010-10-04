@@ -2,11 +2,10 @@ etc/init.d/openfpc-cxtracker etc/init.d
 etc/init.d/openfpc-daemonlogger etc/init.d
 etc/init.d/openfpc-cx2db etc/init.d
 etc/init.d/openfpc-queued etc/init.d
+etc/init.d/openfpc-slave etc/init.d
 
-etc/openfpc.apache2.conf /etc/apache2/sites-available/
+setup-ofpc.pl usr/bin 
 
-debian/debian.confs/openfpc-slave.conf etc/openfpc/
+etc/openfpc.apache2.conf /etc/apache2/sites-available
 
-OpenFPC/Parse.pm usr/share/perl5/OpenFPC
-OpenFPC/Request.pm usr/share/perl5/OpenFPC
-
+debian/debian.confs/openfpc-slave.conf etc/openfpc

@@ -1,3 +1,19 @@
+openfpc (0.2-3) unstable; urgency=low
+
+  * Fixed openfpc-slave install bug when making dir
+  * Added missing openfpc-slave init script
+  * Added setup-openfpc.pl to openfpc-slave
+  * Added apache dependencies to openfpc-slave
+  * Added debian postrm script for openfpc-slave
+
+ -- Edward Fjellskål <edward.fjellskaal@gmail.com>  Mon, 04 Oct 2010 15:00:01 +0200
+
+openfpc (0.2-2) unstable; urgency=low
+
+  * Split the perl-libs into a required openfpc-common packaged
+
+ -- Edward Fjellskål <edward.fjellskaal@gmail.com>  Mon, 04 Oct 2010 12:36:11 +0200
+
 openfpc (0.2-1) unstable; urgency=low
 
   * Initial release
