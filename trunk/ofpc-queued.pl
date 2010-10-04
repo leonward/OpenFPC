@@ -36,8 +36,8 @@ use File::Temp(qw(tempdir));
 use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 use Filesys::Df;
 use Sys::Syslog;
-use ofpc::Parse;
-use ofpc::Request;
+use OpenFPC::Parse;
+use OpenFPC::Request;
 
 =head1 NAME
 
@@ -162,7 +162,7 @@ sub decoderequest($){
 		) = split(/\|\|/, $rawrequest);
 
 	# Check logline is valid
-	my ($eventdata, $error)=ofpc::Parse::parselog($request{'logline'});
+	my ($eventdata, $error)=OpenFPC::Parse::parselog($request{'logline'});
 
 	wlog("DEBUG: The bpf used is \"$eventdata->{'bpf'}\"") if $debug;
 
@@ -855,7 +855,7 @@ sub domaster{
 	$request->{'user'} = $request->{'slaveuser'};
 	$request->{'password'} = $request->{'slavepass'};
 	$request->{'savedir'} = $config{'SAVEDIR'};
-	%result=ofpc::Request::request($slavesock,$request);
+	%result=OpenFPC::Request::request($slavesock,$request);
 	
 	# Return the name of the file that we have been passed by the slave
 	if ($result{'success'} == 1) {
