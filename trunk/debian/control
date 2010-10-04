@@ -6,11 +6,28 @@ Standards-Version: 3.8.3
 Section: net
 Homepage: http://www.openfpc.org/
 
-Package: openfpc-client
+Package: openfpc-common
 Section: net
 Priority: optional
 Architecture: all
 Depends: ${shlibs:Depends}, ${misc:Depends}, libarchive-zip-perl, libfilesys-df-perl, libdatetime-perl
+Recommends: wireshark
+Description: OpenFPC - An Open Full Packet Capture Setup
+ OpenFPC is a set of scripts that combine to provide
+ a lightweight full-packet network traffic recorder
+ & buffering tool. It's design goal is to allow non-expert
+ users to deploy a distributed network traffic recorder
+ on COTS hardware while integrating into existing alert
+ and log tools.
+ .
+ openfpc-common includes the perl libs that are needed
+ for all openfpc control scripts.
+
+Package: openfpc-client
+Section: net
+Priority: optional
+Architecture: all
+Depends: ${shlibs:Depends}, ${misc:Depends}, openfpc-common
 Recommends: wireshark
 Description: OpenFPC - An Open Full Packet Capture Setup
  OpenFPC is a set of scripts that combine to provide
@@ -33,7 +50,7 @@ Package: openfpc-master
 Section: net
 Priority: optional
 Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, libarchive-zip-perl, libfilesys-df-perl, libdatetime-perl, tshark, tcpdump
+Depends: ${shlibs:Depends}, ${misc:Depends}, openfpc-common, tshark, tcpdump
 Conflicts: openfpc-slave
 Description: OpenFPC - An Open Full Packet Capture Setup
  OpenFPC is a set of scripts that combine to provide
@@ -54,7 +71,7 @@ Package: openfpc-slave
 Section: net
 Priority: optional
 Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, libarchive-zip-perl, libfilesys-df-perl, libdatetime-perl, daemonlogger, tshark, tcpdump
+Depends: ${shlibs:Depends}, ${misc:Depends}, openfpc-common, daemonlogger, tshark, tcpdump, apache2, apache2-mpm-prefork, libapache2-mod-php5
 Conflicts: openfpc-master
 Description: OpenFPC - An Open Full Packet Capture Setup
  OpenFPC is a set of scripts that combine to provide
