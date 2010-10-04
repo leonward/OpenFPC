@@ -5,6 +5,7 @@ etc/init.d/openfpc-queued etc/init.d
 etc/init.d/openfpc-slave etc/init.d
 
 setup-ofpc.pl usr/bin 
+ofpc-queued.pl usr/bin
 
 etc/openfpc.apache2.conf /etc/apache2/sites-available
 
