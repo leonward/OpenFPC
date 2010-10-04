@@ -4,6 +4,6 @@ etc/init.d/openfpc-queued etc/init.d
 
 debian/debian.confs/openfpc-master.conf etc/openfpc/
 
-ofpc/Parse.pm usr/share/perl5/OFPC
-ofpc/Request.pm usr/share/perl5/OFPC
+OpenFPC/Parse.pm usr/share/perl5/OpenFPC
+OpenFPC/Request.pm usr/share/perl5/OpenFPC
 
