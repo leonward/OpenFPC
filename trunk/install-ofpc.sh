@@ -33,6 +33,7 @@ INIT_DIR="/etc/init.d/"
 REQUIRED_BINS="tcpdump date mergecap perl tshark"
 LOCAL_CONFIG="/etc/openfpc/openfpc.conf"
 PERL_LIB_DIR="/usr/local/lib/site_perl"
+OFPC_LIB_DIR="$PERL_LIB_DIR/OpenFPC"
 BIN_DIR="/usr/local/bin"
 
 DEPSOK=0			# Track if obvious deps are met
@@ -137,19 +138,20 @@ function doinstall()
 		mkdir $CONF_DIR || die "[!] Unable to mkdir $CONF_DIR"
 	fi
 
-	# Check perl site includes dir is in the perl path
+	# Check the perl_lib_dir is in the perl path
 	if  perl -V | grep "$PERL_LIB_DIR" > /dev/null
 	then
-		echo " -  Installing modules to $PERL_LIB_DIR/ofpc"
+		echo " -  Installing modules to $PERL_LIB_DIR"
 	else
 		die "[!] Perl include path problem. Cant find $PERL_LIB_DIR in Perl's @INC (perl -V to check)"
 	fi	
-	
-        if [ -d $PERL_LIB_DIR/ofpc ] 
+
+	# Check four our inclide dir	
+        if [ -d $OFPC_LIB_DIR ] 
 	then
-		echo -e " -  $PERL_LIB_DIR/ofpc exists"
+		echo -e " -  $OFPC_LIB_DIR exists"
 	else
-		mkdir --parent $PERL_LIB_DIR || die "[!] Unable to mkdir $PERL_LIB_DIR/ofpc"
+		mkdir --parent $OFPC_LIB_DIR || die "[!] Unable to mkdir $OFPC_LIB_DIR"
 	fi
 
 	[ -d $INIT_DIR ] || die "[!] Cannot find init.d directory $INIT_DIR. Something bad must have happened."
@@ -169,18 +171,18 @@ function doinstall()
 
 	######## Modules ###########
 
-	if [ -d $PERL_LIB_DIR/ofpc ] 
+	if [ -d $OFPC_LIB_DIR ] 
 	then
-		echo -e " *  Found $PERL_LIB_DIR/ofpc"
+		echo -e " *  Found $OFPC_LIB_DIR"
 	else
-		mkdir $PERL_LIB_DIR/ofpc || die "[!] Unable to mkdir $PERL_LIB_DIR/ofpc"
+		mkdir --parent $OFPC_LIB_DIR || die "[!] Unable to mkdir $OFPC_LIB_DIR"
 	fi
 
 	for file in $PERL_MODULES
 	do
 		echo -e " -  Installing PERL module $file"
-		[ -d $PERL_LIB_DIR/ofpc ] || mkdir --parent $PERL_LIB_DIR/ofpc
-		cp ofpc/$file $PERL_LIB_DIR/ofpc/$file
+		#[ -d $PERL_LIB_DIR/ofpc ] || mkdir --parent $PERL_LIB_DIR/ofpc
+		cp OpenFPC/$file $OFPC_LIB_DIR/$file
 	done
 
 	###### Programs ######
@@ -306,11 +308,11 @@ function remove()
 	echo -e "[*] Removing PERL modules"
 	for file in $PERL_MODULES
 	do
-		if [ -f $PERL_LIB_DIR/ofpc/$file ]
+		if [ -f $OFPC_LIB_DIR/$file ]
 		then	
-			rm $PERL_LIB_DIR/ofpc/$file  || echo -e "[!] Unable to delete $file"
+			rm $OFPC_LIB_DIR/$file  || echo -e "[!] Unable to delete $file"
 		else
-			echo -e "    $PERL_LIB_DIR/ofpc/$file Not found"
+			echo -e "    $OFPC_LIB_DIR/$file Not found"
 		fi
 	done
 
@@ -417,11 +419,11 @@ function installstatus()
 	
 	for file in $PERL_MODULES
 	do
-		if [ -f $PERL_LIB_DIR/ofpc/$file ]
+		if [ -f $OFPC_LIB_DIR/$file ]
 		then
-			echo -e "  Yes $PERL_LIB_DIR/ofpc/$file Exists"
+			echo -e "  Yes $OFPC_LIB_DIR/$file Exists"
 		else
-			echo -e "  No  $PERL_LIB_DIR/ofpc/$file does not exist"
+			echo -e "  No  $OFPC_LIB_DIR/$file does not exist"
 			SUCCESS=0
 		fi	
 	done
