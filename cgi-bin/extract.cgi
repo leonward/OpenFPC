@@ -27,8 +27,8 @@
 use warnings;
 use strict;
 use Date::Parse;
-use ofpc::Request;
-use ofpc::Parse;
+use OpenFPC::Request;
+use OpenFPC::Parse;
 use CGI ':standard';
 use IO::Socket::INET;
 use Data::Dumper;
@@ -118,7 +118,7 @@ unless ($req{'filename'}) {
 }
 
 unless ($req{'logline'}) {
-	my $logline=ofpc::Parse::sessionToLogline(\%req);
+	my $logline=OpenFPC::Parse::sessionToLogline(\%req);
         $req{'logline'} = $logline;
 }
 
@@ -132,7 +132,7 @@ unless ($sock) {
          exit 1;
 }
  
-%result=ofpc::Request::request($sock,\%req);
+%result=OpenFPC::Request::request($sock,\%req);
 close($sock);
 
 

@@ -25,8 +25,8 @@ use strict;
 use warnings;
 use Data::Dumper;
 use IO::Socket::INET;
-use ofpc::Request; 
-use ofpc::Parse;
+use OpenFPC::Request; 
+use OpenFPC::Parse;
 use Getopt::Long;
 use Switch;
 use Digest::MD5(qw(md5_hex));
@@ -105,7 +105,7 @@ sub showhelp{
   -------- Traffic Constraints -------
   
   --bpf					Specify constraints with a BPF syntax
-  --logline or -e <line>		Logline, must be supported by ofpc::Parse
+  --logline or -e <line>		Logline, must be supported by OpenFPC::Parse
   --src-addr <host>			Source IP
   --dst-addr <host>			Destination IP
   --src-port <port>			Source Port
@@ -283,7 +283,7 @@ if ($cmdargs{'gui'}) {
 
 # Convert session info into a "logline" to make a request.
 unless ($cmdargs{'logline'}) {
-	my $logline=ofpc::Parse::sessionToLogline(\%cmdargs);
+	my $logline=OpenFPC::Parse::sessionToLogline(\%cmdargs);
 	$request{'logline'} = $logline;	
 	print "Logline created from session IDs: $request{'logline'}\n" if ($debug);
 }
@@ -319,7 +319,7 @@ unless ($sock) {
 }
 
 print "DEBUG: Connected to $config{'server'}\n" if ($debug);
-%result=ofpc::Request::request($sock,\%request);
+%result=OpenFPC::Request::request($sock,\%request);
 print "DEBUG: Sent Request\n" if ($debug);
 close($sock);
 

@@ -1,8 +1,8 @@
-package ofpc::Parse;
+package OpenFPC::Parse;
 
 #########################################################################################
 # Copyright (C) 2009 Leon Ward 
-# ofpc-extract.pl - Part of the OpenFPC - (Full Packet Capture) project
+# OpenFPC::Parse - Part of the OpenFPC - (Full Packet Capture) project
 #
 # Contact: leon@rm-rf.co.uk
 #
@@ -92,12 +92,12 @@ sub parselog{
 
         # Work through a list of file-parsers until we get a hit        
         while (1) {
-                %eventdata=ofpc::Parse::OFPC1Event($logline); if ($eventdata{'parsed'} ) { last; }
-                %eventdata=ofpc::Parse::SF49IPS($logline); if ($eventdata{'parsed'} ) { last; }
-                %eventdata=ofpc::Parse::Exim4($logline); if ($eventdata{'parsed'} ) { last; }
-                %eventdata=ofpc::Parse::SnortSyslog($logline); if ($eventdata{'parsed'} ) { last; }
-                %eventdata=ofpc::Parse::SnortFast($logline); if ($eventdata{'parsed'} ) { last; }
-                %eventdata=ofpc::Parse::ofpcv1BPF($logline); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OpenFPC::Parse::OFPC1Event($logline); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OpenFPC::Parse::SF49IPS($logline); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OpenFPC::Parse::Exim4($logline); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OpenFPC::Parse::SnortSyslog($logline); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OpenFPC::Parse::SnortFast($logline); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OpenFPC::Parse::ofpcv1BPF($logline); if ($eventdata{'parsed'} ) { last; }
                 return(0, "Unable to parse log message");
         }   
  
