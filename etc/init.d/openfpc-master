@@ -1,26 +1,17 @@
 #!/bin/bash 
+### BEGIN INIT INFO
+# Provides:          openfpc-master
+# Required-Start:    $network
+# Required-Stop:     $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Open Full Packet Capture Master
+# Description:       This is a network security tool designed to 
+#                    collect full pcap from network traffic
+### END INIT INFO
 
-#########################################################################################
 # Copyright (C) 2010 Edward Fjellskål
 # Copyright (C) 2009 Leon Ward 
-# OpenFPC - Part of the OpenFPC - (Full Packet Capture) project
-#
-# Contact: leon@rm-rf.co.uk, edwardfjellskaal@gmail.com
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-#########################################################################################
 
 # ---------------- Nothing to do below here -------------
 # List of config files to try in order
