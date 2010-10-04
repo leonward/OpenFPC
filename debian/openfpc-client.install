@@ -1,1 +1,3 @@
 ofpc-client.pl usr/bin/
+ofpc/Parse.pm usr/share/perl5/OFPC
+ofpc/Request.pm usr/share/perl5/OFPC

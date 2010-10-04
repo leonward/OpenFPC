@@ -1,3 +1,4 @@
 usr/bin
 etc/init.d
 etc/openfpc
+/usr/share/perl5/OFPC

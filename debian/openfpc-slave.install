@@ -5,4 +5,8 @@ etc/init.d/openfpc-queued etc/init.d
 
 etc/openfpc.apache2.conf /etc/apache2/sites-available/
 
-debian/debian.confs/openfpc-master.conf etc/openfpc/
+debian/debian.confs/openfpc-slave.conf etc/openfpc/
+
+ofpc/Parse.pm usr/share/perl5/OFPC
+ofpc/Request.pm usr/share/perl5/OFPC
+
