@@ -59,10 +59,10 @@ TCPDUMPOPTS="-Z root"
 openfpcver=0.2
 PID_FILE=openfpc-dl
 PID_PATH=/var/run
-FILENAME=ofpc-
-OPENFPCQD=$INSTALL_DIR/ofpc-queued.pl
+FILENAME=openfpc-
+OPENFPCQD=$INSTALL_DIR/openfpc-queued
 CXPIDFILE=/var/run/cxtracker.pid 
-CX2DB_PID_FILE="/var/run/ofpc-cx2db.pid"
+CX2DB_PID_FILE="/var/run/openfpc-cx2db.pid"
 
 if [ "$DONE" != "y" ] 
 then
@@ -195,7 +195,7 @@ function cxtrackerstart()
 			fi
 		fi
 			
-			ofpc-cx2db.pl --daemon --config $CONFIG
+			openfpc-cx2db.pl --daemon --config $CONFIG
 			# Sleep for 2 seconds to make sure we can connect to the local DB
 			# TODO: Make cx2db connect to the DB before it daemonizes
 
@@ -296,7 +296,7 @@ function daemonloggerstart()
 		-s $FILE_SIZE \
 		-p $PID_FILE \
 		-P $PID_PATH \
-		-n ofpc-$NODENAME-pcap "
+		-n openfpc-$NODENAME-pcap "
 
 	$CMD || die "Unable to start daemonlogger"
 

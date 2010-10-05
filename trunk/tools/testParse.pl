@@ -6,7 +6,7 @@
 
 use strict;
 use warnings;
-use ofpc::Parse;
+use OpenFPC::Parse;
 use Switch;
 
 my $auto=0;
@@ -46,18 +46,18 @@ my %eventdata = ();
 if ($auto) {
 	print "* Autodetect type\n";
 	while (1) {
-		%eventdata=ofpc::Parse::ofpcv1BPF($input); if ($eventdata{'parsed'} ) { last; }
-		%eventdata=ofpc::Parse::OFPC1Event($input); if ($eventdata{'parsed'} ) { last; }
-		%eventdata=ofpc::Parse::SF49IPS($input); if ($eventdata{'parsed'} ) { last; }
-		%eventdata=ofpc::Parse::Exim4($input); if ($eventdata{'parsed'} ) { last; }
-		%eventdata=ofpc::Parse::SnortSyslog($input); if ($eventdata{'parsed'} ) { last; }
-		%eventdata=ofpc::Parse::SnortFast($input); if ($eventdata{'parsed'} ) { last; }
+		%eventdata=OpenFPC::Parse::ofpcv1BPF($input); if ($eventdata{'parsed'} ) { last; }
+		%eventdata=OpenFPC::Parse::OFPC1Event($input); if ($eventdata{'parsed'} ) { last; }
+		%eventdata=OpenFPC::Parse::SF49IPS($input); if ($eventdata{'parsed'} ) { last; }
+		%eventdata=OpenFPC::Parse::Exim4($input); if ($eventdata{'parsed'} ) { last; }
+		%eventdata=OpenFPC::Parse::SnortSyslog($input); if ($eventdata{'parsed'} ) { last; }
+		%eventdata=OpenFPC::Parse::SnortFast($input); if ($eventdata{'parsed'} ) { last; }
 		die("Unable to parse log. Doesn't match anything")
 	}
 } else { # Manual 
 	print "* Manual type set\n";
 
-	%eventdata=ofpc::Parse::SnortFast($input);
+	%eventdata=OpnFPC::Parse::SnortFast($input);
 }
 	if ($eventdata{'type'}) {
 		print "\nGot event type $eventdata{'type'}\n";

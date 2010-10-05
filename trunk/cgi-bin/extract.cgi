@@ -34,20 +34,20 @@ use IO::Socket::INET;
 use Data::Dumper;
 use File::Temp(qw(tempdir));
 
-# Enter your username and password for ofpc here
+# Enter your username and password for OpenFPC here
 # TODO: Decide if these should be configured here, or in a .conf somewhere.
 # For now, this works fine.
 
-my $ofpcuser="bob";	# Username to log into the ofpc-queued instance
-my $ofpcpass="bob";	# Password to log into the ofpc-queued instance
-my $ofpcserver="localhost";	# OpenFPC Queue address (hostname/ip)
-my $ofpcport="4242";		# OpenFPC port
+my $openfpcuser="bob";	# Username to log into the openfpc-queued instance
+my $openfpcpass="bob";	# Password to log into the openfpc-queued instance
+my $openfpcserver="localhost";	# OpenFPC Queue address (hostname/ip)
+my $openfpcport="4242";		# OpenFPC port
 ############# Nothing to do below this line #################
 my $debug=0;	# If 1, we will display a link to the file to download rather than
 		# push the pcap file for download directly. Includes verbose data
 
-my %req=(   	user => $ofpcuser,
-                password => $ofpcpass,
+my %req=(   	user => $openfpcuser,
+                password => $openfpcpass,
                 action => 0, 
                 device => 0,
                 logtype => 0,
@@ -112,7 +112,7 @@ $req{'etstamp'} = norm_time(param('etstamp')) if (param('etstamp')) ;
 
 
 unless ($req{'filename'}) {
-	$req{'filename'} = "$tempdir/ofpc-noname-$now";
+	$req{'filename'} = "$tempdir/openfpc-noname-$now";
 } else {
 	$req{'filename'} = "$tempdir/$req{'filename'}";
 }
@@ -123,12 +123,12 @@ unless ($req{'logline'}) {
 }
 
 my $sock = IO::Socket::INET->new(
-	PeerAddr => $ofpcserver,
-	PeerPort => $ofpcport,
+	PeerAddr => $openfpcserver,
+	PeerPort => $openfpcport,
 	Proto => 'tcp',
 );
 unless ($sock) {
-         $result{'message'} = "Unable to create socket to server $ofpcserver on TCP:$ofpcport\n";
+         $result{'message'} = "Unable to create socket to server $openfpcserver on TCP:$openfpcport\n";
          exit 1;
 }
  

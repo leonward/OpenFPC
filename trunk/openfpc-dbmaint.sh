@@ -155,8 +155,8 @@ case $1 in
 	;;
 	*)
 		echo -e "Usage...."
-		echo -e "ofpc-dbmaint.sh create DB and user"
-		echo -e "ofpc-dbmaint.sh drop DB and user"
+		echo -e "openfpc-dbmaint.sh create DB and user"
+		echo -e "openfpc-dbmaint.sh drop DB and user"
 
 	;;
 
