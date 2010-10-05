@@ -179,7 +179,7 @@ sub request{
 	print "WARNING: Device selection not done yet -> Using all\n" if ($debug);
 
 	if ($debug) {
-                print "   ---ofpcRequest---\n" .
+                print "   ---OpenFPC-Request---\n" .
                 "   User        $request->{'user'}\n" .
                 "   Password    $request->{'password'}\n" .
                 "   RID         $request->{'rid'}\n".

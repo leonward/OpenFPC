@@ -7,13 +7,13 @@
 
 TARPATH=~
 SRCPATH=..
-PROG_FILES="ofpc-cx2db.pl ofpc-client.pl install-ofpc.sh openfpc openfpc.conf ofpc-queued.pl setup-ofpc.pl ofpc-dbmaint.sh"
+PROG_FILES="openfpc-cx2db openfpc-client openfpc-install.sh openfpc-ctl openfpc.conf openfpc-queued openfpc-setup.pl openfpc-dbmaint.sh"
 PERL_MODS="Parse.pm Request.pm"
 WWW_FILES="index.php bluegrade.png"
 CGI_FILES="extract.cgi"
 DOC_FILES="README INSTALL TODO"
 ETC_FILES="openfpc.apache2.conf"
-VERFILES="install-ofpc.sh ofpc-client.pl openfpc ofpc-queued.pl"
+VERFILES="openfpc-install.sh openfpc-client openfpc-ctl openfpc-queued"
 
 echo -e "Checking version numbers in code so I dont forget to ++ something..."
 for i in $VERFILES
@@ -22,7 +22,7 @@ do
 	echo -e " $VER - $i"
 done	
 
-VER=$(grep openfpcver $SRCPATH/openfpc |awk -F = '{print $2}')
+VER=$(grep openfpcver $SRCPATH/openfpc-ctl |awk -F = '{print $2}')
 TARGET="$TARPATH/openfpc-$VER"
 FILENAME="openfpc-$VER.tgz"
 
@@ -40,7 +40,7 @@ else
 	echo Creating Structure
 	mkdir $TARGET
 	mkdir $TARGET/www
-	mkdir $TARGET/ofpc
+	mkdir $TARGET/OpenFPC
 	mkdir $TARGET/cgi-bin
 	mkdir $TARGET/docs
 	mkdir $TARGET/etc
@@ -69,8 +69,8 @@ else
 	echo -e "* Perl Modules"	
 	for i in $PERL_MODS
 	do
-		echo -e "- Adding $i to $TARGET/ofpc"
-		cp $SRCPATH/ofpc/$i $TARGET/ofpc
+		echo -e "- Adding $i to $TARGET/OpenFPC"
+		cp $SRCPATH/OpenFPC/$i $TARGET/OpenFPC
 	done
 
 	echo -e "* Documentation"	

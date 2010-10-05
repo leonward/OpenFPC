@@ -41,7 +41,7 @@ use OpenFPC::Request;
 
 =head1 NAME
 
-ofpc-queued.pl - Queue and process extract requests from local and remote PCAP storage devices
+openfpc-queued.pl - Queue and process extract requests from local and remote PCAP storage devices
 
 =head1 VERSION 
 
@@ -63,7 +63,7 @@ $debug=0;
 sub showhelp{
 	print <<EOF
 
-   * ofpc-queued.pl *
+   * openfpc-queued *
    Part of the OpenFPC project.
 
    --daemon  or -d		Daemon mode
@@ -153,7 +153,7 @@ sub decoderequest($){
 	# Each request element is seprated by a double-pipe - ||
         ($request{'user'},			# OFPC user
 		$request{'action'},		# Action (store,status,fetch,etc)
-		$request{'device'},		# Device to request from i.e ofpc-slave
+		$request{'device'},		# Device to request from i.e openfpc-slave
 		$request{'filename'},		# Filename to save file as 
 		$request{'filetype'},		# Filetype zip or pcap?
 		$request{'logtype'},		# Type of log being processed
@@ -794,7 +794,7 @@ sub routereq{
 		($slavehost, $slaveport, $slaveuser, $slavepass) = split(/:/, $slavevalue);
 		wlog("ROUTE: Routing request to : $device ( $slavehost : $slaveport User: $slaveuser )");
 	} else {
-		wlog("ROUTE: No ofpc-route entry found for $device in routing table\n");
+		wlog("ROUTE: No openfpc-route entry found for $device in routing table\n");
 		return(0,0,0,0);
 	}
 		
@@ -985,7 +985,7 @@ sub runq {
 						$pcaps{$request->{'rid'}}="ERROR" ; # Report FAIL 
 					}
 				} else {
-					wlog("RUNQ : No ofpc-route to $request->{'device'}. Cant extract.");
+					wlog("RUNQ : No openfpc-route to $request->{'device'}. Cant extract.");
 					$pcaps{$request->{'rid'}}="NOROUTE"; # Report FAIL 
 				}
 			} else {
@@ -1073,7 +1073,7 @@ sub bufferRange {
 		"Ending search in $endfile ($endtimestamp)\n" if ($vdebug);
 
 	# Look for files between startfile and endfile
-	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/ofpc-$config{'NODENAME'}-pcap.*`;	
+	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-$config{'NODENAME'}-pcap.*`;	
         foreach(@pcaptemp) {
                 chomp $_;
 		if ($_ =~ /$startfile/) {
@@ -1113,7 +1113,7 @@ sub findBuffers {
 
 	wlog("DEBUG: WARNING vdebug not enabled to inspect pcap filename selection\n") if ($debug and not $vdebug);
 
-	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/ofpc-$config{'NODENAME'}-pcap.*`;
+	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-$config{'NODENAME'}-pcap.*`;
         foreach(@pcaptemp) {
                 chomp $_;
                 push(@pcaps,$_);
@@ -1279,8 +1279,8 @@ $SIG{PIPE} = \&pipeHandler;
 $config{'NODENAME'} = "OPENFPC"; 
 $config{'MASTER'}=0;		# Default is slave mode
 $config{'SAVEDIR'}="/tmp";	# Where to save cached PCAP files.
-$config{'LOGFILE'}="/tmp/ofpc-queued.log"; 	# Log file
-$config{'OFPC_Q_PID'}="/tmp/ofpc-queued.pid";
+$config{'LOGFILE'}="/tmp/openfpc-queued.log"; 	# Log file
+$config{'OFPC_Q_PID'}="/tmp/openfpc-queued.pid";
 $config{'TCPDUMP'} = "/usr/sbin/tcpdump";
 $config{'MERGECAP'} = "/usr/bin/mergecap";
 

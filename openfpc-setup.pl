@@ -1,7 +1,7 @@
 #!/usr/bin/perl -I .
 #########################################################################################
 # Copyright (C) 2010 Leon Ward 
-# ofpc-setup.pl - Part of the OpenFPC - (Full Packet Capture) project
+# setup-openfpc.pl - Part of the OpenFPC - (Full Packet Capture) project
 #
 # Contact: leon@rm-rf.co.uk
 #
@@ -40,7 +40,7 @@ my %config=(
 		NODENAME => "Unnamed",
 		GUIUSER => "gui",
                 OFPCUSER => "root",  
-                saveconfig => "./myofpc.conf",
+                saveconfig => "./myopenfpc.conf",
 		SAVEDIR => "/tmp",
 		VERBOSE => "1",
 		OFPC_PORT => "4242",
@@ -52,14 +52,14 @@ my %config=(
 		SESSION_DB_NAME => "openfpc",
 		SESSION_DB_USER => "openfpc",
 		SESSION_DB_PASS => "openfpc",
-		SESSION_DIR => "/var/tmp/ofpc_session",	
+		SESSION_DIR => "/var/tmp/openfpc_session",	
 		DONE => "n",
 		INTERFACE => "eth1",
 		DAEMONLOGGER => "daemonlogger",
 		CXTRACKER => "cxtracker",
 		ENABLE_IP_V6 => "0",
 		ENABLE_SESSION => "0",
-		OFPC_Q_PID => "/tmp/ofpc-queued.pid",
+		OFPC_Q_PID => "/tmp/openfpc-queued.pid",
 		SLAVEROUTE => "0",
                 );  
 
@@ -112,7 +112,7 @@ my @master=(
 
 $question{'ENABLE_SESSION'} = "Enable session capture/search on this node?\nNote: This requires cxtracker and mysql \n (1=on|0=off).";
 $question{'NODENAME'} = "Enter a name for this OFPC node e.g. \"London\"";
-$question{'OFPCUSER'} = "What system User ID would you like to run the ofpc process as?";
+$question{'OFPCUSER'} = "What system User ID would you like to run the openfpc process as?";
 $question{'INTERFACE'} = "What interface do you want daemonlogger to run on?";
 $question{'VERBOSE'} = "Run in verbose mode (WARNING this disables daemon mode (not done yet!)) \n (1=on 0=off)";
 $question{'SAVEDIR'} = "Location to save extracted sessions to";
@@ -195,13 +195,13 @@ sub interview{
 sub usage{
 print<<EOF
 
-[*] setup-ofpc.pl
+[*] openfpc-setup.pl
     Interactive setup tool for OpenFPC
     - Leon Ward
 
     Usage:
 
-    setup-ofpc.pl <args>
+    openfpc-setup.pl <args>
     -c or --config		Config filename
     -m or --master		Configure a master device
     -d or --debug		Enable debug
@@ -294,7 +294,7 @@ if (defined $cmdargs{'advanced'}) { 				# Advanced requested
 
 interview(@qlist);
 
-# Add users for ofpc-queued
+# Add users for openfpc-queued
 # Here
 print "\n------ OpenFPC User definitions ------\n";
 print "* Current Users:\n";
@@ -413,9 +413,9 @@ unless ( -f "$config{'INSTALL_DIR'}/apache2.passwd" ) {
 # Complete
 if ($config{'ENABLE_SESSION'})  {
 	print "\n-----OpenFPC Session DB Creation/Setup -----\n\n" ;
-	print "Use ofpc-dbmaint.sh to create and maintain your mysql session DB\n";
+	print "Use openfpc-dbmaint.sh to create and maintain your mysql session DB\n";
 	print "This is only required on systems where session capture is enabled\n\n";
-	print "  \$ /opt/openfpc/ofpc-dbmaint.sh create\n";
+	print "  \$ /opt/openfpc/openfpc-dbmaint.sh create\n";
 }
 
 print "

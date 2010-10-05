@@ -23,12 +23,12 @@
 openfpcver="0.2"
 TARGET_DIR="/opt/openfpc"
 CONF_DIR="/etc/openfpc"
-INSTALL_FILES="ofpc-cx2db.pl ofpc-client.pl openfpc openfpc.conf ofpc-queued.pl setup-ofpc.pl ofpc-dbmaint.sh"
-PROG_FILES="ofpc-client.pl ofpc-queued.pl setup-ofpc.pl ofpc-cx2db.pl"
+INSTALL_FILES="openfpc-cx2db openfpc-client openfpc-ctl openfpc.conf openfpc-queued openfpc-setup.pl openfpc-dbmaint.sh"
+PROG_FILES="openfpc-client openfpc-queued openfpc-setup.pl openfpc-cx2db"
 WWW_FILES="index.php bluegrade.png"
 WWW_DIR="$TARGET_DIR/www"
 PERL_MODULES="Parse.pm Request.pm"
-INIT_SCRIPTS="openfpc"
+INIT_SCRIPTS="openfpc-ctl"
 INIT_DIR="/etc/init.d/" 
 REQUIRED_BINS="tcpdump date mergecap perl tshark"
 LOCAL_CONFIG="/etc/openfpc/openfpc.conf"
@@ -181,7 +181,6 @@ function doinstall()
 	for file in $PERL_MODULES
 	do
 		echo -e " -  Installing PERL module $file"
-		#[ -d $PERL_LIB_DIR/ofpc ] || mkdir --parent $PERL_LIB_DIR/ofpc
 		cp OpenFPC/$file $OFPC_LIB_DIR/$file
 	done
 
@@ -249,7 +248,7 @@ function doinstall()
     OpenFPC should now be installed and ready for configuration.
     To configure OpenFPC execute...
 
-    $ sudo $TARGET_DIR/setup-ofpc.pl -c $CONF_DIR/openfpc.conf 
+    $ sudo $TARGET_DIR/openfpc-setup.pl -c $CONF_DIR/openfpc.conf 
 
     For more information, and advanced setup options take a look at $TARGET_DIR/setup-openfpc.pl --help
     You may also want to check the status of OpenFPC's dependancies 
@@ -279,7 +278,7 @@ function remove()
 	[ -f /etc/apache2/sites-available/openfpc ] && rm /etc/apache2/sites-available/openfpc 
 
 
-	echo -e "[*] Removing ofpc-progs ..."
+	echo -e "[*] Removing openfpc-progs ..."
 
 	for file in $PROG_FILES
 	do
@@ -330,7 +329,7 @@ function remove()
 	# Remove the password file if it has been created
 	[ -f $TARGET_DIR/apache2.passwd ] && rm $TARGET_DIR/apache2.passwd
 
-	echo -e "[*] Removing ofpc wwwroot"
+	echo -e "[*] Removing openfpc wwwroot"
 	if [ -d $WWW_DIR ] 
 	then
 		rm -r $WWW_DIR  || echo -e "[!] Unable to delete $WWW_DIR"
@@ -490,6 +489,6 @@ case $1 in
                 echo -e " status     	- Check install status"
                 echo -e " reinstall  	- Re-install system"
 		echo -e "\n Example:"
-		echo -e " $ sudo ./install-ofpc install"
+		echo -e " $ sudo ./openfpc-install install"
         ;;
 esac

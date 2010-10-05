@@ -49,7 +49,7 @@ my %cmdargs=( user => 0,
 		filetype => "PCAP",
 		debug => 0,
 		verbose => 0,
-		filename => "/tmp/extracted-ofpc-$now",
+		filename => "/tmp/pcap-openfpc-$now",
 		logline => 0,
 		quiet => 0,
 		gui => 0,
@@ -86,10 +86,10 @@ my %result=(
 
 sub showhelp{
 	print <<EOF 
-  ./ofpc-client.pl <options>
+  ./openfpc-client <options>
 
   --------   General   -------
-  --server or -s <ofpc server IP>	ofpc server to connect to
+  --server or -s <openfpc server IP>	OpenFPC server to connect to
   --port or -o <TCP PORT>		Port to connect to (default 4242)
   --user or -u <username>		Username	
   --password or -p <password>		Password (if not supplied, it will be prompted for)
@@ -246,7 +246,7 @@ if ($debug) {
 
 # Provide a banner and queue position if were not in GUI or quiet mode
 unless( ($cmdargs{'quiet'} or $cmdargs{'gui'})) {
-	print "\n   * ofpc-client.pl $version * \n   Part of the OpenFPC project\n\n" ;
+	print "\n   * openfpc-client $version * \n   Part of the OpenFPC project\n\n" ;
 	$request{'showposition'} = 1;
 }
 
