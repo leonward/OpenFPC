@@ -8,7 +8,7 @@
 # Default-Stop:      0 1 6
 # Short-Description: queued controlls the openfpc setup
 # Description:       This is perl daemon administrates all
-#                    the activities for a master/slave node
+#                    the activities for a proxy/slave node
 ### END INIT INFO
 
 # Check if we have been passed a config file as $2.

@@ -44,7 +44,7 @@ my %config=(
 		SAVEDIR => "/tmp",
 		VERBOSE => "1",
 		OFPC_PORT => "4242",
-		MASTER => 0,
+		PROXY => 0,
 		BUFFER_PATH => "/var/tmp/openfpc",
 	 	FILE_SIZE => "1G",
 	 #	FILE_SIZE => "10M",
@@ -63,7 +63,7 @@ my %config=(
 		SLAVEROUTE => "0",
                 );  
 
-# Rather than dupe questions for different operation modes and setup styles, these are a list of questions to ask for slave/simple, slave/advanced, and in the future master/simple, master/advanced.
+# Rather than dupe questions for different operation modes and setup styles, these are a list of questions to ask for slave/simple, slave/advanced, and in the future proxy/simple, proxy/advanced.
 
 # For version 0.2, I've disabled the GUI to get a release out while fixing some of the problems there.
 # So i'm not asking GUI questions, commented out. - Leon
@@ -103,7 +103,7 @@ my @slaveadvanced=(
 	"GUIPASS",
 	);
 
-my @master=(
+my @proxy=(
 	"OFPC_PORT",
 	"SLAVEROUTE",
 	);
@@ -203,7 +203,7 @@ print<<EOF
 
     openfpc-setup.pl <args>
     -c or --config		Config filename
-    -m or --master		Configure a master device
+    -p or --proxy		Configure a proxy device
     -d or --debug		Enable debug
     -h or --help		This message
     -a or --advanced		Advanced setup options
@@ -219,7 +219,7 @@ EOF
 
 GetOptions (    'c|config=s' => \$cmdargs{'file'},
 		'a|advanced' => \$cmdargs{'advanced'},
-		'm|master' => \$cmdargs{'master'},		# NOT DONE YET
+		'p|proxy' => \$cmdargs{'proxy'},
 		'h|help' => \$cmdargs{'help'},	
 		'd|debug' => \$debug,);
 
@@ -259,17 +259,17 @@ if (-f $file) {
 }
 
 if (defined $cmdargs{'advanced'}) { 				# Advanced requested
-	if (defined $cmdargs{'master'} ) { 			# Advanced master
-		$config{'MASTER'} = 1;
-		@qlist=@master;
+	if (defined $cmdargs{'proxy'} ) { 			# Advanced proxy
+		$config{'PROXY'} = 1;
+		@qlist=@proxy;
 	} else {
 		@qlist=@slaveadvanced;
 		print "* Showing advanced slave setup options\n";
 	}
 } else {
-	if (defined $cmdargs{'master'} ) { 			# Advanced master
-		$config{'MASTER'} = 1;
-		@qlist=@master;
+	if (defined $cmdargs{'proxy'} ) { 			# Advanced proxy
+		$config{'PROXY'} = 1;
+		@qlist=@proxy;
 	} else {
 		@qlist=@slavesimple;
 		print "* Showing simple slave setup options\n";

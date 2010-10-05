@@ -319,7 +319,7 @@ function extractPcapFromSession() {
 // The "Extract pcap" button doesn't search the DB for session data, it just extracts as requested.
 // Why? Well there are two answers to that. 
 // 1) I think there will be times when people don't track connection data (storage, CPU, IO limits)
-// 2) On a master device, there won't be a central DB to search over. This way a quick extraction can
+// 2) On a proxy device, there won't be a central DB to search over. This way a quick extraction can
 // take place.
 // -Leon 
 

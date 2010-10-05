@@ -220,7 +220,7 @@ sub decoderequest($){
 		\$request
 	This consists of:
 		- Checking if we are to queue it up for later or do it now
-		- If master-Check the routing to see if we need to fragment it and re-insert for each slave
+		- If this device is an openfpc-proxy -Check the routing to see if we need to fragment it and re-insert for each slave
 		- Call the extract functions (if we are to do it now)
 		- Return a hashref containing
 		( success => 0,
@@ -257,19 +257,19 @@ sub prepfile{
 		$prep{'filetype'} = "ZIP";		
 	}
 
-	# If we are master, check if we need to frag this req into smaller ones, and get the data back from each slave
+	# If we are an openfpc-proxy, check if we need to frag this req into smaller ones, and get the data back from each slave
 	# If we are slave, do the slave action now (rather than enqueue if we were in STORE mode)
 	# Check if we want to include the meta-text
 	# Return the filename of the data that is to be sent back to the client.
 
-	if ( $config{'MASTER'} ) {
+	if ( $config{'PROXY'} ) {
 		# Check if we can route this request
 		unless (open METADATA , '>', "$config{'SAVEDIR'}/$request->{'tempfile'}.txt")  { 
 			wlog("PREP: ERROR: Unable to open MetaFile $config{'SAVEDIR'}/$request->{'tempfile'}.txt for writing");
 			$prep{'message'} = "Unable to open Metadata file - Cant continue\n";
 			return(\%prep);	
 		}
-        	print METADATA "###################################\nOFPC-Master request report\n" .
+        	print METADATA "###################################\nOFPC-Proxy request report\n" .
 			"User: $request->{'user'}\n" .
                        	"User comment: $request->{'comment'}\n" .
                        	"Time: $request->{'rtime'}\n";
@@ -286,7 +286,7 @@ sub prepfile{
 				$request->{'slaveport'} = $slaveport;
 				$request->{'slavepass'} = $slavepass;
 
-				my $result=domaster($request);
+				my $result=doproxy($request);
 				if ($result->{'success'}) {
 					wlog("Adding $result->{'filename'} to zip list") if ($verbose);
 					push (@slavefiles, $result->{'filename'});
@@ -305,13 +305,13 @@ sub prepfile{
 				print METADATA "MD5     : $result->{'md5'}\n";
 				print METADATA "Error   : $result->{'message'}\n";
 			}
-		} else { 					# Routeable, do the master action 
+		} else { 					# Routeable, do the proxy action 
 			$request->{'slavehost'} = $slavehost;
 			$request->{'slaveuser'} = $slaveuser;
 			$request->{'slaveport'} = $slaveport;
 			$request->{'slavepass'} = $slavepass;
 
-			my $result=domaster($request);
+			my $result=doproxy($request);
 
 			if ($result->{'success'}) {
 				$prep{'success'} = 1;
@@ -395,7 +395,7 @@ sub prepfile{
 				$prep{'md5'} = getmd5("$config{'SAVEDIR'}/$prep{'filename'}");
 			} else {
 				wlog("PREP: ERROR merging $config{'SAVEDIR'}/$request->{'tempfile'}.pcap");	
-				$prep{'message'} = "Unable to master-merge!";
+				$prep{'message'} = "Unable to proxy-merge!";
 			}
 				
 		} else {
@@ -441,7 +441,7 @@ sub getmd5{
 }
 
 =head2 getstatus
-	Get the status of a slave, or bunch of slaves if this is a master device
+	Get the status of a slave, or bunch of slaves if this is a proxy device
 =cut
 
 sub getstatus{
@@ -449,7 +449,7 @@ sub getstatus{
 	my $exec=0;
 	my %stat = ( 
 		success => 0,
-		ofpctype => 0,		# Master or slave
+		ofpctype => 0,		# Proxy or slave
 		nodename => 0,		# Name of the node
 		firstpacket => 0,	# Oldest packet timestamp
 		packetspace => 0,	# Space available in PCAP partition
@@ -458,14 +458,14 @@ sub getstatus{
 		sessionused => 0,	# Space consumed by session data (excluding DB)
 		savespace => 0,		# Space availabe in the savepath
 		saveused => 0,		# Space availabe in the savepath
-		comms => 0,		# Communication with slaves (master only)
+		comms => 0,		# Communication with slaves (proxy only)
 		ld1 => 0,		# UNIX load average 1,5, and 15
 		ld5 => 0,
 		ld15 => 0,
 		message => 0,		# Message for error text
 	);
 
-	unless ($config{'MASTER'}) { 	# Process as a slave. Don't check master specific stuff like comms
+	unless ($config{'PROXY'}) { 	# Process as a slave. Don't check proxy specific stuff like comms
 		$stat{'ofpctype'} = "SLAVE";
 		$stat{'nodename'} = $config{'NODENAME'};
 
@@ -532,9 +532,9 @@ sub getstatus{
 
 
 	} else {
-		wlog("Recieved MASTER STATUS request - Not implemented");
-		$stat{'message'} = "Master status not implemented yet";
-		$stat{'ofpctype'} = "MASTER";
+		wlog("Recieved PROXY STATUS request - Not implemented");
+		$stat{'message'} = "Proxy status not implemented yet";
+		$stat{'ofpctype'} = "PROXY";
 	}
 
 	return(\%stat);
@@ -806,12 +806,12 @@ sub routereq{
 	}
 }
 
-=head2 domaster
-	The OFPC "Master" action.
-	A Master device proxies the request from the client to a slave, and sends the data back to the client.
-	The Master action allows ofpc to scale out rather than up, and hopefully be pretty scalable (to be confirmed!)
+=head2 doproxy
+	The OFPC "Proxy" action.
+	A OpenFPC Proxy device proxies the request from the client to a slave, and sends the data back to the client.
+	The Proxy action allows ofpc to scale out rather than up, and hopefully be pretty scalable (to be confirmed!)
 
-	Master mode is OUT OF SCOPE for the initial release, but I wanted to make sure that it could function sooner rather than later.
+	Proxy mode is OUT OF SCOPE for the initial release, but I wanted to make sure that it could function sooner rather than later.
 	I had this working in a few tests, so theory is Okay, but needs some more planing before release.
 
 	Expects a hashref of the request
@@ -825,7 +825,7 @@ sub routereq{
 	)
 =cut
 
-sub domaster{
+sub doproxy{
 	
 	my $request=shift;
 	my %result=(
@@ -848,8 +848,8 @@ sub domaster{
 		$result{'success'} = 0;	
 		return(\%result);
 	}
-	# This is a master request, we don't want the user to control what file we will
-	# write on the master. Create our own tempfile.
+	# This is an openfpc-proxy request, we don't want the user to control what file we will
+	# write on the proxy. Create our own tempfile.
 	$request->{'filename'}="M-$request->{'slavehost'}-$request->{'slaveport'}-" . time() . "-" . $request->{'rid'};
 	#$request->{'filename'}="M-$request->{'slavehost'}-$request->{'slaveport'}-" . time() . "-" . $request->{'rid'} . ".pcap";
 	$request->{'user'} = $request->{'slaveuser'};
@@ -859,7 +859,7 @@ sub domaster{
 	
 	# Return the name of the file that we have been passed by the slave
 	if ($result{'success'} == 1) {
-		wlog("DEBUG: Master got $result{'filename'} MD5: $result{'md5'} Size $result{'size'} from $request->{'device'} ($request->{'slavehost'})\n");
+		wlog("DEBUG: Proxy got $result{'filename'} MD5: $result{'md5'} Size $result{'size'} from $request->{'device'} ($request->{'slavehost'})\n");
 		return(\%result);
 	} else {
 		wlog("Problem with extract: Result: $result{'success'} Message: $result{'message'}");
@@ -966,7 +966,7 @@ sub runq {
 			my $request=$queue->dequeue();
                 	wlog("RUNQ : Found request: $request->{'rid'} Queue length: $qlen");
                 	wlog("RUNQ : Request: $request->{'rid'} User: $request->{'user'} Found in queue:");
-			if ($config{'MASTER'}) {
+			if ($config{'PROXY'}) {
 
 				(my $slavehost,my $slaveport,my $slaveuser,my $slavepass)=routereq($request->{'device'});
 
@@ -976,9 +976,9 @@ sub runq {
 					$request->{'slaveport'} = $slaveport;
 					$request->{'slavepass'} = $slavepass;
 
-                			wlog("RUNQ : MASTER: Request: $request->{'rid'} Routable");    
-					my $result=domaster($request);
-                			wlog("RUNQ : MASTER: Request: $request->{'rid'} Result: $result->{'success'} Message: $result->{'message'}");    
+                			wlog("RUNQ : PROXY: Request: $request->{'rid'} Routable");    
+					my $result=doproxy($request);
+                			wlog("RUNQ : PROXY: Request: $request->{'rid'} Result: $result->{'success'} Message: $result->{'message'}");    
 					if ($result->{'success'} ) {
 						$pcaps{$request->{'rid'}}=$request->{'filename'} ; # Report done
 					} else {
@@ -1277,7 +1277,7 @@ $SIG{PIPE} = \&pipeHandler;
 
 # Some config defaults
 $config{'NODENAME'} = "OPENFPC"; 
-$config{'MASTER'}=0;		# Default is slave mode
+$config{'PROXY'}=0;		# Default is slave mode
 $config{'SAVEDIR'}="/tmp";	# Where to save cached PCAP files.
 $config{'LOGFILE'}="/tmp/openfpc-queued.log"; 	# Log file
 $config{'OFPC_Q_PID'}="/tmp/openfpc-queued.pid";
@@ -1333,8 +1333,8 @@ unless ($numofusers) {
 wlog("*********** OpenFPC $openfpcver **********");
 wlog("**    http://www.openfpc.org    **");
 
-if ($config{'MASTER'}) {
-        wlog("CONF: Starting OFPC Node \"$config{'NODENAME'}\" as a MASTER");
+if ($config{'PROXY'}) {
+        wlog("CONF: Starting OFPC Node \"$config{'NODENAME'}\" as a PROXY");
 	if ($config{'SLAVEROUTE'}) {
 		open SLAVEROUTE, '<', $config{'SLAVEROUTE'} or die "Unable to open slave route file $config{'SLAVEROUTE'} \n";
 		wlog("CONF: Reading route file $config{'SLAVEROUTE'}");

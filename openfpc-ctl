@@ -152,9 +152,9 @@ function cxtrackerstart()
 		die "[!] Must be root"
 	fi
 
-	if [ "$MASTER" == 1 ] 
+	if [ "$PROXY" == 1 ] 
 	then
-		echo "[*] Master mode - Not starting Connection Tracker"
+		echo "[*] OpenFPC Proxy mode - Not starting Connection Tracker"
 		return
 	fi
 
@@ -221,9 +221,9 @@ function cxtrackerstop()
 		die "[!] Must be root"
 	fi
 
-	if [ "$MASTER" == 1 ] 
+	if [ "$PROXY" == 1 ] 
 	then
-		echo "[*] Master mode - Not touching cxtracker" 
+		echo "[*] OpenFPC Proxy mode - Not touching cxtracker" 
 		return
 	fi
 
@@ -258,9 +258,9 @@ function daemonloggerstart()
 		die "[!] Must be root"
 	fi
 	
-	if [ "$MASTER" == 1 ] 
+	if [ "$PROXY" == 1 ] 
 	then
-		echo "[*] Master mode - Not starting Traffic Buffer"
+		echo "[*] OpenFPC Proxy mode - Not starting Traffic Buffer"
 		return
 	fi
 
@@ -330,9 +330,9 @@ function daemonloggerstop()
 	then
 		die "[!] Must be root"
 	fi
-	if [ "$MASTER" == 1 ] 
+	if [ "$PROXY" == 1 ] 
 	then
-		echo "[*] Master mode - Not touching daemonlogger" 
+		echo "[*] OpenFPC Proxy mode - Not touching daemonlogger" 
 		return
 	fi
 
