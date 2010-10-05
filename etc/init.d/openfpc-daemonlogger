@@ -86,7 +86,7 @@ start() {
          -s $FILE_SIZE \
          -p $PIDFILE \
          -P $PIDPATH \
-         -n ofpc-$NODENAME-pcap "
+         -n openfpc-$NODENAME-pcap "
 
     if [ -n "$BPF_FILTER" ]; then
         CMD="$CMD $BPF_FILTER"

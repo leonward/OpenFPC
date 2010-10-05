@@ -40,8 +40,8 @@ die() {
 }
 
 # We'll add up all the options above and use them
-NAME=ofpc-cx2db
-DAEMON=`which ofpc-cx2db.pl` || die "[!] $NAME program not found in path."
+NAME=openfpc-cx2db
+DAEMON=`which openfpc-cx2db` || die "[!] $NAME program not found in path."
 PIDFILE=$NAME-$NODENAME.pid
 PIDPATH=/var/run
 LOG_FILE=/var/log/$NAME.log

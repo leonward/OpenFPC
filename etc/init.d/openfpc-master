@@ -47,7 +47,7 @@ TCPDUMPOPTS="-Z root"
 openfpcver=0.2
 PID_FILE=openfpc-dl
 PID_PATH=/var/run
-FILENAME=ofpc-
+FILENAME=openfpc-
 
 if [ "$DONE" != "y" ]; then
    echo -e "[!] Configuration not complete.\n    Have you run ./install-openfpc.sh ?"
