@@ -1,11 +1,11 @@
 #!/bin/bash 
 ### BEGIN INIT INFO
-# Provides:          openfpc-master
+# Provides:          openfpc-proxy
 # Required-Start:    $network
 # Required-Stop:     $network
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Open Full Packet Capture Master
+# Short-Description: Open Full Packet Capture proxy
 # Description:       This is a network security tool designed to 
 #                    collect full pcap from network traffic
 ### END INIT INFO
@@ -109,31 +109,31 @@ case $1 in
 
  Usage:
 
-   Master:
-   openpfc-master <action> <configfile>
+   Proxy:
+   openpfc-proxy <action> <configfile>
    ---------------------------
-   openfpc-master start  <config>   - Start all OpenFPC Master services
-   openfpc-master stop   <config>   - Stop all OpenFPC Master services
-   openfpc-master status <config>   - Show OpenFPC Master status
+   openfpc-proxy start  <config>   - Start all OpenFPC Proxy services
+   openfpc-proxy stop   <config>   - Stop all OpenFPC Proxy services
+   openfpc-proxy status <config>   - Show OpenFPC Proxy status
    ---------------------------
 
    Slaves:
-   openpfc-master <slave>
+   openpfc-proxy <slave>
    ---------------------------
-   openfpc-master start  <slave>    - Start all OpenFPC services on <slave>
-   openfpc-master stop   <slave>    - Stop all OpenFPC services <slave>
-   openfpc-master status <slave>    - Show OpenFPC status on <slave>
-   openfpc-master clean  <slave>    - Delete old buffers on <slave>
+   openfpc-proxy start  <slave>    - Start all OpenFPC services on <slave>
+   openfpc-proxy stop   <slave>    - Stop all OpenFPC services <slave>
+   openfpc-proxy status <slave>    - Show OpenFPC status on <slave>
+   openfpc-proxy clean  <slave>    - Delete old buffers on <slave>
 
-   openfpc-master cxstart   <slave> - Start cxtracker on <slave>
-   openfpc-master cxstop    <slave> - Stop cxtracker on <slave>
-   openfpc-master cxrestart <slave> - Restart cxtracker on <slave>
-   openfpc-master dlstart   <slave> - Start daemonlogger on <slave>
-   openfpc-master dlstop    <slave> - Stop daemonlogger on <slave>
-   openfpc-master dlrestart <slave> - Restart daemonlogger on <slave>
-   openfpc-master qstart    <slave> - Start OpenFPC Queued on <slave>
-   openfpc-master qstop     <slave> - Stop OpenFPC Queued on <slave>
-   openfpc-master qrestart  <slave> - Restart OpenFPC Queued on <slave>
+   openfpc-proxy cxstart   <slave> - Start cxtracker on <slave>
+   openfpc-proxy cxstop    <slave> - Stop cxtracker on <slave>
+   openfpc-proxy cxrestart <slave> - Restart cxtracker on <slave>
+   openfpc-proxy dlstart   <slave> - Start daemonlogger on <slave>
+   openfpc-proxy dlstop    <slave> - Stop daemonlogger on <slave>
+   openfpc-proxy dlrestart <slave> - Restart daemonlogger on <slave>
+   openfpc-proxy qstart    <slave> - Start OpenFPC Queued on <slave>
+   openfpc-proxy qstop     <slave> - Stop OpenFPC Queued on <slave>
+   openfpc-proxy qrestart  <slave> - Restart OpenFPC Queued on <slave>
    ---------------------------
 "	
 	;;

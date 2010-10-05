@@ -15,6 +15,6 @@
   *Fill inn functions that needs to be in place*
 
 
-- Distributed system (ofpc master mode). 
+- Distributed system (ofpc proxy mode). 
   Let's leave this for now, it's wise to get a 1.0 release out first, the nice-to-have can come later.
 

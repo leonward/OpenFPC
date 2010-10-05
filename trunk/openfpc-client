@@ -100,7 +100,7 @@ sub showhelp{
   --quiet or -q				Quiet, shhhhhhh please. Only print saved filename||error
   --gui	or -g				Output that's parseable via OpenFPC's gui (or other tool)
   --comment or -m 			Comment for session
-  --device 				Slave device to extract from (via master --server)
+  --device 				Slave device to extract from (via OpenFPC-Proxy --server)
 
   -------- Traffic Constraints -------
   

@@ -64,7 +64,7 @@ sub receivefile{
 	$result{'filename'} = $request->{'filename'};
 
 	# if savedir is specified, lets add it to the filename
-	# A master uses a savedir, where as a client doesn't
+	# A proxy uses a savedir, where as a client doesn't
 
 	my $savefile;
 	if (defined $request->{'savedir'}) {
