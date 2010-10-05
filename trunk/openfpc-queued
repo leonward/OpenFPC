@@ -808,7 +808,7 @@ sub routereq{
 
 =head2 doproxy
 	The OFPC "Proxy" action.
-	A OpenFPC Proxy device proxies the request from the client to a slave, and sends the data back to the client.
+	An OpenFPC Proxy device proxies the request from the client to a slave, and sends the data back to the client.
 	The Proxy action allows ofpc to scale out rather than up, and hopefully be pretty scalable (to be confirmed!)
 
 	Proxy mode is OUT OF SCOPE for the initial release, but I wanted to make sure that it could function sooner rather than later.
