@@ -40,8 +40,8 @@ die() {
 }
 
 # We'll add up all the options above and use them
-NAME=ofpc-queued
-DAEMON=`which ofpc-queued.pl` || die "[!] $NAME.pl program not found in path."
+NAME=openfpc-queued
+DAEMON=`which openfpc-queued` || die "[!] $NAME.pl program not found in path."
 PIDFILE=$OFPC_Q_PID
 LOG_FILE=/var/log/$NAME.log
 
