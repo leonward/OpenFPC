@@ -60,10 +60,10 @@ my %config=(
 		ENABLE_IP_V6 => "0",
 		ENABLE_SESSION => "0",
 		OFPC_Q_PID => "/tmp/openfpc-queued.pid",
-		SLAVEROUTE => "0",
+		NODEROUTE => "0",
                 );  
 
-# Rather than dupe questions for different operation modes and setup styles, these are a list of questions to ask for slave/simple, slave/advanced, and in the future proxy/simple, proxy/advanced.
+# Rather than dupe questions for different operation modes and setup styles, these are a list of questions to ask for node/simple, node/advanced, and in the future proxy/simple, proxy/advanced.
 
 # For version 0.2, I've disabled the GUI to get a release out while fixing some of the problems there.
 # So i'm not asking GUI questions, commented out. - Leon
@@ -76,7 +76,7 @@ my @sessionq=(
 	"ENABLE_IP_V6",
 	);
 
-my @slavesimple=(
+my @nodesimple=(
 	"NODENAME",
 	"BUFFER_PATH",
 	"SAVEDIR",
@@ -86,7 +86,7 @@ my @slavesimple=(
 	"GUIPASS",
 	"DONE");
 
-my @slaveadvanced=(
+my @nodeadvanced=(
 	"NODENAME",
 	"OFPCUSER",
 	"INTERFACE",
@@ -105,7 +105,7 @@ my @slaveadvanced=(
 
 my @proxy=(
 	"OFPC_PORT",
-	"SLAVEROUTE",
+	"NODEROUTE",
 	);
 
 # This is a hash of things we need to configure. It contains the variable, and the question to present to the user
@@ -127,7 +127,7 @@ $question{'DAEMONLOGGER'} = "Path to daemonlogger";
 $question{'FILE_SIZE'} = "Size of each buffer file. E.g. \"2G\" = 2 GB, \"10M\" = 10 MB";
 $question{'ENABLE_IP_V6'} = "Enable IPv6 Support? \n (1=on, 0=off)";
 $question{'OFPC_Q_PID'} = "PID file location for queue daemon";
-$question{'SLAVEROUTE'} = "File for slave routing information";
+$question{'NODEROUTE'} = "File for OpenFPC Node routing information";
 $question{'GUIUSER'} = "OpenFPCQ user ID to use when extracting pcaps via OpenFPC GUI \n(Note: this username/password needs to be in the OpenFPC user definition below)";
 $question{'GUIPASS'} = "OpenFPCQ password for this user\n(Note: this username/password needs to be in the OpenFPC user definition below)";
 
@@ -263,16 +263,16 @@ if (defined $cmdargs{'advanced'}) { 				# Advanced requested
 		$config{'PROXY'} = 1;
 		@qlist=@proxy;
 	} else {
-		@qlist=@slaveadvanced;
-		print "* Showing advanced slave setup options\n";
+		@qlist=@nodeadvanced;
+		print "* Showing advanced node setup options\n";
 	}
 } else {
 	if (defined $cmdargs{'proxy'} ) { 			# Advanced proxy
 		$config{'PROXY'} = 1;
 		@qlist=@proxy;
 	} else {
-		@qlist=@slavesimple;
-		print "* Showing simple slave setup options\n";
+		@qlist=@nodesimple;
+		print "* Showing simple OpenFPC Node setup options\n";
 	}
 }
 

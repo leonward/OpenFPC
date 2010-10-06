@@ -153,7 +153,7 @@ sub decoderequest($){
 	# Each request element is seprated by a double-pipe - ||
         ($request{'user'},			# OFPC user
 		$request{'action'},		# Action (store,status,fetch,etc)
-		$request{'device'},		# Device to request from i.e openfpc-slave
+		$request{'device'},		# Device to request from i.e openfpc-node
 		$request{'filename'},		# Filename to save file as 
 		$request{'filetype'},		# Filetype zip or pcap?
 		$request{'logtype'},		# Type of log being processed
@@ -220,7 +220,7 @@ sub decoderequest($){
 		\$request
 	This consists of:
 		- Checking if we are to queue it up for later or do it now
-		- If this device is an openfpc-proxy -Check the routing to see if we need to fragment it and re-insert for each slave
+		- If this device is an openfpc-proxy -Check the routing to see if we need to fragment it and re-insert for each openfpc-node
 		- Call the extract functions (if we are to do it now)
 		- Return a hashref containing
 		( success => 0,
@@ -239,7 +239,7 @@ sub decoderequest($){
 
 sub prepfile{
 	my $request=shift;
-	my @slavefiles=();		# List of files to zip up
+	my @nodefiles=();		# List of files to zip up
 	my $multifile=0;
 	my $meta=0;
 	my %prep=(
@@ -257,8 +257,8 @@ sub prepfile{
 		$prep{'filetype'} = "ZIP";		
 	}
 
-	# If we are an openfpc-proxy, check if we need to frag this req into smaller ones, and get the data back from each slave
-	# If we are slave, do the slave action now (rather than enqueue if we were in STORE mode)
+	# If we are an openfpc-proxy, check if we need to frag this req into smaller ones, and get the data back from each node
+	# If we are node, do the node action now (rather than enqueue if we were in STORE mode)
 	# Check if we want to include the meta-text
 	# Return the filename of the data that is to be sent back to the client.
 
@@ -274,22 +274,22 @@ sub prepfile{
                        	"User comment: $request->{'comment'}\n" .
                        	"Time: $request->{'rtime'}\n";
 
- 		(my $slavehost,my $slaveport,my $slaveuser,my $slavepass)=routereq($request->{'device'});
-		unless ($slavehost) { 	# If request isn't routeable....
+ 		(my $nodehost,my $nodeport,my $nodeuser,my $nodepass)=routereq($request->{'device'});
+		unless ($nodehost) { 	# If request isn't routeable....
 					# Request from all devices
 			$multifile=1;	# Fraged request will be a multi-file return so we use a ZIP to combine
 
 			foreach (keys %route) {
- 				($slavehost,$slaveport,$slaveuser,$slavepass)=routereq($_);
-				$request->{'slavehost'} = $slavehost;
-				$request->{'slaveuser'} = $slaveuser;
-				$request->{'slaveport'} = $slaveport;
-				$request->{'slavepass'} = $slavepass;
+ 				($nodehost,$nodeport,$nodeuser,$nodepass)=routereq($_);
+				$request->{'nodehost'} = $nodehost;
+				$request->{'nodeuser'} = $nodeuser;
+				$request->{'nodeport'} = $nodeport;
+				$request->{'nodepass'} = $nodepass;
 
 				my $result=doproxy($request);
 				if ($result->{'success'}) {
 					wlog("Adding $result->{'filename'} to zip list") if ($verbose);
-					push (@slavefiles, $result->{'filename'});
+					push (@nodefiles, $result->{'filename'});
 				} else {
 					$prep{'message'} = $result->{'message'};
 					wlog("Error: $result->{'message'}");
@@ -297,19 +297,19 @@ sub prepfile{
 				}
 
 				print METADATA "-------------------\n";
-				print METADATA "Host    : $slavehost\n";
-				print METADATA "Port    : $slaveport\n";
-				print METADATA "User    : $slaveuser\n";
+				print METADATA "Host    : $nodehost\n";
+				print METADATA "Port    : $nodeport\n";
+				print METADATA "User    : $nodeuser\n";
 				print METADATA "Filename: $result->{'filename'}\n";
 				print METADATA "Size    : $result->{'size'}\n";
 				print METADATA "MD5     : $result->{'md5'}\n";
 				print METADATA "Error   : $result->{'message'}\n";
 			}
 		} else { 					# Routeable, do the proxy action 
-			$request->{'slavehost'} = $slavehost;
-			$request->{'slaveuser'} = $slaveuser;
-			$request->{'slaveport'} = $slaveport;
-			$request->{'slavepass'} = $slavepass;
+			$request->{'nodehost'} = $nodehost;
+			$request->{'nodeuser'} = $nodeuser;
+			$request->{'nodeport'} = $nodeport;
+			$request->{'nodepass'} = $nodepass;
 
 			my $result=doproxy($request);
 
@@ -318,7 +318,7 @@ sub prepfile{
 				$prep{'md5'} = $result->{'md5'};
 				$prep{'filetype'} = "PCAP";
 				$prep{'filename'}="$result->{'filename'}";
-       				push (@slavefiles, $result->{'filename'});
+       				push (@nodefiles, $result->{'filename'});
 				wlog("PREP: Added $result->{'filename'} to zip list") if ($verbose);
 			} else {
 				$prep{'message'} = $result->{'message'};
@@ -326,9 +326,9 @@ sub prepfile{
 			}
 
 			print METADATA "-------------------\n";
-			print METADATA "Host: $slavehost\n";
-			print METADATA "Port: $slaveport\n";
-			print METADATA "User: $slaveuser\n";
+			print METADATA "Host: $nodehost\n";
+			print METADATA "Port: $nodeport\n";
+			print METADATA "User: $nodeuser\n";
 			print METADATA "Filename: $result->{'filename'}\n";
 			print METADATA "Size    : $result->{'size'}\n";
 			print METADATA "MD5     : $result->{'md5'}\n";
@@ -338,15 +338,15 @@ sub prepfile{
         	close METADATA;
 		# If we are sending back a zip, add the report file
 		if ($prep{'filetype'} eq "ZIP") {
-			push (@slavefiles,"$request->{'tempfile'}.txt");
+			push (@nodefiles,"$request->{'tempfile'}.txt");
 		}
 
 	} else { 	
 		#####################################
-		# Slave stuff
-		# Do slave stuff, no routing etc just extract the data and make a report
+		# Node stuff
+		# Do node stuff, no routing etc just extract the data and make a report
 
-   		my $result = doslave($request,$rid);
+   		my $result = donode($request,$rid);
 
 		if ($result->{'success'}) {
 			$prep{'success'} = 1;
@@ -362,7 +362,7 @@ sub prepfile{
 			$prep{'message'} = "Unable to open Metadata file - Cant continue\n";
 			return(\%prep);	
 		}
-        	print METADATA "OFPC-slave request report\n" .
+        	print METADATA "OFPC-node request report\n" .
 			"User: $request->{'user'}\n" .
                        	"User comment: $request->{'comment'}\n" .
                        	"Time    : $request->{'rtime'}\n" .
@@ -372,18 +372,18 @@ sub prepfile{
 			"Error   : $result->{'message'}\n" ;
 		close(METADATA);
 		if ($prep{'filetype'} eq "ZIP") {
-			push(@slavefiles,"$request->{'tempfile'}.txt");
+			push(@nodefiles,"$request->{'tempfile'}.txt");
 		}
-		push(@slavefiles,$request->{'tempfile'});
+		push(@nodefiles,$request->{'tempfile'});
 	}
 
 	# Now we have the file(s) we want to rtn to the client, lets zip or merge as requested
 	if ($multifile) {
 		if ( $prep{'filetype'} eq "PCAP" ) {
-			# @slavefiles is a list of pcaps w/o a path, we need then with a path to merge
+			# @nodefiles is a list of pcaps w/o a path, we need then with a path to merge
 			# @mergefiles is a temp array of just that.
 			my @mergefiles=();
-			foreach (@slavefiles) {
+			foreach (@nodefiles) {
 				push(@mergefiles, "$config{'SAVEDIR'}/$_");
 			}
 			my $mergecmd="$config{'MERGECAP'} -w $config{'SAVEDIR'}/$request->{'tempfile'}.pcap @mergefiles";
@@ -400,7 +400,7 @@ sub prepfile{
 				
 		} else {
 			my $zip = Archive::Zip->new();
-			foreach my $filename (@slavefiles) {
+			foreach my $filename (@nodefiles) {
 				if ( -f "$config{'SAVEDIR'}/$filename" ) {
 					$zip->addFile("$config{'SAVEDIR'}/$filename","$filename");
 				} else {
@@ -441,7 +441,7 @@ sub getmd5{
 }
 
 =head2 getstatus
-	Get the status of a slave, or bunch of slaves if this is a proxy device
+	Get the status of a node, or bunch of nodes if this is a proxy device
 =cut
 
 sub getstatus{
@@ -449,7 +449,7 @@ sub getstatus{
 	my $exec=0;
 	my %stat = ( 
 		success => 0,
-		ofpctype => 0,		# Proxy or slave
+		ofpctype => 0,		# Proxy or node
 		nodename => 0,		# Name of the node
 		firstpacket => 0,	# Oldest packet timestamp
 		packetspace => 0,	# Space available in PCAP partition
@@ -458,15 +458,15 @@ sub getstatus{
 		sessionused => 0,	# Space consumed by session data (excluding DB)
 		savespace => 0,		# Space availabe in the savepath
 		saveused => 0,		# Space availabe in the savepath
-		comms => 0,		# Communication with slaves (proxy only)
+		comms => 0,		# Communication with nodes (proxy only)
 		ld1 => 0,		# UNIX load average 1,5, and 15
 		ld5 => 0,
 		ld15 => 0,
 		message => 0,		# Message for error text
 	);
 
-	unless ($config{'PROXY'}) { 	# Process as a slave. Don't check proxy specific stuff like comms
-		$stat{'ofpctype'} = "SLAVE";
+	unless ($config{'PROXY'}) { 	# Process as a node. Don't check proxy specific stuff like comms
+		$stat{'ofpctype'} = "NODE";
 		$stat{'nodename'} = $config{'NODENAME'};
 
 		# Get timestamp of oldest pcap buffer
@@ -767,7 +767,7 @@ sub fragreq{
 		$request->{'device'} = $device;
         	my $qlen=$queue->pending();     # Length of extract queue
 		print "Qlen is $qlen\n";
-		# Inject a a sub-request to slave that exists
+		# Inject a a sub-request to node that exists
 		print "Adding sub-request RID $request->{'rid'} to $request->{'device'} \n";
 		$queue->enqueue($request);
         	$qlen=$queue->pending();     # Length of extract queue
@@ -779,36 +779,36 @@ sub fragreq{
 =head routereq
 	Find device to make request from, and calculate the correct user/pass
 	expects $device
-	returns $slavehost,$slaveport,$salveuser,$slavepass
+	returns $nodehost,$nodeport,$salveuser,$nodepass
 =cut
 
 sub routereq{
 	my $device=shift;
-	my $slavehost=0;
-	my $slaveport=0;
-	my $slaveuser=0;
-	my $slavepass=0;
-	my $slavevalue=0;
+	my $nodehost=0;
+	my $nodeport=0;
+	my $nodeuser=0;
+	my $nodepass=0;
+	my $nodevalue=0;
 	if (exists $route{$device} ) {
-		$slavevalue=$route{$device};
-		($slavehost, $slaveport, $slaveuser, $slavepass) = split(/:/, $slavevalue);
-		wlog("ROUTE: Routing request to : $device ( $slavehost : $slaveport User: $slaveuser )");
+		$nodevalue=$route{$device};
+		($nodehost, $nodeport, $nodeuser, $nodepass) = split(/:/, $nodevalue);
+		wlog("ROUTE: Routing request to : $device ( $nodehost : $nodeport User: $nodeuser )");
 	} else {
 		wlog("ROUTE: No openfpc-route entry found for $device in routing table\n");
 		return(0,0,0,0);
 	}
 		
-	unless ($slavehost and $slaveport and $slavepass and $slaveuser) {
-		wlog("ROUTE: ERROR: Unable to pass route line $slavevalue");
+	unless ($nodehost and $nodeport and $nodepass and $nodeuser) {
+		wlog("ROUTE: ERROR: Unable to pass route line $nodevalue");
 		return(0,0,0,0);		
 	} else {
-		return($slavehost,$slaveport,$slaveuser,$slavepass);
+		return($nodehost,$nodeport,$nodeuser,$nodepass);
 	}
 }
 
 =head2 doproxy
 	The OFPC "Proxy" action.
-	An OpenFPC Proxy device proxies the request from the client to a slave, and sends the data back to the client.
+	An OpenFPC Proxy device proxies the request from the client to a node, and sends the data back to the client.
 	The Proxy action allows ofpc to scale out rather than up, and hopefully be pretty scalable (to be confirmed!)
 
 	Proxy mode is OUT OF SCOPE for the initial release, but I wanted to make sure that it could function sooner rather than later.
@@ -836,30 +836,30 @@ sub doproxy{
 		md5 => 0,
 	);
 
-	my $slavesock = IO::Socket::INET->new(
-                                PeerAddr => $request->{'slavehost'},
-                                PeerPort => $request->{'slaveport'},
+	my $nodesock = IO::Socket::INET->new(
+                                PeerAddr => $request->{'nodehost'},
+                                PeerPort => $request->{'nodeport'},
                                 Proto => 'tcp',
                                 );
 
-	unless ($slavesock) { 
-		wlog("MASTR: Unable to open socket to slave $request->{'slavehost'}:$request->{'slaveport'}");
-		$result{'message'} = "Node: $config{'NODENAME'} unable to connect to slave $request->{'slavehost'}:$request->{'slaveport'}";
+	unless ($nodesock) { 
+		wlog("MASTR: Unable to open socket to node $request->{'nodehost'}:$request->{'nodeport'}");
+		$result{'message'} = "Node: $config{'NODENAME'} unable to connect to node $request->{'nodehost'}:$request->{'nodeport'}";
 		$result{'success'} = 0;	
 		return(\%result);
 	}
 	# This is an openfpc-proxy request, we don't want the user to control what file we will
 	# write on the proxy. Create our own tempfile.
-	$request->{'filename'}="M-$request->{'slavehost'}-$request->{'slaveport'}-" . time() . "-" . $request->{'rid'};
-	#$request->{'filename'}="M-$request->{'slavehost'}-$request->{'slaveport'}-" . time() . "-" . $request->{'rid'} . ".pcap";
-	$request->{'user'} = $request->{'slaveuser'};
-	$request->{'password'} = $request->{'slavepass'};
+	$request->{'filename'}="M-$request->{'nodehost'}-$request->{'nodeport'}-" . time() . "-" . $request->{'rid'};
+	#$request->{'filename'}="M-$request->{'nodehost'}-$request->{'nodeport'}-" . time() . "-" . $request->{'rid'} . ".pcap";
+	$request->{'user'} = $request->{'nodeuser'};
+	$request->{'password'} = $request->{'nodepass'};
 	$request->{'savedir'} = $config{'SAVEDIR'};
-	%result=OpenFPC::Request::request($slavesock,$request);
+	%result=OpenFPC::Request::request($nodesock,$request);
 	
-	# Return the name of the file that we have been passed by the slave
+	# Return the name of the file that we have been passed by the node
 	if ($result{'success'} == 1) {
-		wlog("DEBUG: Proxy got $result{'filename'} MD5: $result{'md5'} Size $result{'size'} from $request->{'device'} ($request->{'slavehost'})\n");
+		wlog("DEBUG: Proxy got $result{'filename'} MD5: $result{'md5'} Size $result{'size'} from $request->{'device'} ($request->{'nodehost'})\n");
 		return(\%result);
 	} else {
 		wlog("Problem with extract: Result: $result{'success'} Message: $result{'message'}");
@@ -867,8 +867,8 @@ sub doproxy{
 	}
 }
 
-=head2 doslave
-	The slave action is where the real extraction work takes place.
+=head2 donode
+	The node action is where the real extraction work takes place.
 	It takes a decoded request as it's input, and returns a filename when the extraction has been done.
 	
 	returns a hash of
@@ -880,8 +880,8 @@ sub doproxy{
 		)
 =cut
 
-sub doslave{
-	# A slave action is one that will be processed on this device.
+sub donode{
+	# A node action is one that will be processed on this device.
 	# It will perform the action itself rather than pass it on to another device.
 
 	my $extractcmd;
@@ -895,7 +895,7 @@ sub doslave{
 			size => 0,
 		);
 
-	wlog("SLAVE: Request: $request->{'rid'} User: $request->{'user'} Action: $request->{'action'}");
+	wlog("NODE: Request: $request->{'rid'} User: $request->{'user'} Action: $request->{'action'}");
 	
 	# Unless we have been given a real bpf from the user, make our own
 	unless ($request->{'bpf'} ) {
@@ -904,7 +904,7 @@ sub doslave{
 		$bpf=$request->{'bpf'};
 	}
 
-	wlog("SLAVE: Request: $request->{'rid'} User: $request->{'user'} BPF: $bpf");
+	wlog("NODE: Request: $request->{'rid'} User: $request->{'user'} BPF: $bpf");
 
 	# Here
 	# Do we have a single timestamp or pair of them.
@@ -928,9 +928,9 @@ sub doslave{
 		$result{'message'} = "Success";
 		$result{'md5'} = $md5;
 		$result{'size'} = $size;
-		wlog("SLAVE: Extraction complete: Result: $filename, $size, $md5");   
+		wlog("NODE: Extraction complete: Result: $filename, $size, $md5");   
 	} else {
-		wlog("SLAVE: Problem found while performing doExtract Result: $filename, $size, $md5");   
+		wlog("NODE: Problem found while performing doExtract Result: $filename, $size, $md5");   
 	}
 	
 	# Create extraction Metadata file
@@ -940,7 +940,7 @@ sub doslave{
 			$result{'message'} = "Unable to open Metadata file  $config{'SAVEDIR'}/$request->{'tempfile'}.txt for writing";
 			return(\%result);
 	}
-	print METADATA "Extract Report - Slave action\n";
+	print METADATA "Extract Report - OpenFPC Node action\n";
 	print METADATA "User: $request->{'user'}\n" .
 			"Filename: $request->{'filename'}\n" .
 			"MD5: $md5\n" .
@@ -968,13 +968,13 @@ sub runq {
                 	wlog("RUNQ : Request: $request->{'rid'} User: $request->{'user'} Found in queue:");
 			if ($config{'PROXY'}) {
 
-				(my $slavehost,my $slaveport,my $slaveuser,my $slavepass)=routereq($request->{'device'});
+				(my $nodehost,my $nodeport,my $nodeuser,my $nodepass)=routereq($request->{'device'});
 
-				if ($slavehost) { 		# If this request is routable....
-					$request->{'slavehost'} = $slavehost;
-					$request->{'slaveuser'} = $slaveuser;
-					$request->{'slaveport'} = $slaveport;
-					$request->{'slavepass'} = $slavepass;
+				if ($nodehost) { 		# If this request is routable....
+					$request->{'nodehost'} = $nodehost;
+					$request->{'nodeuser'} = $nodeuser;
+					$request->{'nodeport'} = $nodeport;
+					$request->{'nodepass'} = $nodepass;
 
                 			wlog("RUNQ : PROXY: Request: $request->{'rid'} Routable");    
 					my $result=doproxy($request);
@@ -989,12 +989,12 @@ sub runq {
 					$pcaps{$request->{'rid'}}="NOROUTE"; # Report FAIL 
 				}
 			} else {
-				my $result = doslave($request,$rid);
+				my $result = donode($request,$rid);
 				if ($result->{'success'}) {
-                			wlog("RUNQ : SLAVE: Request: $request->{'rid'} Success. File: $result->{'filename'} $result->{'size'} now cached on SLAVE in $config{'SAVEDIR'}"); 
+                			wlog("RUNQ : NODE: Request: $request->{'rid'} Success. File: $result->{'filename'} $result->{'size'} now cached on NODE in $config{'SAVEDIR'}"); 
 					$pcaps{$request->{'rid'}}=$result->{'filename'};
 				} else {
-                			wlog("RUNQ: SLAVE: Request: $request->{'rid'} Result: Failed, $result->{'message'}.");    
+                			wlog("RUNQ: NODE: Request: $request->{'rid'} Result: Failed, $result->{'message'}.");    
 				}
 			}
         	}
@@ -1093,7 +1093,7 @@ sub bufferRange {
 
 
 =head2 findBuffers
-        Rather than search over ALL pcap files on a slave, if we know the timestamp(s) that we want to focus on,
+        Rather than search over ALL pcap files on a node, if we know the timestamp(s) that we want to focus on,
 	why no narrow down the search scope. Much more speedy extraction!!!!!
 
 	Takes a timestamp and a number of files, returns an array of files.
@@ -1264,7 +1264,7 @@ sub doExtract{
 	close(PCAPMD5);
 
 
-	wlog("SLAVE: Extracted to $mergefile, $filesize, $md5\n");
+	wlog("NODE: Extracted to $mergefile, $filesize, $md5\n");
 
         # Clean up temp files that have been merged...
 	File::Temp::cleanup();
@@ -1277,7 +1277,7 @@ $SIG{PIPE} = \&pipeHandler;
 
 # Some config defaults
 $config{'NODENAME'} = "OPENFPC"; 
-$config{'PROXY'}=0;		# Default is slave mode
+$config{'PROXY'}=0;		# Default is node mode
 $config{'SAVEDIR'}="/tmp";	# Where to save cached PCAP files.
 $config{'LOGFILE'}="/tmp/openfpc-queued.log"; 	# Log file
 $config{'OFPC_Q_PID'}="/tmp/openfpc-queued.pid";
@@ -1334,11 +1334,11 @@ wlog("*********** OpenFPC $openfpcver **********");
 wlog("**    http://www.openfpc.org    **");
 
 if ($config{'PROXY'}) {
-        wlog("CONF: Starting OFPC Node \"$config{'NODENAME'}\" as a PROXY");
-	if ($config{'SLAVEROUTE'}) {
-		open SLAVEROUTE, '<', $config{'SLAVEROUTE'} or die "Unable to open slave route file $config{'SLAVEROUTE'} \n";
-		wlog("CONF: Reading route file $config{'SLAVEROUTE'}");
-		while(<SLAVEROUTE>) {
+        wlog("CONF: Starting OFPC Node \"$config{'NODENAME'}\" as an OpenFPC Proxy");
+	if ($config{'NODEROUTE'}) {
+		open NODEROUTE, '<', $config{'NODEROUTE'} or die "Unable to open node route file $config{'NODEROUTE'} \n";
+		wlog("CONF: Reading route file $config{'NODEROUTE'}");
+		while(<NODEROUTE>) {
 			chomp $_;
 			unless ($_ =~ /^[# \$\n]/) {
 				if ( (my $key, my $value) = split /=/, $_ ) {
@@ -1347,10 +1347,10 @@ if ($config{'PROXY'}) {
 				}
 			}
 		}
-		close SLAVEROUTE;
+		close NODEROUTE;
 	}
 } else {
-        wlog("CONF: Starting OFPC Node \"$config{'NODENAME'}\" as a SLAVE");
+        wlog("CONF: Starting OFPC Node \"$config{'NODENAME'}\" as an OpenFPC Node");
 }
 
 # Start listener

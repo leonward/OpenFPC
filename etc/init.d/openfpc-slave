@@ -1,11 +1,11 @@
 #!/bin/bash 
 ### BEGIN INIT INFO
-# Provides:          openfpc-slave
+# Provides:          openfpc-node
 # Required-Start:    $network
 # Required-Stop:     $network
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Open Full Packet Capture Slave
+# Short-Description: Open Full Packet Capture Node
 # Description:       This is a network security tool designed to 
 #                    collect full pcap from network traffic
 ### END INIT INFO
@@ -217,7 +217,7 @@ case $1 in
  Note: If config file is not specified it will search some default locations
 
  Usage: 
-    openpfc-slave <action> <configfile>
+    openpfc-node <action> <configfile>
 
     ---------------------------
     openfpc start      - Start all OpenFPC services
