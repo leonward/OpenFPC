@@ -16,7 +16,7 @@ else
 #                exit 77
 fi
 
-update-rc.d  openfpc-slave defaults
+update-rc.d  openfpc-node defaults
 
 # openfpc.apache2.conf
 a2ensite openfpc

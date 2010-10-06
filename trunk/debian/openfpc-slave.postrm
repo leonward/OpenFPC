@@ -1,5 +1,5 @@
 #! /bin/sh
-# postrm script for openfpc-slave
+# postrm script for openfpc-node
 #
 # see: dh_installdeb(1)
 # see /usr/doc/packaging-manual/

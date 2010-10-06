@@ -38,10 +38,10 @@ Description: OpenFPC - An Open Full Packet Capture Setup
  and log tools.
  .
  openfpc-client can be installed on any system that will
- be used to contact a openfpc-proxy or openfpc-slaves in
+ be used to contact a openfpc-proxy or openfpc-nodes in
  a openfpc installation.
  openfpc-client can be installed on the same host as the
- openfpc-proxy or openfpc-slave.
+ openfpc-proxy or openfpc-node.
  .
  For more information, visit the OpenFPC project home at
  http://www.openfpc.org
@@ -51,7 +51,7 @@ Section: net
 Priority: optional
 Architecture: all
 Depends: ${shlibs:Depends}, ${misc:Depends}, openfpc-common, tshark, tcpdump
-Conflicts: openfpc-slave
+Conflicts: openfpcn-node
 Description: OpenFPC - An Open Full Packet Capture Setup
  OpenFPC is a set of scripts that combine to provide
  a lightweight full-packet network traffic recorder
@@ -61,13 +61,13 @@ Description: OpenFPC - An Open Full Packet Capture Setup
  and log tools.
  .
  openfpc-proxy is best installed on a system that will
- be used to manage all the slaves in a openfpc installation.
+ be used to manage all the nodess in a openfpc installation.
  You can install openfpc-client on the same host if desired.
  .
  For more information, visit the OpenFPC project home at
  http://www.openfpc.org
 
-Package: openfpc-slave
+Package: openfpc-node
 Section: net
 Priority: optional
 Architecture: all
@@ -81,7 +81,7 @@ Description: OpenFPC - An Open Full Packet Capture Setup
  on COTS hardware while integrating into existing alert
  and log tools.
  .
- openfpc-slave is to be installed on the system that will
+ openfpc-node is to be installed on the system that will
  be used for packet capturing.
  You can install openfpc-client on the same host if desired.
  It is recomended to do so if you want to be able to handle
