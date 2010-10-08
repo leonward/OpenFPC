@@ -51,7 +51,6 @@ Section: net
 Priority: optional
 Architecture: all
 Depends: ${shlibs:Depends}, ${misc:Depends}, openfpc-common, tshark, tcpdump
-Conflicts: openfpcn-node
 Description: OpenFPC - An Open Full Packet Capture Setup
  OpenFPC is a set of scripts that combine to provide
  a lightweight full-packet network traffic recorder
@@ -61,8 +60,8 @@ Description: OpenFPC - An Open Full Packet Capture Setup
  and log tools.
  .
  openfpc-proxy is best installed on a system that will
- be used to manage all the nodess in a openfpc installation.
- You can install openfpc-client on the same host if desired.
+ be used to manage all the nodes in a openfpc installation.
+ You can install openfpc-client or node on the same host if desired.
  .
  For more information, visit the OpenFPC project home at
  http://www.openfpc.org
@@ -72,7 +71,6 @@ Section: net
 Priority: optional
 Architecture: all
 Depends: ${shlibs:Depends}, ${misc:Depends}, openfpc-common, daemonlogger, tshark, tcpdump, apache2, apache2-mpm-prefork, libapache2-mod-php5
-Conflicts: openfpc-proxy
 Description: OpenFPC - An Open Full Packet Capture Setup
  OpenFPC is a set of scripts that combine to provide
  a lightweight full-packet network traffic recorder
