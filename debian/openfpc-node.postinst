@@ -22,3 +22,4 @@ update-rc.d  openfpc-node defaults
 a2ensite openfpc
 service apache2 reload
 
+#DEBHELPER#

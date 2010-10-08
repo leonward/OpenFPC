@@ -1,6 +1,6 @@
-ofpc-queued.pl usr/bin/
+openfpc-queued usr/bin/
 
 etc/init.d/openfpc-queued etc/init.d
 
-debian/debian.confs/openfpc-master.conf etc/openfpc/
+debian/debian.confs/openfpc-proxy.conf etc/openfpc/
 
