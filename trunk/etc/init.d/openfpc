@@ -1,0 +1,166 @@
+#!/bin/bash 
+### BEGIN INIT INFO
+# Provides:          openfpc
+# Required-Start:    $network
+# Required-Stop:     $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Open Full Packet Capture 
+# Description:       This is a network security tool designed to 
+#                    collect full pcap from network traffic
+### END INIT INFO
+
+# Copyright (C) 2010 Edward Fjellskål
+# Copyright (C) 2010 Leon Ward 
+
+# This is a "master" openfpc init script that will start / top multiple OpenFPC
+# node, and/or proxies on a single host. It looks at all config files and then kicks
+# off all of the required programs for each.
+
+# ---------------- Nothing to do below here -------------
+ACTION=$1				# Action: start/stop/status
+REQ_CONFIG=$2				# Allow a user to specify a config to work with
+CONFIG_FILES="/etc/openfpc/*"		# Where to find openfpc configs on this system
+
+IAM=$(whoami)
+DATE=$(date)
+OFPCS=""				# List of configs to work on
+#PATH=$PATH:/sbin:/usr/sbin
+#TCPDUMPOPTS="-Z root" 	
+#openfpcver=0.2
+#PID_FILE=openfpc-dl
+#PID_PATH=/var/run
+#FILENAME=openfpc-
+
+# Check if we have been passed a config file as $2.
+# If so, lets only work on the one CONF rather than all in CONF_DIR
+# Make sense? - Leon
+
+if [ $REQ_CONFIG ]; then
+   if [ -f $REQ_CONFIG ]; then
+      OFPCS=$2
+      echo "[*] OpenFPC instance $OFPCS"
+   else
+      echo -e "[!] Error: Cant find config file $OFPCS"
+      exit 1
+   fi 
+else 
+   for CONFIG in $CONFIG_FILES; do
+      if [ -f $CONFIG ]; then
+		# Check this looks like a valid openfpc config
+		# and is Okay to start up
+		if grep OFPC_ENABLED=y $CONFIG > /dev/null
+		then
+			OFPCS="$OFPCS $CONFIG" 
+		fi
+      fi
+   done
+fi
+
+
+function die() {
+   echo $1
+   exit 1
+}
+
+function clean() {
+   if [ "$IAM" != "root" ]; then
+      die "[!] Must be root"
+   fi
+   die "! Not done. It's on the todo list"
+   # Remove all non-current pcap buffers to free up disk space
+   echo [!] Are you sure you want to delete these old pcap buffers?
+   RMFILES=$(ls $BUFFER_PATH/$NODENAME/pcap/ |grep -v $CURRENT)
+   echo "$RMFILES"
+   echo "---------------"
+   read -p "Hit CTRL+C to stop, enter to delete (current buffer will not be affected)"
+   rm $RMFILES
+}
+
+function openfpcstart() {
+
+	# Must be root to run
+   	if [ "$IAM" != "root" ]; then
+      		die "[!] Must be root"
+   	fi
+
+	echo -e "[*] Starting OpenFPC..."
+
+	for ofpc in $OFPCS
+	do
+		echo "[*] Working on OpenFPC instance $ofpc"
+		source $ofpc
+		echo " -  Node: $NODENAME"
+		if [ "$PROXY" == "1" ] 
+		then
+			echo " -  Mode: OpenFPC Proxy"
+			/etc/init.d/openfpc-queued start $ofpc
+		else
+			echo " -  Mode: OpenFPC node "
+			/etc/init.d/openfpc-daemonlogger start $ofpc
+			/etc/init.d/openfpc-cxtracker start $ofpc
+			/etc/init.d/openfpc-queued start $ofpc
+		fi
+	done
+}
+
+function openfpcqstop() {
+echo d
+}
+
+function openfpcqstatus() {
+   /etc/init.d/openfpc-queued status $2
+}
+
+function status()
+{
+    if ls $BUFFER_PATH/$NODENAME/pcap/* > /dev/null 2>&1
+    then
+        FIRSTBUFFER=$(ls -tr $BUFFER_PATH/$NODENAME/pcap/*|head -n 1)
+        FIRSTPACKET=$(tcpdump -n -r $FIRSTBUFFER -c 1 -tttt 2>/dev/null |awk '{print $1 " " $2}')
+        NOW=$(date +%Y-%m-%d\ %H:%M:%S)
+        LASTBUFFER=$(ls -t $BUFFER_PATH/$NODENAME/pcap/*|head -n 1)
+        EPOC_FIRST=$(date -d "$FIRSTPACKET" +%s)
+        EPOC_LAST=$(date -d "$NOW" +%s)
+        let EPOC_DELTA=($EPOC_LAST-$EPOC_FIRST)/60/60
+        SIZE=$(du $BUFFER_PATH/$NODENAME/ -h | awk '{print $1}' | head -n1)
+        USED=$(df $BUFFER_PATH/$NODENAME/ -h |grep ^/ |awk '{print $5}')
+
+        echo -e " -  Time now                $NOW"
+        echo -e " -  Oldest packet           $FIRSTPACKET"
+        echo -e " -  Oldest File             $FIRSTBUFFER"
+        echo -e " -  Using File              $LASTBUFFER"
+        echo -e " -  Time Window             ~ $EPOC_DELTA hours"
+        echo -e " -  Disk space used         $SIZE"
+        echo -e " -  Partition utilization   $USED"
+    else
+        echo "[!] No current buffers found in $BUFFER_PATH/$NODENAME/pcap/ - Have you started it yet?"
+    fi
+
+    if [ $ENABLE_SESSION == 1 ]; then
+        SESSION_LAG=$(ls -l $SESSION_DIR |grep -v failed | grep -v total | wc -l)
+        echo -e " -  Session tempdir         $SESSION_DIR" 
+        echo -e " -  Session lag             $SESSION_LAG"
+    fi
+}
+
+case $1 in 
+	start)
+		openfpcstart
+	;;
+	stop)
+	;;
+	restart)
+		echo "Not done yet"
+	;;
+	status)
+		status
+	;;
+	*)
+
+         echo -e "
+Unknown option .Help goes here
+---------------------------
+"	
+	;;
+esac
