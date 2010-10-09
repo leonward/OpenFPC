@@ -16,7 +16,7 @@
 # ---------------- Nothing to do below here -------------
 # List of config files to try in order
 
-CONFIG_FILES="/etc/openfpc/openfpc.conf "
+CONFIG_FILES="/etc/openfpc/openfpc-node.conf "
 
 # Check if we have been passed a config file as $2.
 # read the first config file found in order above.

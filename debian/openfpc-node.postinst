@@ -6,15 +6,21 @@ fi
 
 HOSTNAME=`hostname -s`
 OFPC_DIR=/var/lib/openfpc
-SENSOR_DIR=$OFPC_DIR/$HOSTNAME/pcap
+PCAP_DIR=$OFPC_DIR/pcap
+SESSION_DIR=$OFPC_DIR/sessions
 
-if [ ! -d $SENSOR_DIR ]; then
-        mkdir -vp $SENSOR_DIR || exit 74
-        chown -vR openfpc:openfpc $OFPC_DIR || exit 74
-else
-        echo "Can't create folder in $OFPC_DIR. Please inspect."
-#                exit 77
-fi
+OFPC_DIRS="$PCAP_DIR $SESSION_DIR"
+
+for DIR in $OFPC_DIRS
+do
+	if [ ! -d $DIR ]; then
+        	mkdir -vp $DIR || exit 74
+	        chown -vR openfpc:openfpc $DIR || exit 74
+	else
+        	echo "Can't create $DIR folder. Please inspect."
+#               	 exit 77
+	fi
+done
 
 update-rc.d  openfpc-node defaults
 
