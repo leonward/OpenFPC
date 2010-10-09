@@ -20,8 +20,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #########################################################################################
+
+
+# This installer is for users that cannot or will not use the .debs for installation. This may be because: 
+# It's goal is to take a system from being OpenFPC-less to one that has OpenFPC operating in a semi-standard setup.
+
 openfpcver="0.2"
-TARGET_DIR="/opt/openfpc"
+TARGET_DIR="/usr/local/bin"
 CONF_DIR="/etc/openfpc"
 INSTALL_FILES="openfpc-cx2db openfpc-client openfpc-ctl openfpc.conf openfpc-queued openfpc-setup.pl openfpc-dbmaint.sh"
 PROG_FILES="openfpc-client openfpc-queued openfpc-setup.pl openfpc-cx2db"
@@ -40,7 +45,6 @@ DEPSOK=0			# Track if obvious deps are met
 DISTRO="AUTO"		# Try to work out what distro we are installing on
 # DISTRO="RH"		# force to RedHat
 # DISTRO="Debian" 	# Force to Debian / Ubuntu
-
 
 IAM=$(whoami)
 DATE=$(date)

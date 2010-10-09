@@ -29,7 +29,11 @@ use File::Copy;
 # Confguration Defaults
 my $debug=0;
 my $file="/etc/openfpc/openfpc-default.conf";		# The name of the output config file
-my @configfiles=("/etc/openfpc/openfpc-default.conf", "/etc/openfpc/openfpc.conf", "./openfpc.conf");		# List if config files to use in order.
+my @configfiles=("/etc/openfpc/openfpc-node.conf",
+		"/etc/openfpc/openfpc-proxy.conf",
+		"/etc/openfpc/openfpc-default.conf", 
+		"/etc/openfpc/openfpc.conf", 
+		"./openfpc.conf");		# List if config files to use in order.
 my (%userlist, %oldconfig, %question,%validation,%cmdargs,@qlist);
 
 # Some system defaults. If there isn't a config files to read for current values, lets give the user a 
