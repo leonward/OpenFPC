@@ -28,8 +28,8 @@ use File::Copy;
 
 # Confguration Defaults
 my $debug=0;
-my $file="/etc/openfpc/myopenfpc.conf";		# The name of the output config file
-my @configfiles=("/etc/openfpc/openfpc.conf", "./openfpc.conf");		# List if config files to use in order.
+my $file="/etc/openfpc/openfpc-default.conf";		# The name of the output config file
+my @configfiles=("/etc/openfpc/openfpc-default.conf", "/etc/openfpc/openfpc.conf", "./openfpc.conf");		# List if config files to use in order.
 my (%userlist, %oldconfig, %question,%validation,%cmdargs,@qlist);
 
 # Some system defaults. If there isn't a config files to read for current values, lets give the user a 
@@ -110,26 +110,26 @@ my @proxy=(
 
 # This is a hash of things we need to configure. It contains the variable, and the question to present to the user
 
-$question{'ENABLE_SESSION'} = "Enable session capture/search on this node?\nNote: This requires cxtracker and mysql \n (1=on|0=off).";
-$question{'NODENAME'} = "Enter a name for this OFPC node e.g. \"London\"";
-$question{'OFPCUSER'} = "What system User ID would you like to run the openfpc process as?";
-$question{'INTERFACE'} = "What interface do you want daemonlogger to run on?";
-$question{'VERBOSE'} = "Run in verbose mode (WARNING this disables daemon mode (not done yet!)) \n (1=on 0=off)";
-$question{'SAVEDIR'} = "Location to save extracted sessions to";
-$question{'BUFFER_PATH'} = "Path to store traffic buffer, this is where you want to throw a large quantity of storage.\n";
-$question{'OFPC_PORT'} = "TCP port for openfpc to listen on";
-$question{'SESSION_DIR'} =  "Path to store session data (Text flow records)"; 
-$question{'SESSION_DB_NAME'} = "Name of the session database (MYSQL)";
-$question{'SESSION_DB_USER'} = "Enter the username for the Database user";
-$question{'SESSION_DB_PASS'} = "Enter the password for the Database user";
-$question{'DONE'} = "Are you happy that configuration is complete and OpenFPC is allowed to start up? y/n";
-$question{'DAEMONLOGGER'} = "Path to daemonlogger";
-$question{'FILE_SIZE'} = "Size of each buffer file. E.g. \"2G\" = 2 GB, \"10M\" = 10 MB";
-$question{'ENABLE_IP_V6'} = "Enable IPv6 Support? \n (1=on, 0=off)";
-$question{'OFPC_Q_PID'} = "PID file location for queue daemon";
-$question{'NODEROUTE'} = "File for OpenFPC Node routing information";
-$question{'GUIUSER'} = "OpenFPCQ user ID to use when extracting pcaps via OpenFPC GUI \n(Note: this username/password needs to be in the OpenFPC user definition below)";
-$question{'GUIPASS'} = "OpenFPCQ password for this user\n(Note: this username/password needs to be in the OpenFPC user definition below)";
+$question{'ENABLE_SESSION'} = "\"ENABLE_SESSION\"\n Enable session capture/search on this node? Note: This requires cxtracker and mysql (1=on|0=off).\n";
+$question{'NODENAME'} = "\"NODENAME\"\n Enter a name for this OFPC node e.g. \"London\"";
+$question{'OFPCUSER'} = "\"OFPCUSER\"\n What system User ID would you like to run the openfpc process as?";
+$question{'INTERFACE'} = "\"INTERFACE\"\n What interface do you want daemonlogger to run on?";
+$question{'VERBOSE'} = "\"VERBOSE\"\n Run in verbose mode (WARNING this disables daemon mode (not done yet!)) \n (1=on 0=off)";
+$question{'SAVEDIR'} = "\"SAVEDIR\"\n Location to save extracted sessions to";
+$question{'BUFFER_PATH'} = "\"BUFFER_PATH\"\n Path to store traffic buffer, this is where you want to throw a large quantity of storage.\n";
+$question{'OFPC_PORT'} = "\"OFPC_PORT\"\n TCP port for openfpc to listen on";
+$question{'SESSION_DIR'} =  "\"SESSION_DIR\"\n Path to store session data (Text flow records)"; 
+$question{'SESSION_DB_NAME'} = "\"SESSION_DB_NAME\"\n Name of the session database (MYSQL)";
+$question{'SESSION_DB_USER'} = "\"SESSION_DB_USER\"\n Enter the username for the Database user";
+$question{'SESSION_DB_PASS'} = "\"SESSION_DB_PASS\"\n Enter the password for the Database user";
+$question{'DONE'} = "\"DONE\"\n Are you happy that configuration is complete and OpenFPC is allowed to start up? y/n";
+$question{'DAEMONLOGGER'} = "\"DAEMONLOGGER\"\n Path to daemonlogger";
+$question{'FILE_SIZE'} = "\"FILE_SIZE\" \n Size of each buffer file. E.g. \"2G\" = 2 GB, \"10M\" = 10 MB";
+$question{'ENABLE_IP_V6'} = "\"ENABLE_IP_V6\" \n Enable IPv6 Support? \n (1=on, 0=off)";
+$question{'OFPC_Q_PID'} = "\"OFPC_Q_PID\" \n PID file location for queue daemon";
+$question{'NODEROUTE'} = "\"NODEROUTE\"\n File for OpenFPC Node routing information";
+$question{'GUIUSER'} = "\"GUIUSER\"\n OpenFPCQ user ID to use when extracting pcaps via OpenFPC GUI \n(Note: this username/password needs to be in the OpenFPC user definition below)";
+$question{'GUIPASS'} = "\"GUIPASS\"\n OpenFPCQ password for this user\n(Note: this username/password needs to be in the OpenFPC user definition below)";
 
 # Input validations to make sure we get valid data as part of the setup questions.
 # Format is a key, and then a pcre to m/$stuff/.
@@ -182,7 +182,7 @@ sub interview{
 		$qnum++;
 		# If there is a value already set in the config file, provide it as
 		# a default value (press enter to keep it).
-		print "\n------ Question $qnum/$qcount -----------------------\n";
+		print "\n** Question $qnum/$qcount ***********************\n";
 		if (defined $config{$key}) {
 			$config{$key}=askq($key,$config{$key});
 		} else {
@@ -202,7 +202,7 @@ print<<EOF
     Usage:
 
     openfpc-setup.pl <args>
-    -c or --config		Config filename
+    -c or --config		Specify a configuration filename
     -p or --proxy		Configure a proxy device
     -d or --debug		Enable debug
     -h or --help		This message
@@ -241,9 +241,16 @@ if (defined $cmdargs{'file'}) {
 	} 
 }
 
-print "* Reading existing config file $file\n" ;
+print "
+***************************************
+[*] OpenFPC Setup - Leon Ward 2010  
+    An interview based setup tool for OpenFPC.
+";
+
+
+print "[-] Reading existing config file $file\n" ;
 if (-f $file) {
-	open(CONFIG,'<', "$file") or die("ERRPR: Can't open config file $file\n");
+	open(CONFIG,'<', "$file") or die("ERROR: Can't open config file $file\n");
 	while(<CONFIG>) {
         	chomp;
 	        if ( $_ =~ m/^[a-zA-Z]/) {
@@ -264,7 +271,7 @@ if (defined $cmdargs{'advanced'}) { 				# Advanced requested
 		@qlist=@proxy;
 	} else {
 		@qlist=@nodeadvanced;
-		print "* Showing advanced node setup options\n";
+		print "[-] Showing advanced node setup options\n";
 	}
 } else {
 	if (defined $cmdargs{'proxy'} ) { 			# Advanced proxy
@@ -272,26 +279,12 @@ if (defined $cmdargs{'advanced'}) { 				# Advanced requested
 		@qlist=@proxy;
 	} else {
 		@qlist=@nodesimple;
-		print "* Showing simple OpenFPC Node setup options\n";
+		print "[-] Showing simple OpenFPC Node setup options\n";
 	}
 }
 
-#print Dumper %config if ($debug);
 
-# Ask questions to user and save the answer in a hash
-#foreach my $key (@qlist) {
-#	$qnum++;
-#	# If there is a value already set in the config file, provide it as
-#	# a default value (press enter to keep it).
-#	print "\n------ Question $qnum/$qcount -----------------------\n";
-#	if (defined $config{$key}) {
-#		$config{$key}=askq($key,$config{$key});
-#	} else {
-#		$config{$key}=askq($key,"");
-#	}
-#	print "Setting $key to $config{$key}\n" if ($debug);
-#}
-
+# Perform interview with the question set(array).
 interview(@qlist);
 
 # Add users for openfpc-queued
