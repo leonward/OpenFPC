@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/bash  
 ### BEGIN INIT INFO
 # Provides:          openfpc
 # Required-Start:    $network
@@ -52,6 +52,8 @@ else
 		if grep OFPC_ENABLED=y $CONFIG > /dev/null
 		then
 			OFPCS="$OFPCS $CONFIG" 
+		else
+			echo -e " -  WARNING: OpenFPC instance $CONFIG is disabled"
 		fi
       fi
    done
@@ -84,7 +86,7 @@ function openfpcstart() {
       		die "[!] Must be root"
    	fi
 
-	echo -e "[*] Starting OpenFPC..."
+	echo -e "[*] Starting enabled OpenFPC instances..."
 
 	for ofpc in $OFPCS
 	do
@@ -104,8 +106,30 @@ function openfpcstart() {
 	done
 }
 
-function openfpcqstop() {
-echo d
+function openfpcstop() {
+	# Must be root to run
+   	if [ "$IAM" != "root" ]; then
+      		die "[!] Must be root"
+   	fi
+
+	echo -e "[*] Stopping OpenFPC..."
+
+	for ofpc in $OFPCS
+	do
+		echo "[*] Working on OpenFPC instance $ofpc"
+		source $ofpc
+		echo " -  Node: $NODENAME"
+		if [ "$PROXY" == "1" ] 
+		then
+			echo " -  Mode: OpenFPC Proxy"
+			/etc/init.d/openfpc-queued start $ofpc
+		else
+			echo " -  Mode: OpenFPC node "
+			/etc/init.d/openfpc-daemonlogger start $ofpc
+			/etc/init.d/openfpc-cxtracker start $ofpc
+			/etc/init.d/openfpc-queued start $ofpc
+		fi
+	done
 }
 
 function openfpcqstatus() {
@@ -149,6 +173,7 @@ case $1 in
 		openfpcstart
 	;;
 	stop)
+		openfpcstop
 	;;
 	restart)
 		echo "Not done yet"

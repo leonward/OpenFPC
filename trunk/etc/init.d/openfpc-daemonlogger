@@ -1,5 +1,5 @@
-#!/bin/sh
-#
+#!/bin/bash
+
 ### BEGIN INIT INFO
 # Provides:          openfpc-daemonlogger
 # Required-Start:    
@@ -7,16 +7,24 @@
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
 # Short-Description: Init script for starting daemonlogger for openfpc
-# Description:       openfpc-pcap logs pcaps and organize in daily dirs
+# Description:       Part of the OpenFPC project http://www.openfpc.org
 ### END INIT INFO
 
-# Change this maybe? Put it in openfpc.conf?
-# "./openfpc-pcap cleandisk" can be use to clean up!
-MAX_DISK_USE=98
 
-# Check if we have been passed a config file as $2.
-# read the first config file found in order above.
-CONFIG_FILES="/etc/openfpc/openfpc.conf"
+NODENAME=0
+IAM=`whoami`
+
+function die() {
+	echo -e $1
+	exit 1
+}
+
+if [ "$IAM" != "root" ]; then
+	die "[!] Must be root"
+fi
+
+# Check if we have been passed a config file as $2. If not, read the first config file found in order above.
+CONFIG_FILES="/etc/openfpc/openfpc-default.conf"
 
 if [ $2 ]; then
    if [ -f $2 ]; then
@@ -24,7 +32,7 @@ if [ $2 ]; then
       echo "[*] Reading configuration file $CONFIG"
       . $CONFIG
    else
-      echo -e "[!] Error: Cant find config file $CONFIG"
+      echo -e "[!] Error: Can't find config file $CONFIG"
       exit 1
    fi
 else
@@ -32,20 +40,29 @@ else
       if [ -f $CONFIG ]; then
          echo "[*] Reading configuration file $CONFIG"
          . $CONFIG
-         #break
+         break
       fi
    done
 fi
 
-LOGGER_PATH=`which daemonlogger` || die "[!] Binary for daemonlogger was not found in path."
+# Check we have read a config file, if not we can't start
+if [ "$NODENAME" == 0 ]
+then
+	die "[!] Can't start without a valid config file"
+fi
 
-if ! test -x $LOGGER_PATH ; then
-    echo "[!] $LOGGER_PATH dosent exist or is not executable."
-    exit 1
+# Check if we have daemonlogger in the path, if not use a user
+# supplied location from openfpc.conf file
+
+if which $DAEMONLOGGER > /dev/null 
+then
+	DL=`which $DAEMONLOGGER`
+else 
+	DL=$DAEMONLOGGER
 fi
 
 PIDFILE=daemonlogger-$NODENAME.pid
-PIDPATH=/var/run/
+PIDPATH=/var/run
 
 TZ=GMT
 export TZ
@@ -53,62 +70,46 @@ export TZ
 # Make sure all the permissions come out right.
 umask 077
 
-# Make sure our default logging dir is there.
-#if [ ! -d $LOG/$NODENAME ]; then
-#  mkdir -p $LOG/$NODENAME/pcap/
-#  chown -R $USER.$GROUP $LOG/$NODENAME 
-#  #chmod 777 $LOG_DIR $LOG_DIR/$HOSTNAME
-#fi
-if [ ! -d $LOG/$NODENAME/pcap ]; then
-  mkdir -p $LOG/$HOSTNAME/pcap
-  #chown -R $USER.$GROUP $LOG_DIR/$HOSTNAME/pcap
-  #chmod 777 $LOG_DIR/$HOSTNAME/pcap
+# Make sure the logging dir is there.
+if [ ! -d $BUFFER_PATH ]; then
+  mkdir -p $BUFFER_PATH
 fi
-LOG_DIR="$LOG/$NODENAME/pcap"
 
 start() {
- if [ ! -f $PIDPATH/$PIDFILE ]; then 
-  if [ -x $LOGGER_PATH ]; then
-    #if [ ! -d $LOG_DIR ]; then
-    #  mkdir $LOG_DIR
-    #  chmod 777 $LOG_DIR
-    #fi
 
-    #today=`date '+%Y-%m-%d'`
-    #if [ ! -d $LOG_DIR/$today ]; then
-    #  mkdir $LOG_DIR/$today
-    #  chmod 777 $LOG_DIR/$today
-    #fi
-    CMD="$DAEMONLOGGER -d \
-         -i $INTERFACE \
-         -l $LOG_DIR \
-         -M $DISK_SPACE \
-         -s $FILE_SIZE \
-         -p $PIDFILE \
-         -P $PIDPATH \
-         -n openfpc-$NODENAME-pcap "
+	if [ ! -f $PIDPATH/$PIDFILE ]
+ 	then 
+    		CMD="$DL -d \
+         		-i $INTERFACE \
+		         -l $BUFFER_PATH \
+		         -M $PCAP_SPACE \
+		         -s $FILE_SIZE \
+		         -p $PIDFILE \
+		         -P $PIDPATH \
+		         -n openfpc-$NODENAME-pcap "
 
-    if [ -n "$BPF_FILTER" ]; then
-        CMD="$CMD $BPF_FILTER"
-    fi
-    $CMD || die "[!] Unable to start daemonlogger !"
-    PID=$!
-    if [ $? = 0 ]; then
-      echo "Success."
-    else
-      echo "Failed."
-      exit
-    fi
-  fi 
- else
-  if [ ps `cat $PIDPATH/$PIDFILE`  > /dev/null ]; then
-     echo "Daemonlogger already running."
-  else
-     echo "Looks like a stale pid file, removing and trying again..."
-     rm -f $PIDPATH/$PIDFILE
-     $0 start $2
-  fi
- fi
+	  	if [ -n "$BPF_FILTER" ]; then
+        		CMD="$CMD $BPF_FILTER"
+    		fi
+
+    		$CMD > /dev/null 2>&1 || die "[!] Unable to start daemonlogger !"
+    		PID=$!
+    		if [ $? = 0 ]; then
+      			echo "Success."
+    		else
+      			echo "Failed."
+     		 	exit
+    		fi
+ 	else
+  		if ps `cat $PIDPATH/$PIDFILE`  > /dev/null 
+		then
+     			echo "Daemonlogger already running."
+  		else
+     			echo "Looks like a stale pid file, removing and trying again..."
+     			rm -f $PIDPATH/$PIDFILE
+     			$0 start $2
+  		fi
+ 	fi
 }
 
 stopproc() {
@@ -151,7 +152,7 @@ restart() {
   else
     echo "Error: $PIDPATH/$PIDFILE does not exist."
     echo "Checking for old process with ps."
-    res=`$PS | $GREP "$LOGGER_PATH" | $GREP "$LOG_DIR" | $GREP -v grep | awk '{print $1}'`
+    res=`$PS | $GREP "$DAEMONLOGGER" | $GREP "$BUFFER_PATH" | $GREP -v grep | awk '{print $1}'`
     if [ $res ]; then
 	echo "Old daemonlogger proccess found at pid $res, killing."
 	kill $res
@@ -174,23 +175,23 @@ restart() {
   fi
 }
 
-# This func checks the current space being used by LOG_DIR
+# This func checks the current space being used by $BUFFER_PATH
 # and rm's data as necessary.
 cleandisk() {
-  echo "Checking disk space (limited to ${MAX_DISK_USE}%)..."
+  echo "Checking disk space (limited to ${PCAP_SPACE}%)..."
   # grep, awk, tr...woohoo!
-  CUR_USE=`df -P $LOG_DIR | grep -v -i filesystem | awk '{print $5}' | tr -d %`
+  CUR_USE=`df -P $BUFFER_PATH | grep -v -i filesystem | awk '{print $5}' | tr -d %`
   echo "  Current Disk Use: ${CUR_USE}%"
-  if [ $CUR_USE -gt $MAX_DISK_USE ]; then
+  if [ $CUR_USE -gt $PCAP_SPACE ]; then
     # If we are here then we passed our disk limit
     # First find the oldest DIR
-    cd $LOG_DIR
+    cd $BUFFER_PATH
     OLDEST_FILE=`ls -t | tail -1`
     if [ "$OLDEST_FILE" != "" ]; then
-       echo "  Removing file: $LOG_DIR/$OLDEST_FILE"
+       echo "  Removing file: $BUFFER_PATH/$OLDEST_FILE"
        rm -f $OLDEST_FILE
     else
-       echo "  No more files in $LOG_DIR"
+       echo "  No more files in $BUFFER_PATH"
        echo "  Something else most be hogging your disk!"
        echo "Done."
        exit 0
