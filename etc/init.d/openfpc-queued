@@ -19,7 +19,7 @@ CONFIG_FILES="/etc/openfpc/openfpc.conf"
 if [ $2 ]; then
    if [ -f $2 ]; then
       CONFIG=$2
-      echo "[*] Reading configuration file $CONFIG"
+      echo "[*] OpenFPC Queue Daemon - Reading configuration file $CONFIG"
       . $CONFIG
    else
       echo -e "[!] Error: Cant find config file $CONFIG"
@@ -28,7 +28,7 @@ if [ $2 ]; then
 else
    for CONFIG in $CONFIG_FILES; do
       if [ -f $CONFIG ]; then
-         echo "[*] Reading configuration file $CONFIG"
+         echo "[*] OpenFPC Queue Daemon Reading configuration file $CONFIG"
          . $CONFIG
          #break
       fi
@@ -42,7 +42,7 @@ die() {
 
 # We'll add up all the options above and use them
 NAME=openfpc-queued
-DAEMON=`which openfpc-queued` || die "[!] $NAME.pl program not found in path."
+DAEMON=`which openfpc-queued` || die "[!] $NAME program not found in path."
 PIDFILE=$OFPC_Q_PID
 LOG_FILE=/var/log/$NAME.log
 
@@ -68,8 +68,9 @@ stopproc() {
 startproc() {
    if [ -f $PIDFILE ]; then
        QDPID=$(cat $PIDFILE)
-       if ps $QDPID > /dev/null; then
-          echo -e  "[!] $NAME already running with pid: $QDPID"
+       if ps $QDPID > /dev/null; 
+       then
+          echo "[!] $NAME already running with pid: $QDPID"
           exit 1
        fi
     fi

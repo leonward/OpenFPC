@@ -49,14 +49,17 @@ my %config=(
 		VERBOSE => "1",
 		OFPC_PORT => "4242",
 		PROXY => 0,
-		BUFFER_PATH => "/var/tmp/openfpc",
+		BPF_FILTER => "",
+		BUFFER_PATH => "/var/lib/openfpc/pcap",
 	 	FILE_SIZE => "1G",
 	 #	FILE_SIZE => "10M",
-		DISK_SPACE => "50",
+		GUIPASS => "changeme",
+		
+		PCAP_SPACE => "50",
 		SESSION_DB_NAME => "openfpc",
 		SESSION_DB_USER => "openfpc",
 		SESSION_DB_PASS => "openfpc",
-		SESSION_DIR => "/var/tmp/openfpc_session",	
+		SESSION_DIR => "/var/lib/openfpc/session",	
 		DONE => "n",
 		INTERFACE => "eth1",
 		DAEMONLOGGER => "daemonlogger",
@@ -65,6 +68,7 @@ my %config=(
 		ENABLE_SESSION => "0",
 		OFPC_Q_PID => "/tmp/openfpc-queued.pid",
 		NODEROUTE => "0",
+		OFPC_ENABLED => "n",
                 );  
 
 # Rather than dupe questions for different operation modes and setup styles, these are a list of questions to ask for node/simple, node/advanced, and in the future proxy/simple, proxy/advanced.
@@ -88,7 +92,7 @@ my @nodesimple=(
 	"ENABLE_SESSION",
 	"GUIUSER",
 	"GUIPASS",
-	"DONE");
+	"OFPC_ENABLED");
 
 my @nodeadvanced=(
 	"NODENAME",
@@ -97,8 +101,9 @@ my @nodeadvanced=(
 	"BUFFER_PATH",
 	"SAVEDIR",
 	"OFPC_PORT",
+	"PCAP_SPACE",
 	"VERBOSE",
-	"DONE",
+	"OFPC_ENABLED",
 	"DAEMONLOGGER",
 	"FILE_SIZE",
 	"OFPC_Q_PID",
@@ -126,8 +131,9 @@ $question{'SESSION_DIR'} =  "\"SESSION_DIR\"\n Path to store session data (Text 
 $question{'SESSION_DB_NAME'} = "\"SESSION_DB_NAME\"\n Name of the session database (MYSQL)";
 $question{'SESSION_DB_USER'} = "\"SESSION_DB_USER\"\n Enter the username for the Database user";
 $question{'SESSION_DB_PASS'} = "\"SESSION_DB_PASS\"\n Enter the password for the Database user";
-$question{'DONE'} = "\"DONE\"\n Are you happy that configuration is complete and OpenFPC is allowed to start up? y/n";
+$question{'OFPC_ENABLED'} = "\"OFPC_ENABLED\"\n Are you happy that configuration is complete and this instance of OpenFPC is allowed to start up? y/n";
 $question{'DAEMONLOGGER'} = "\"DAEMONLOGGER\"\n Path to daemonlogger";
+$question{'PCAP_SPACE'} = "\"PCAP_SPACE\"\n Percentage of space on disk that you allow to be used for pcap buffering";
 $question{'FILE_SIZE'} = "\"FILE_SIZE\" \n Size of each buffer file. E.g. \"2G\" = 2 GB, \"10M\" = 10 MB";
 $question{'ENABLE_IP_V6'} = "\"ENABLE_IP_V6\" \n Enable IPv6 Support? \n (1=on, 0=off)";
 $question{'OFPC_Q_PID'} = "\"OFPC_Q_PID\" \n PID file location for queue daemon";
@@ -141,6 +147,7 @@ $validation{'VERBOSE'} = "(1|0)";
 $validation{'ENABLE_IP_V6'} = "(1|0)";
 $validation{'PORT'} = "\\d{1,5}";
 $validation{'DONE'} = "(y|n)";
+$validation{'PCAP_SPACE'} = "^[0-9][0-9]";
 
 sub askq{
 	# Ask a question, return an answer

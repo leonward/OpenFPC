@@ -33,7 +33,7 @@ PROG_FILES="openfpc-client openfpc-queued openfpc-setup.pl openfpc-cx2db"
 WWW_FILES="index.php bluegrade.png"
 WWW_DIR="$TARGET_DIR/www"
 PERL_MODULES="Parse.pm Request.pm"
-INIT_SCRIPTS="openfpc-ctl"
+INIT_SCRIPTS="openfpc-daemonlogger openfpc-cx2db openfpc-cxtracker openfpc openfpc-queued"
 INIT_DIR="/etc/init.d/" 
 REQUIRED_BINS="tcpdump date mergecap perl tshark"
 LOCAL_CONFIG="/etc/openfpc/openfpc.conf"
@@ -160,13 +160,6 @@ function doinstall()
 
 	[ -d $INIT_DIR ] || die "[!] Cannot find init.d directory $INIT_DIR. Something bad must have happened."
 
-        if [ -d $TARGET_DIR ] 
-	then
-                die "[!] Can't Install in $TARGET_DIR - Directory Exists."
-        else
-                mkdir $TARGET_DIR
-        fi
-    
         for file in $INSTALL_FILES
         do
 		echo -e " -  Installing $file"
@@ -239,10 +232,8 @@ function doinstall()
 	elif [ "$DISTRO" == "REDHAT" ]
 	then
 		echo "[*] Performing a RedHat Install"
-		ln -s /etc/init.d/trafficbuffer /etc/rc3.d/S99trafficbuffer || echo "File exists"
-		ln -s /etc/init.d/trafficbuffer /etc/rc5.d/S99trafficbuffer || echo "File exists"
-		ln -s /etc/init.d/trafficbuffer /etc/rc6.d/K99trafficbuffer || echo "File exists"
-		ln -s /etc/init.d/trafficbuffer /etc/rc0.d/K99trafficbuffer || echo "File exists"
+		echo NOT DONE!!!!!
+		exit 1
 	fi
 
 	echo -e "
@@ -340,29 +331,6 @@ function remove()
 		echo -e " -  Removed $WWW_DIR"
 	fi
 
-	echo -e "[*] Removing Symlinks..."
-	for file in $INIT_SCRIPTS
-	do
-		if [ -L $INIT_DIR/$file ] 
-		then
-			if rm $INIT_DIR/$file 
-			then
-				echo -e " -  Removed   $INIT_DIR/$file "
-			else
-				echo -e " -  Failed to remove $INIT_DIR/$file"
-			fi
-		else
-			echo -e " -  Can't find $INIT_DIR/$file - Won't remove"
-		fi
-	done
-	
-	if [ -d $TARGET_DIR ] 
-	then
-		rm -r $TARGET_DIR  || echo -e "[!] Unable to delete $TARGET_DIR"
-		echo -e " -  Removed $TARGET_DIR"
-	fi
-
-
 	echo -e "-Updating init---------------------------------"
         if [ "$DISTRO" == "DEBIAN" ]
         then
@@ -372,12 +340,9 @@ function remove()
                 done
 
         elif [ "$DISTRO" == "REDHAT" ]
-        then
-		rm /etc/rc3.d/S99trafficbuffer || echo "init script not found"
-		rm /etc/rc0.d/K99trafficbuffer || echo "init script not found"
-		rm /etc/rc5.d/S99trafficbuffer || echo "init script not found"
-		rm /etc/rc6.d/K99trafficbuffer || echo "init script not found"
-        fi
+	then
+		echo NOT DONE	
+	fi
 	echo -e "------------------------------------------------"
 	echo -e "[*] Removal process complete"
 }
