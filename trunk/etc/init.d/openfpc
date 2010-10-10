@@ -93,6 +93,7 @@ function openfpcstart() {
 		echo "[*] Working on OpenFPC instance $ofpc"
 		source $ofpc
 		echo " -  Node: $NODENAME"
+		echo " -  Interface: $INTERFACE"
 		if [ "$PROXY" == "1" ] 
 		then
 			echo " -  Mode: OpenFPC Proxy"
@@ -101,6 +102,7 @@ function openfpcstart() {
 			echo " -  Mode: OpenFPC node "
 			/etc/init.d/openfpc-daemonlogger start $ofpc
 			/etc/init.d/openfpc-cxtracker start $ofpc
+			/etc/init.d/openfpc-cx2db start $ofpc
 			/etc/init.d/openfpc-queued start $ofpc
 		fi
 	done
@@ -122,12 +124,13 @@ function openfpcstop() {
 		if [ "$PROXY" == "1" ] 
 		then
 			echo " -  Mode: OpenFPC Proxy"
-			/etc/init.d/openfpc-queued start $ofpc
+			/etc/init.d/openfpc-queued stop $ofpc
 		else
 			echo " -  Mode: OpenFPC node "
-			/etc/init.d/openfpc-daemonlogger start $ofpc
-			/etc/init.d/openfpc-cxtracker start $ofpc
-			/etc/init.d/openfpc-queued start $ofpc
+			/etc/init.d/openfpc-daemonlogger stop $ofpc
+			/etc/init.d/openfpc-cxtracker stop $ofpc
+			/etc/init.d/openfpc-cx2db stop $ofpc
+			/etc/init.d/openfpc-queued stop $ofpc
 		fi
 	done
 }
@@ -138,34 +141,7 @@ function openfpcqstatus() {
 
 function status()
 {
-    if ls $BUFFER_PATH/$NODENAME/pcap/* > /dev/null 2>&1
-    then
-        FIRSTBUFFER=$(ls -tr $BUFFER_PATH/$NODENAME/pcap/*|head -n 1)
-        FIRSTPACKET=$(tcpdump -n -r $FIRSTBUFFER -c 1 -tttt 2>/dev/null |awk '{print $1 " " $2}')
-        NOW=$(date +%Y-%m-%d\ %H:%M:%S)
-        LASTBUFFER=$(ls -t $BUFFER_PATH/$NODENAME/pcap/*|head -n 1)
-        EPOC_FIRST=$(date -d "$FIRSTPACKET" +%s)
-        EPOC_LAST=$(date -d "$NOW" +%s)
-        let EPOC_DELTA=($EPOC_LAST-$EPOC_FIRST)/60/60
-        SIZE=$(du $BUFFER_PATH/$NODENAME/ -h | awk '{print $1}' | head -n1)
-        USED=$(df $BUFFER_PATH/$NODENAME/ -h |grep ^/ |awk '{print $5}')
-
-        echo -e " -  Time now                $NOW"
-        echo -e " -  Oldest packet           $FIRSTPACKET"
-        echo -e " -  Oldest File             $FIRSTBUFFER"
-        echo -e " -  Using File              $LASTBUFFER"
-        echo -e " -  Time Window             ~ $EPOC_DELTA hours"
-        echo -e " -  Disk space used         $SIZE"
-        echo -e " -  Partition utilization   $USED"
-    else
-        echo "[!] No current buffers found in $BUFFER_PATH/$NODENAME/pcap/ - Have you started it yet?"
-    fi
-
-    if [ $ENABLE_SESSION == 1 ]; then
-        SESSION_LAG=$(ls -l $SESSION_DIR |grep -v failed | grep -v total | wc -l)
-        echo -e " -  Session tempdir         $SESSION_DIR" 
-        echo -e " -  Session lag             $SESSION_LAG"
-    fi
+	echo Status not done yet.
 }
 
 case $1 in 
