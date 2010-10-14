@@ -1327,7 +1327,9 @@ close $config;
 
 my $numofusers=keys (%userlist);
 unless ($numofusers) {
-	die "$numofusers users defined in config file. You need to add some.\n";
+	wlog("ERROR: $numofusers users defined in config file. You need to add some.\n");
+	wlog("Shutting down....\n");
+	exit 1
 }
 
 wlog("*********** OpenFPC $openfpcver **********");
