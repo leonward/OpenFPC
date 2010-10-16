@@ -1,4 +1,5 @@
 openfpc-queued usr/bin/
+openfpc usr/bin/
 
 etc/init.d/openfpc-queued etc/init.d
 
