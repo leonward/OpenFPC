@@ -6,104 +6,55 @@
 # Required-Stop:     $network
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: queued controlls the openfpc setup
+# Short-Description: openfpc-queued extract data from OpenFPC nodes
 # Description:       This is perl daemon administrates all
 #                    the activities for an OpenFPC Proxy or 
 #                    OpenFPC Node
 ### END INIT INFO
 
-# Check if we have been passed a config file as $2.
-# read the first config file found in order above.
-CONFIG_FILES="/etc/openfpc/openfpc.conf"
+# Leon Ward - leon@openfpc.org
+# This looks simple because it is. All of the magic is in the openfpc perl script
 
-if [ $2 ]; then
-   if [ -f $2 ]; then
-      CONFIG=$2
-      echo "[*] OpenFPC Queue Daemon - Reading configuration file $CONFIG"
-      . $CONFIG
-   else
-      echo -e "[!] Error: Cant find config file $CONFIG"
-      exit 1
-   fi
-else
-   for CONFIG in $CONFIG_FILES; do
-      if [ -f $CONFIG ]; then
-         echo "[*] OpenFPC Queue Daemon Reading configuration file $CONFIG"
-         . $CONFIG
-         #break
-      fi
-   done
-fi
+COMPONENT=openfpc-queued
+IAM=`whoami`;
 
-die() {
-   echo $1
-   exit 1
+die(){
+	echo $1
+	exit 1
 }
 
-# We'll add up all the options above and use them
-NAME=openfpc-queued
-DAEMON=`which openfpc-queued` || die "[!] $NAME program not found in path."
-PIDFILE=$OFPC_Q_PID
-LOG_FILE=/var/log/$NAME.log
+startstop() {
+	ACTION=$1
+	if [ "$IAM" != "root" ]; then
+        	die "[!] Must be root to run this script"
+	fi
 
-stopproc() {
-  echo -n "Stopping $NAME ..."
-  if [ -f $PIDFILE ]; then
-    kill `cat $PIDFILE` >$LOG_FILE
-    if [ $? = 0 ]; then
-      echo "Success."
-      rm -vf $PIDFILE >$LOG_FILE
-    else
-      kill -9 `cat $PIDFILE` >$LOG_FILE
-      if [ $? = 0 ]; then
-         echo "Success."
-         rm -vf $PIDFILE >$LOG_FILE
-      else
-         echo "Failed."
-      fi
-    fi
-  fi
+	if [ `which openfpc` ] ; then
+		openfpc -t $COMPONENT --action $ACTION -q
+	else 
+		echo "Failed: (Unable to find openfpc in path)"
+	fi
 }
 
-startproc() {
-   if [ -f $PIDFILE ]; then
-       QDPID=$(cat $PIDFILE)
-       if ps $QDPID > /dev/null; 
-       then
-          echo "[!] $NAME already running with pid: $QDPID"
-          exit 1
-       fi
-    fi
-    rm -vf $PIDFILE >$LOG_FILE
-    echo "[*] Starting $NAME (OpenFPC Queue Daemon)"
-    $DAEMON -c $CONFIG --daemon >$LOG_FILE
-    echo " done."
-}
 
 # See how we were called.
 case "$1" in
   start)
-        startproc
+        startstop $1
 	;;
   stop)
-        stopproc
+        startstop $1
 	;;
   status)
-        # Show the rules and counters
-	if [ -s $PIDFILE ]; then
-	  echo -n "$NAME running with PID: "
-          cat $PIDFILE
-	else 
-	  echo "$NAME not running!"
-        fi
+	startstop status
 	;;
   restart)
-        stopproc
-        startproc
+        startstop stop 
+        startstop start
         ;;
   force-reload)
-        stopproc
-        startproc
+        startstop stop 
+        startstop start
         ;;
   *)
         echo "Usage: $0 {start|stop|restart|status|force-reload}"
