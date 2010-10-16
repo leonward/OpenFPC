@@ -1280,9 +1280,9 @@ $config{'NODENAME'} = "OPENFPC";
 $config{'PROXY'}=0;		# Default is node mode
 $config{'SAVEDIR'}="/tmp";	# Where to save cached PCAP files.
 $config{'LOGFILE'}="/tmp/openfpc-queued.log"; 	# Log file
-$config{'OFPC_Q_PID'}="/tmp/openfpc-queued.pid";
 $config{'TCPDUMP'} = "/usr/sbin/tcpdump";
 $config{'MERGECAP'} = "/usr/bin/mergecap";
+$config{'PIDPATH'} = "/tmp";
 
 $SIG{"TERM"}  = sub { closedown("TERM") };
 $SIG{"KILL"}  = sub { closedown("KILL") };
@@ -1371,8 +1371,8 @@ unless ($listenSocket) {
 $listenSocket->autoflush(1);
 
 if ($daemon) {
-	print "[*] OpenFPC Queued - Daemonizing\n";
-	print " -  Leon Ward http://www.openfpc.org/\n";
+	#print "[*] OpenFPC Queued - Daemonizing\n";
+	#print " -  Leon Ward http://www.openfpc.org/\n";
 
 	chdir '/' or die "Can't chdir to /: $!";
 	umask 0;
@@ -1380,7 +1380,7 @@ if ($daemon) {
 	open (STDOUT, "> $config{'LOGFILE'}") or die "Can't open Log for STDOUT  $config{'LOGFILE'}: $!\n";
 	defined(my $pid = fork)   or die "Can't fork: $!";
 	if ($pid) {
-		open (PID, "> $config{'OFPC_Q_PID'}") or die "Unable write to pid file $config{'OFPC_Q_PID'}: $!\n";
+		open (PID, "> $config{'PIDPATH'}/openfpc-queued-$config{'NODENAME'}.pid") or die "Unable write to pid file $config{'PIDPATH'}/openfpc-queued-$config{'NODENAME'}.pid: $!\n";
       		print PID $pid, "\n";
       		close (PID);
 		exit 0;

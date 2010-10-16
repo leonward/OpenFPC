@@ -119,7 +119,7 @@ unless ( -d "$FDIR" )  {
 	warn "[-] Created failed insertion dir $FDIR\n";
 }
 
-warn "[*] Starting openfpc-cx2db.pl...\n";
+warn "[*] Starting openfpc-cx2db.pl...\n" unless ($DAEMON);
 
 # Prepare to meet the world of Daemons
 if ( $DAEMON ) {
