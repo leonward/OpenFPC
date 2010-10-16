@@ -1364,7 +1364,10 @@ my $listenSocket = IO::Socket::INET->new(
                                 Reuse => 1,
                                 );
 
-unless ($listenSocket) { die("Problem creating socket!"); }
+unless ($listenSocket) { 
+	wlog("Problem creating socke on $config{'OFPC_PORT'}"); 
+	exit 1;
+}
 $listenSocket->autoflush(1);
 
 if ($daemon) {
