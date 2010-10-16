@@ -1,238 +1,65 @@
-#!/bin/bash
-
+#!/bin/sh
+#
 ### BEGIN INIT INFO
 # Provides:          openfpc-daemonlogger
-# Required-Start:    
-# Required-Stop:     
+# Required-Start:    $network
+# Required-Stop:     $network
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Init script for starting daemonlogger for openfpc
-# Description:       Part of the OpenFPC project http://www.openfpc.org
+# Short-Description: openfpc-daemonlogger full packet date for OpenFPC
+# Description:       Start/stop daemonlogger to capture   
+#                    full packet data.
+#		     Part of the OpenFPC project
+#                    http://www.openfpc.org 
 ### END INIT INFO
 
+# Leon Ward - leon@openfpc.org
+# This looks simple because it is. All of the magic is in the openfpc perl script
 
-NODENAME=0
-IAM=`whoami`
+COMPONENT=openfpc-daemonlogger
+IAM=`whoami`;
 
-function die() {
-	echo -e $1
+die(){
+	echo $1
 	exit 1
 }
 
-if [ "$IAM" != "root" ]; then
-	die "[!] Must be root"
-fi
-
-# Check if we have been passed a config file as $2. If not, read the first config file found in order above.
-CONFIG_FILES="/etc/openfpc/openfpc-default.conf"
-
-if [ $2 ]; then
-   if [ -f $2 ]; then
-      CONFIG=$2
-      echo "[*] Reading configuration file $CONFIG"
-      . $CONFIG
-   else
-      echo -e "[!] Error: Can't find config file $CONFIG"
-      exit 1
-   fi
-else
-   for CONFIG in $CONFIG_FILES; do
-      if [ -f $CONFIG ]; then
-         echo "[*] Reading configuration file $CONFIG"
-         . $CONFIG
-         break
-      fi
-   done
-fi
-
-# Check we have read a config file, if not we can't start
-if [ "$NODENAME" == 0 ]
-then
-	die "[!] Can't start without a valid config file"
-fi
-
-# Check if we have daemonlogger in the path, if not use a user
-# supplied location from openfpc.conf file
-
-if which $DAEMONLOGGER > /dev/null 
-then
-	DL=`which $DAEMONLOGGER`
-else 
-	DL=$DAEMONLOGGER
-fi
-
-PIDFILE=daemonlogger-$NODENAME.pid
-PIDPATH=/var/run
-
-TZ=GMT
-export TZ
-
-# Make sure all the permissions come out right.
-umask 077
-
-# Make sure the logging dir is there.
-if [ ! -d $BUFFER_PATH ]; then
-  mkdir -p $BUFFER_PATH
-fi
-
-start() {
-
-	if [ ! -f $PIDPATH/$PIDFILE ]
- 	then 
-    		CMD="$DL -d \
-         		-i $INTERFACE \
-		         -l $BUFFER_PATH \
-		         -M $PCAP_SPACE \
-		         -s $FILE_SIZE \
-		         -p $PIDFILE \
-		         -P $PIDPATH \
-		         -n openfpc-$NODENAME-pcap "
-
-	  	if [ -n "$BPF_FILTER" ]; then
-        		CMD="$CMD $BPF_FILTER"
-    		fi
-
-    		$CMD > /dev/null 2>&1 || die "[!] Unable to start daemonlogger !"
-    		PID=$!
-    		if [ $? = 0 ]; then
-      			echo "Success."
-    		else
-      			echo "Failed."
-     		 	exit
-    		fi
- 	else
-  		if ps `cat $PIDPATH/$PIDFILE`  > /dev/null 
-		then
-     			echo "Daemonlogger already running."
-  		else
-     			echo "Looks like a stale pid file, removing and trying again..."
-     			rm -f $PIDPATH/$PIDFILE
-     			$0 start $2
-  		fi
- 	fi
-}
-
-stopproc() {
-  if [ -f $PIDPATH/$PIDFILE ]; then
-    kill `cat $PIDPATH/$PIDFILE`
-    if [ $? = 0 ]; then
-      echo "Success."
-      rm -f $PIDPATH/$PIDFILE
-    else
-      kill -9 `cat $PIDPATH/$PIDFILE`
-      if [ $? = 0 ]; then
-         echo "Success."
-         rm -f $PIDPATH/$PIDFILE
-      else
-         echo "Failed."
-      fi
-    fi
-  fi
-}
-
-restart() {
-  if [ -f $PIDPATH/$PIDFILE ]; then
-    OLDPID=`cat $PIDPATH/$PIDFILE`
-    # we need to nuke PIDFILE so that when we call start, it doesn't exit cause it thinks we are already running.
-    rm $PIDPATH/$PIDFILE
-    echo -n "Starting new process..."
-    start
-    echo -n "Killing old process..."
-    kill $OLDPID
-    if [ $? = 0 ]; then
-      echo "Success."
-    else
-      kill -9 `cat $PIDPATH/$PIDFILE`
-      if [ $? = 0 ]; then
-         echo "Success."
-      else
-         echo "Failed."
-      fi
-    fi
-  else
-    echo "Error: $PIDPATH/$PIDFILE does not exist."
-    echo "Checking for old process with ps."
-    res=`$PS | $GREP "$DAEMONLOGGER" | $GREP "$BUFFER_PATH" | $GREP -v grep | awk '{print $1}'`
-    if [ $res ]; then
-	echo "Old daemonlogger proccess found at pid $res, killing."
-	kill $res
-	if [ $? = 0 ]; then
-	    echo "Success."
-	    echo "Starting new process."
-	    start
-	else
-            kill -9 $res
-            if [ $? = 0 ]; then
-               echo "Success."
-            fi
-	    echo "Failed."
+startstop() {
+	ACTION=$1
+	if [ "$IAM" != "root" ]; then
+        	die "[!] Must be root to run this script"
 	fi
-    else
-	echo "No old processes found."
-	echo "Starting new process anyway."
-	start
-    fi
-  fi
+
+	if [ `which openfpc` ] ; then
+		openfpc -t $COMPONENT --action $ACTION -q
+	else 
+		echo "Failed: (Unable to find openfpc in path)"
+	fi
 }
 
-# This func checks the current space being used by $BUFFER_PATH
-# and rm's data as necessary.
-cleandisk() {
-  echo "Checking disk space (limited to ${PCAP_SPACE}%)..."
-  # grep, awk, tr...woohoo!
-  CUR_USE=`df -P $BUFFER_PATH | grep -v -i filesystem | awk '{print $5}' | tr -d %`
-  echo "  Current Disk Use: ${CUR_USE}%"
-  if [ $CUR_USE -gt $PCAP_SPACE ]; then
-    # If we are here then we passed our disk limit
-    # First find the oldest DIR
-    cd $BUFFER_PATH
-    OLDEST_FILE=`ls -t | tail -1`
-    if [ "$OLDEST_FILE" != "" ]; then
-       echo "  Removing file: $BUFFER_PATH/$OLDEST_FILE"
-       rm -f $OLDEST_FILE
-    else
-       echo "  No more files in $BUFFER_PATH"
-       echo "  Something else most be hogging your disk!"
-       echo "Done."
-       exit 0
-    fi
-    # Run cleandisk again as rm'ing one file might been enough
-    # but we wait 5 secs in hopes any open writes are done.
-    sync
-    echo "  Waiting 1 sec for disk to sync..."
-    sync
-    sleep 1
-    cleandisk
-  else
-    echo "Done."
-  fi
-}
 
+# See how we were called.
 case "$1" in
   start)
-    start
-    #cleandisk
-    ;;
+        startstop $1
+	;;
   stop)
-    stopproc
-    ;;
-  restart)
-    restart
-    #cleandisk
-    ;;
+        startstop $1
+	;;
   status)
-    # Show the rules and counters
-    if [ -s $PIDPATH/$PIDFILE ]; then
-      echo -n "daemonlogger running with PID: "
-      cat $PIDPATH/$PIDFILE
-    else
-      echo "$NAME not running!"
-    fi
-    ;;
-
-  cleandisk)
-    cleandisk
-    ;;
+	startstop status
+	;;
+  restart)
+        startstop stop 
+        startstop start
+        ;;
+  force-reload)
+        startstop stop 
+        startstop start
+        ;;
   *)
-    echo "Usage: $0 {start|stop|restart|cleandisk}"
+        echo "Usage: $0 {start|stop|restart|status|force-reload}"
+        exit 1
 esac
+
+exit 0
