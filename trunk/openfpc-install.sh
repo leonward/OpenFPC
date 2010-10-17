@@ -1,7 +1,7 @@
 #!/bin/bash 
 
 #########################################################################################
-# Copyright (C) 2009 Leon Ward 
+# Copyright (C) 2010 Leon Ward 
 # install-openfpc.sh - Part of the OpenFPC - (Full Packet Capture) project
 #
 # Contact: leon@rm-rf.co.uk
@@ -22,24 +22,23 @@
 #########################################################################################
 
 
-# This installer is for users that cannot or will not use the .debs for installation. This may be because: 
+# This installer is for users that cannot or will not use the .debs for installation.
 # It's goal is to take a system from being OpenFPC-less to one that has OpenFPC operating in a semi-standard setup.
+# By semi-standard i refer to similar to how the .deb install leaves the system.
 
 openfpcver="0.2"
-TARGET_DIR="/usr/local/bin"
+PROG_DIR="/usr/local/bin"
 CONF_DIR="/etc/openfpc"
-INSTALL_FILES="openfpc-cx2db openfpc-client openfpc-ctl openfpc.conf openfpc-queued openfpc-setup.pl openfpc-dbmaint.sh"
-PROG_FILES="openfpc-client openfpc-queued openfpc-setup.pl openfpc-cx2db"
+PROG_FILES="openfpc-client openfpc-queued openfpc-setup.pl openfpc-cx2db openfpc"
 WWW_FILES="index.php bluegrade.png"
-WWW_DIR="$TARGET_DIR/www"
+WWW_DIR="/var/www/openfpc"
 PERL_MODULES="Parse.pm Request.pm"
-INIT_SCRIPTS="openfpc-daemonlogger openfpc-cx2db openfpc-cxtracker openfpc openfpc-queued"
+INIT_SCRIPTS="openfpc-daemonlogger openfpc-cx2db openfpc-cxtracker openfpc-queued"
 INIT_DIR="/etc/init.d/" 
 REQUIRED_BINS="tcpdump date mergecap perl tshark"
 LOCAL_CONFIG="/etc/openfpc/openfpc.conf"
 PERL_LIB_DIR="/usr/local/lib/site_perl"
 OFPC_LIB_DIR="$PERL_LIB_DIR/OpenFPC"
-BIN_DIR="/usr/local/bin"
 
 DEPSOK=0			# Track if obvious deps are met
 DISTRO="AUTO"		# Try to work out what distro we are installing on
@@ -134,6 +133,9 @@ function doinstall()
 {
 
 	chkroot
+	##################################
+	# Check for Dirs
+
 	# Check for, and create if required a /etc/openfpc dir
         if [ -d $CONF_DIR ] 
 	then
@@ -158,22 +160,20 @@ function doinstall()
 		mkdir --parent $OFPC_LIB_DIR || die "[!] Unable to mkdir $OFPC_LIB_DIR"
 	fi
 
+	# Check for init dir
 	[ -d $INIT_DIR ] || die "[!] Cannot find init.d directory $INIT_DIR. Something bad must have happened."
 
-        for file in $INSTALL_FILES
-        do
-		echo -e " -  Installing $file"
-                cp $file $TARGET_DIR || echo -e " -  Unable to copy $file to $TARGET_DIR"
-        done
+	if [ -d $WWW_DIR ] 
+	then
+		echo -e " *  Found $WWW_DIR"
+	else
+		mkdir --parent $WWW_DIR || die "[!] Unable to mkdir $WWW_DIR"
+	fi
+
+	####################################
+	# Install files
 
 	######## Modules ###########
-
-	if [ -d $OFPC_LIB_DIR ] 
-	then
-		echo -e " *  Found $OFPC_LIB_DIR"
-	else
-		mkdir --parent $OFPC_LIB_DIR || die "[!] Unable to mkdir $OFPC_LIB_DIR"
-	fi
 
 	for file in $PERL_MODULES
 	do
@@ -185,19 +185,12 @@ function doinstall()
 
 	for file in $PROG_FILES
 	do
-		echo -e " -  Installing application $file"
-		cp $file $BIN_DIR
-	
+		echo -e " -  Installing OpenFPC prog: $file"
+		cp $file $PROG_DIR
 	done
 
 	###### WWW files #####
 
-	if [ -d $WWW_DIR ] 
-	then
-		echo -e " *  Found $WWW_DIR"
-	else
-		mkdir --parent $WWW_DIR || die "[!] Unable to mkdir $WWW_DIR"
-	fi
 
 	for file in $WWW_FILES
 	do
@@ -205,24 +198,32 @@ function doinstall()
 		cp www/$file $WWW_DIR/$file
 	done
 
-	echo -e "[*] -------- Enabling and restarting Apache2 --------"	
-	# Add openfpc config in apache
-	cp etc/openfpc.apache2.conf /etc/apache2/sites-available/openfpc
-	a2ensite openfpc
-	service apache2 reload
-	echo -e "-----------------------------------------------------"
+	#################################
+	# Enable website
+
+	if [ -d /etc/apache2/sites-available ]
+	then
+		echo -e "[*] -------- Enabling and restarting Apache2 --------"	
+		# Add openfpc config in apache
+		cp etc/openfpc.apache2.conf /etc/apache2/sites-available/openfpc
+		a2ensite openfpc
+		service apache2 reload
+		echo -e "-----------------------------------------------------"
+	else
+		echo -e "[!] Cant find apache conf dir. Won't enable web UI"
+	fi
 
 	###### init #######
 
         for file in $INIT_SCRIPTS
         do
 		echo -e " -  Installing $INIT_DIR/$file"
-                ln -s $TARGET_DIR/$file /$INIT_DIR/$file  || echo -e " !  Unable to symlink $file into $INIT_DIR/$file"
+		cp etc/init.d/$file $INIT_DIR/$file
         done
 
 	if [ "$DISTRO" == "DEBIAN" ]
 	then
-		echo "[*] Performing a Debain Install"
+		echo "[*] Updating init config with update-rc.d"
 
 		for file in $INIT_SCRIPTS
 		do
@@ -231,7 +232,7 @@ function doinstall()
 		done
 	elif [ "$DISTRO" == "REDHAT" ]
 	then
-		echo "[*] Performing a RedHat Install"
+		echo "[*] Performing a RedHat init Install"
 		echo NOT DONE!!!!!
 		exit 1
 	fi
@@ -243,9 +244,9 @@ function doinstall()
     OpenFPC should now be installed and ready for configuration.
     To configure OpenFPC execute...
 
-    $ sudo $TARGET_DIR/openfpc-setup.pl -c $CONF_DIR/openfpc.conf 
+    $ sudo $PROG_DIR/openfpc-setup.pl -c $CONF_DIR/openfpc.conf 
 
-    For more information, and advanced setup options take a look at $TARGET_DIR/setup-openfpc.pl --help
+    For more information, and advanced setup options take a look at $PROG_DIR/setup-openfpc.pl --help
     You may also want to check the status of OpenFPC's dependancies 
      
 "
@@ -277,28 +278,15 @@ function remove()
 
 	for file in $PROG_FILES
 	do
-		if [ -f $BIN_DIR/$file ] 
+		if [ -f $PROG_DIR/$file ] 
 		then
-			echo -e "    Removed   $BIN_DIR/$file"
-			rm $BIN_DIR/$file || echo -e "unable to delete $BIN_DIR/$file"
+			echo -e "    Removed   $PROG_DIR/$file"
+			rm $PROG_DIR/$file || echo -e "unable to delete $PROG_DIR/$file"
 		else
-			echo -e "    Not Found $BIN_DIR/$file"	
+			echo -e "    Not Found $PROG_DIR/$file"	
 		fi
 	done
 	
-	echo -e "[*] Removing files..."
-
-	for file in $INSTALL_FILES
-	do
-		if [ -f $TARGET_DIR/$file ] 
-		then
-			echo -e "    Removed   $TARGET_DIR/$file"
-			rm $TARGET_DIR/$file || echo -e "unable to delete $file"
-		else
-			echo -e "    Not Found $TARGET_DIR/$file"	
-		fi
-	done
-
 	echo -e "[*] Removing PERL modules"
 	for file in $PERL_MODULES
 	do
@@ -322,7 +310,7 @@ function remove()
 	done
 
 	# Remove the password file if it has been created
-	[ -f $TARGET_DIR/apache2.passwd ] && rm $TARGET_DIR/apache2.passwd
+	[ -f $CONF_DIR/apache2.passwd ] && rm $CONF_DIR/apache2.passwd
 
 	echo -e "[*] Removing openfpc wwwroot"
 	if [ -d $WWW_DIR ] 
@@ -352,35 +340,22 @@ function installstatus()
 	SUCCESS=1
 
 	echo -e "* Status"
-	if [ -d $TARGET_DIR ] 
+	if [ -d $PROG_DIR ] 
 	then
-		echo -e "  Yes Target install dir $TARGET_DIR Exists"	
+		echo -e "  Yes Target install dir $PROG_DIR Exists"	
 	else
-		echo -e "  No  Target install dir $TARGET_DIR does not exist"
+		echo -e "  No  Target install dir $PROG_DIR does not exist"
 		SUCCESS=0
 
 	fi
 	
-	for file in $INSTALL_FILES
-	do
-		if [ -f $TARGET_DIR/$file ] 
-		then
-			echo -e "  Yes $TARGET_DIR/$file Exists"
-		else
-			echo -e "  No  $TARGET_DIR/$file does not exist"
-			SUCCESS=0
-		fi
-
-	done
-	
 	for file in $INIT_SCRIPTS
 	do
-	
-		if [ -f $TARGET_DIR/$file ]
+		if [ -f $PROG_DIR/$file ]
 		then
-			echo -e "  Yes $TARGET_DIR/$file Exists"
+			echo -e "  Yes $PROG_DIR/$file Exists"
 		else
-			echo -e "  No  $TARGET_DIR/$file does not exist"
+			echo -e "  No  $PROG_DIR/$file does not exist"
 			SUCCESS=0
 		fi	
 	done
