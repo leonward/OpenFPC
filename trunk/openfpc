@@ -208,43 +208,46 @@ sub openfpcqueued{
 
 	switch($action){
 		case "start" {
-			printf '%-60s', "Starting OpenFPC Queue Daemon ($configs{$instance}{'NODENAME'})... ";
+			printf '%-70s', "Starting OpenFPC Queue Daemon ($configs{$instance}{'NODENAME'})... ";
 			if ($running) {
-				printf '%20s', "Running (pid $pid)\n";
+				printf '%10s', "Running (pid $pid)\n";
 			} else {
 				if ( -x $daemoncmd ) {
 					my $result=system("$daemoncmd $daemonargs");
 					if ($result) {
-						printf '%20s', "Failed\n";
+						printf '%10s', "Failed\n";
 						print "->Check syslog for details\n" if $verbose;
 					} else {
-						printf '%20s', "Done\n";
+						printf '%10s', "Done\n";
 						return(1);
 					}
+				} else {
+					printf '%10s', "Failed\n";
+					print "-> Unable to exec $daemoncmd!\n";
 				}	
 			}
 
 		} 
 		case "stop" {
-			printf '%-60s', "Stopping OpenFPC Queue Daemon ($configs{$instance}{'NODENAME'})... ";
+			printf '%-70s', "Stopping OpenFPC Queue Daemon ($configs{$instance}{'NODENAME'})... ";
 			if ($running) {
 				my $result=system("kill $pid");
 				if ($result) {
-					printf '%20s', "Failed\n";
+					printf '%10s', "Failed\n";
 				} else {
-					printf '%20s',"Done\n";
+					printf '%10s',"Done\n";
 					return(1);
 				}
 			} else {
-				printf '%20s',"Not running\n";
+				printf '%10s',"Not running\n";
 			}
 		} 
 		case "status" {
-			printf '%-60s', "OpenFPC Queue Daemon  ($configs{$instance}{'NODENAME'}):"; 
+			printf '%-70s', "OpenFPC Queue Daemon  ($configs{$instance}{'NODENAME'}):"; 
 			if ($running) {
-				printf '%20s', "running (pid $pid)\n";
+				printf '%10s', "running (pid $pid)\n";
 			} else {
-				printf '%20s', "stopped\n";
+				printf '%10s', "stopped\n";
 			}
 		} 
 	}
@@ -290,58 +293,58 @@ sub openfpcdaemonlogger{
 	switch($action){
 		case "start" {
 			#print "$daemoncmd $daemonargs\n";
-			printf '%-60s',  "Starting Daemonlogger ($configs{$instance}{'NODENAME'})... ";
+			printf '%-70s',  "Starting Daemonlogger ($configs{$instance}{'NODENAME'})...";
 			if ($running) {
 				print "Running (pid $pid)\n";
 			} else {
 				# Check if interface is available
 				if (system("ifconfig $configs{$instance}{'INTERFACE'} up > /dev/null 2>&1")){
-					printf '%20s', "Failed\n";
+					printf '%10s', "Failed\n";
 					print "->Cant bring $configs{$instance}{'INTERFACE'} up\n" if $verbose;
 					return(0);
 				}
 				# Check if BUFFER_PATH exists and is writable
 				if ( ! -d  $configs{$instance}{'BUFFER_PATH'}){
-					printf '%20s',"Failed \n";	
-					print "Log path $configs{$instance}{'BUFFER_PATH'} doesn't exist\n" if $verbose;
+					printf '%10s',"Failed\n";	
+					print "-> Log path $configs{$instance}{'BUFFER_PATH'} doesn't exist\n" if $verbose;
 					return(0);
 				}
 
 				if ( -x $daemoncmd ) {
 					my $result=system("$daemoncmd $daemonargs");
 					if ($result) {
-						printf '%20s', "Failed\n";
+						printf '%10s', "Failed\n";
 					} else {
-						printf '%20s', "Done\n";
+						printf '%10s', "Done\n";
 						return(1);
 					}
 				} else {
-					printf '%20s', "Can't exec $daemoncmd\n";
+					printf '%10s', "Failed\n";
 					return(0);
 				}	
 			}
 
 		} 
 		case "stop" {
-			printf '%-60s',  "Stopping Daemonlogger... ";
+			printf '%-70s',  "Stopping Daemonlogger... ";
 			if ($running) {
 				my $result=system("kill $pid");
 				if ($result) {
-					printf '%20s', "Failed\n";
+					printf '%10s', "Failed\n";
 				} else {
-					printf '%20s', "Done\n";
+					printf '%10s', "Done\n";
 					return(1);
 				}
 			} else {
-				printf '%20s',"Not running\n";
+				printf '%10s',"Not running\n";
 			}
 		} 
 		case "status" {
-			printf '%-60s', "Daemonlogger ($configs{$instance}{'NODENAME'}) :"; 
+			printf '%-70s', "Daemonlogger ($configs{$instance}{'NODENAME'}) :"; 
 			if ($running) {
-				printf '%20s', "running (pid $pid)\n";
+				printf '%10s', "running (pid $pid)\n";
 			} else {
-				printf '%20s', "stopped\n";
+				printf '%10s', "stopped\n";
 			}
 		} 
 	}
@@ -373,57 +376,57 @@ sub openfpccxtracker{
 
 	switch($action){
 		case "start" {
-			printf '%-60s', "Starting OpenFPC cxtracker ($configs{$instance}{'NODENAME'})... ";
+			printf '%-70s', "Starting OpenFPC cxtracker ($configs{$instance}{'NODENAME'})... ";
 			if ($running) {
 				print "Running (pid $pid)\n";
 			} else {
 				# Check if interface is available
 				if (system("ifconfig $configs{$instance}{'INTERFACE'} up > /dev/null 2>&1")){
-					printf '%20s', "Failed\n";
+					printf '%10s', "Failed\n";
 					print "->Cant bring $configs{$instance}{'INTERFACE'} up\n" if $verbose;
 					return(0);
 				}
 				# Check if BUFFER_PATH exists and is writable
 				if ( ! -d  $configs{$instance}{'SESSION_DIR'}){
-					printf '%20s', "Failed\n";	
+					printf '%10s', "Failed\n";	
 					print "->Log path $configs{$instance}{'SESSION_DIR'} doesn't exist\n" if ($verbose);
 					return(0);
 				}
 				if ( -x $daemoncmd ) {
 					my $result=system("$daemoncmd $daemonargs");
 					if ($result) {
-						printf '%20s', "Failed\n";
+						printf '%10s', "Failed\n";
 					} else {
-						printf '%20s', "Done\n";
+						printf '%10s', "Done\n";
 						return(1);
 					}
 				} else {
-					printf '%20s', "Failed\n";
-					print "->Unable to exec $daemoncmd \n" if ($verbose);
+					printf '%10s', "Failed\n";
+					print "-> Unable to exec $daemoncmd \n" if ($verbose);
 				}	
 			}
 
 		} 
 		case "stop" {
-			printf '%-60s',  "Stopping OpenFPC cxtracker ($configs{$instance}{'NODENAME'})... ";
+			printf '%-70s',  "Stopping OpenFPC cxtracker ($configs{$instance}{'NODENAME'})... ";
 			if ($running) {
 				my $result=system("kill $pid");
 				if ($result) {
-					printf '%20s', "Failed\n";
+					printf '%10s', "Failed\n";
 				} else {
-					printf '%20s', "Done\n";
+					printf '%10s', "Done\n";
 					return(1);
 				}
 			} else {
-				printf '%20s',"Not running\n";
+				printf '%10s',"Not running\n";
 			}
 		} 
 		case "status" {
-			printf '%-60s', "OpenFPC Connection Tracker ($configs{$instance}{'NODENAME'}) :"; 
+			printf '%-70s', "OpenFPC Connection Tracker ($configs{$instance}{'NODENAME'}) :"; 
 			if ($running) {
-				printf '%20s', "running (pid $pid)\n";
+				printf '%10s', "running (pid $pid)\n";
 			} else {
-				printf '%20s', "stopped\n";
+				printf '%10s', "stopped\n";
 			}
 		} 
 	}
@@ -453,52 +456,52 @@ sub openfpccx2db{
 
 	switch($action){
 		case "start" {
-			printf '%-60s', "Starting OpenFPC Connection Uploader ($configs{$instance}{'NODENAME'}) ... ";
+			printf '%-70s', "Starting OpenFPC Connection Uploader ($configs{$instance}{'NODENAME'}) ... ";
 			if ($running) {
 				print "Running (pid $pid)\n";
 			} else {
 				# Check if BUFFER_PATH exists and is writable
 				if ( ! -d  $configs{$instance}{'SESSION_DIR'}){
-					printf '%20s', "Failed. \n";	
+					printf '%10s', "Failed. \n";	
 					print "->Log path $configs{$instance}{'SESSION_DIR'} doesn't exist\n" if ($verbose);
 					return(0);
 				}
 				if ( -x $daemoncmd ) {
 					my $result=system("$daemoncmd $daemonargs");
 					if ($result) {
-						printf '%20s', "Failed\n";
+						printf '%10s', "Failed\n";
 					} else {
-						printf '%20s', "Done\n";
+						printf '%10s', "Done\n";
 						return(1);
 					}
 				} else {
-					printf '%20s', "Failed\n";
-					print " -> Unable to exec $daemoncmd \n" if $verbose;
+					printf '%10s', "Failed\n";
+					print "-> Unable to exec $daemoncmd \n" if $verbose;
 				}	
 			}
 
 		} 
 		case "stop" {
-			printf '%-60s',  "Stopping OpenFPC Connection Uploader ($configs{$instance}{'NODENAME'})... ";
+			printf '%-70s',  "Stopping OpenFPC Connection Uploader ($configs{$instance}{'NODENAME'})... ";
 			if ($running) {
 				my $result=system("kill $pid");
 				if ($result) {
-					printf '%20s', "Failed\n";
+					printf '%10s', "Failed\n";
 				} else {
-					printf '%20s', "Done\n";
+					printf '%10s', "Done\n";
 					return(1);
 				}
 			} else {
-				printf '%20s',"Not running\n";
+				printf '%10s',"Not running\n";
 			}
 		} 
 		case "status" {
 			if ($running) {
-				printf '%-60s', "OpenFPC Connection Uploader ($configs{$instance}{'NODENAME'}) :"; 
+				printf '%-70s', "OpenFPC Connection Uploader ($configs{$instance}{'NODENAME'}) :"; 
 				if ($running) {
-					printf '%20s', "running (pid $pid)\n";
+					printf '%10s', "running (pid $pid)\n";
 				} else {
-					printf '%20s', "stopped\n";
+					printf '%10s', "stopped\n";
 				}
 			}
 		} 
