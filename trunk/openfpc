@@ -210,13 +210,13 @@ sub openfpcqueued{
 		case "start" {
 			printf '%-70s', "Starting OpenFPC Queue Daemon ($configs{$instance}{'NODENAME'})... ";
 			if ($running) {
-				printf '%10s', "Running (pid $pid)\n";
+				printf '%10s', "Running\n";
 			} else {
 				if ( -x $daemoncmd ) {
 					my $result=system("$daemoncmd $daemonargs");
 					if ($result) {
 						printf '%10s', "Failed\n";
-						print "->Check syslog for details\n" if $verbose;
+						print "->Check syslog for details\n" unless $quiet;
 					} else {
 						printf '%10s', "Done\n";
 						return(1);
@@ -295,18 +295,18 @@ sub openfpcdaemonlogger{
 			#print "$daemoncmd $daemonargs\n";
 			printf '%-70s',  "Starting Daemonlogger ($configs{$instance}{'NODENAME'})...";
 			if ($running) {
-				print "Running (pid $pid)\n";
+				printf '%10s', "Running\n";
 			} else {
 				# Check if interface is available
 				if (system("ifconfig $configs{$instance}{'INTERFACE'} up > /dev/null 2>&1")){
 					printf '%10s', "Failed\n";
-					print "->Cant bring $configs{$instance}{'INTERFACE'} up\n" if $verbose;
+					print "->Cant bring $configs{$instance}{'INTERFACE'} up\n" unless $quiet;
 					return(0);
 				}
 				# Check if BUFFER_PATH exists and is writable
 				if ( ! -d  $configs{$instance}{'BUFFER_PATH'}){
 					printf '%10s',"Failed\n";	
-					print "-> Log path $configs{$instance}{'BUFFER_PATH'} doesn't exist\n" if $verbose;
+					print "-> Log path $configs{$instance}{'BUFFER_PATH'} doesn't exist\n" unless $quiet;
 					return(0);
 				}
 
@@ -378,18 +378,18 @@ sub openfpccxtracker{
 		case "start" {
 			printf '%-70s', "Starting OpenFPC cxtracker ($configs{$instance}{'NODENAME'})... ";
 			if ($running) {
-				print "Running (pid $pid)\n";
+				printf '%10s', "Running\n";
 			} else {
 				# Check if interface is available
 				if (system("ifconfig $configs{$instance}{'INTERFACE'} up > /dev/null 2>&1")){
 					printf '%10s', "Failed\n";
-					print "->Cant bring $configs{$instance}{'INTERFACE'} up\n" if $verbose;
+					print "->Cant bring $configs{$instance}{'INTERFACE'} up\n" unless $quiet;
 					return(0);
 				}
 				# Check if BUFFER_PATH exists and is writable
 				if ( ! -d  $configs{$instance}{'SESSION_DIR'}){
 					printf '%10s', "Failed\n";	
-					print "->Log path $configs{$instance}{'SESSION_DIR'} doesn't exist\n" if ($verbose);
+					print "->Log path $configs{$instance}{'SESSION_DIR'} doesn't exist\n" unless $quiet;
 					return(0);
 				}
 				if ( -x $daemoncmd ) {
@@ -402,7 +402,7 @@ sub openfpccxtracker{
 					}
 				} else {
 					printf '%10s', "Failed\n";
-					print "-> Unable to exec $daemoncmd \n" if ($verbose);
+					print "-> Unable to exec $daemoncmd \n" unless $quiet;
 				}	
 			}
 
@@ -458,12 +458,12 @@ sub openfpccx2db{
 		case "start" {
 			printf '%-70s', "Starting OpenFPC Connection Uploader ($configs{$instance}{'NODENAME'}) ... ";
 			if ($running) {
-				print "Running (pid $pid)\n";
+				printf '%10s', "Running\n";
 			} else {
 				# Check if BUFFER_PATH exists and is writable
 				if ( ! -d  $configs{$instance}{'SESSION_DIR'}){
 					printf '%10s', "Failed. \n";	
-					print "->Log path $configs{$instance}{'SESSION_DIR'} doesn't exist\n" if ($verbose);
+					print "->Log path $configs{$instance}{'SESSION_DIR'} doesn't exist\n" unless $quiet;
 					return(0);
 				}
 				if ( -x $daemoncmd ) {
@@ -476,7 +476,7 @@ sub openfpccx2db{
 					}
 				} else {
 					printf '%10s', "Failed\n";
-					print "-> Unable to exec $daemoncmd \n" if $verbose;
+					print "-> Unable to exec $daemoncmd \n" unless $quiet;
 				}	
 			}
 
@@ -602,7 +602,7 @@ die("[!] No action specified. See --usage for more options") unless ($action);
 
 if ($thing) {
 	my $ofpc=getType($thing);
-	print "Filename is $ofpc->{'filename'} \nType is $ofpc->{'type'} \n" if $verbose;
+	print "Filename is $ofpc->{'filename'} \nType is $ofpc->{'type'} \n" unless $quiet;
 
 	if ( $ofpc->{'type'} eq "daemon" ) {
 		my @instances=getInstanceByDaemon($thing);
@@ -659,6 +659,7 @@ if ($thing) {
 } else {
 	# Thing not speficied, taking action on 
 	# all daemons for all instances.
+	my $fail;
 	foreach my $instance (keys(%configs)) {
 		unless ($quiet) {
 			print "###############################################################################\n";
@@ -672,19 +673,20 @@ if ($thing) {
 		foreach (@daemons) {
 			switch($_) {
 				case "openfpc-queued" {
-					openfpcqueued($action,$instance);
+					openfpcqueued($action,$instance) or $fail=1;
 				}
 				case "openfpc-daemonlogger" {
-					openfpcdaemonlogger($action,$instance);
+					openfpcdaemonlogger($action,$instance) or $fail=1;
 				}
 				case "openfpc-cxtracker" {
-					openfpccxtracker($action,$instance);
+					openfpccxtracker($action,$instance) or $fail=1;
 				}
 				case "openfpc-cx2db" {
-					openfpccx2db($action,$instance);
+					openfpccx2db($action,$instance) or $fail=1;
 				}
 				else {
-					print " !  Unknown daemon $_\n";
+					print "Unknown daemon $_\n";
+					$fail=1;
 				}
 			}
 		}
