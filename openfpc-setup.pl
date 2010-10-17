@@ -25,6 +25,7 @@ use warnings;
 use Getopt::Long;
 use Data::Dumper;
 use File::Copy;
+use File::Path qw(make_path);
 
 # Confguration Defaults
 my $debug=0;
@@ -42,6 +43,7 @@ my (%userlist, %oldconfig, %question,%validation,%cmdargs,@qlist);
 my %config=( 
 		INSTALL_DIR => "/opt/openfpc/",
 		NODENAME => "Unnamed",
+		DESCRIPTION => "No Description",
 		GUIUSER => "gui",
                 OFPCUSER => "root",  
                 saveconfig => "./myopenfpc.conf",
@@ -368,7 +370,7 @@ if ($config{'ENABLE_SESSION'})  {
 	
 	unless ( -d $config{'SESSION_DIR'} )  {
 		print "- Creating $config{'SESSION_DIR'}\n";
-		mkdir($config{'SESSION_DIR'})  or die("Unable to mkdir $config{'SESSION_DIR'}");
+		make_path($config{'SESSION_DIR'})  or die("Unable to mkdir $config{'SESSION_DIR'}");
 	}
 }
 
@@ -428,6 +430,6 @@ print "
 
 You can now start OpenFPC with the command
 
- \$ sudo service openfpc start
+ \$ sudo openfpc --action start
 
 \n";

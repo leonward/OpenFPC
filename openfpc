@@ -28,7 +28,7 @@ use Getopt::Long;
 use Switch;
 use Data::Dumper;
 
-my $version=0.2;
+my $openfpcver=0.3;
 my $conf_dir="/etc/openfpc";
 
 my ($quiet,$usertype,$verbose,$help);
@@ -660,9 +660,10 @@ if ($thing) {
 		unless ($quiet) {
 			print "###############################################################################\n";
 			print "[*] OpenFPC instance $instance\n";
-			print " -  NODENAME:  $configs{$instance}{'NODENAME'} \n";
-			print " -  INTERFACE: $configs{$instance}{'INTERFACE'}\n";
-			print " -  PORT:      $configs{$instance}{'OFPC_PORT'}\n";
+			print " -  NODENAME:      $configs{$instance}{'NODENAME'} \n" 	  if defined $configs{$instance}{'NODENAME'};
+			print " -  DESCRIPTION:   $configs{$instance}{'DESCRIPTION'} \n"  if defined $configs{$instance}{'DESCRIPTION'};
+			print " -  INTERFACE:     $configs{$instance}{'INTERFACE'}\n" 	  if defined $configs{$instance}{'INTERFACE'};
+			print " -  PORT:          $configs{$instance}{'OFPC_PORT'}\n"     if defined $configs{$instance}{'OFPC_PORT'};
 		}
 		my @daemons=getDaemonsByInstance($instance);
 		foreach (@daemons) {

@@ -7,22 +7,23 @@
 
 TARPATH=~
 SRCPATH=..
-PROG_FILES="openfpc-cx2db openfpc-client openfpc-install.sh openfpc-ctl openfpc.conf openfpc-queued openfpc-setup.pl openfpc-dbmaint.sh"
+PROG_FILES="openfpc-cx2db openfpc-client openfpc-install.sh openfpc openfpc.conf openfpc-queued openfpc-setup.pl openfpc-dbmaint.sh"
 PERL_MODS="Parse.pm Request.pm"
 WWW_FILES="index.php bluegrade.png"
 CGI_FILES="extract.cgi"
 DOC_FILES="README INSTALL TODO"
 ETC_FILES="openfpc.apache2.conf"
-VERFILES="openfpc-install.sh openfpc-client openfpc-ctl openfpc-queued"
+INIT_SCRIPTS="openfpc-daemonlogger openfpc-cxtracker openfpc-cx2db openfpc-queued"
+VERFILES="openfpc-install.sh openfpc-client openfpc openfpc-queued"
 
 echo -e "Checking version numbers in code so I dont forget to ++ something..."
 for i in $VERFILES
 do
-	VER=$(grep openfpcver $SRCPATH/$i |awk -F = '{print $2}')
+	VER=$(grep openfpcver $SRCPATH/$i |awk -F = '{print $2}' |awk -F \; '{print $1}')
 	echo -e " $VER - $i"
 done	
 
-VER=$(grep openfpcver $SRCPATH/openfpc-ctl |awk -F = '{print $2}')
+VER=$(grep openfpcver $SRCPATH/openfpc |awk -F = '{print $2}' | awk -F \; '{print $1}')
 TARGET="$TARPATH/openfpc-$VER"
 FILENAME="openfpc-$VER.tgz"
 
@@ -44,6 +45,7 @@ else
 	mkdir $TARGET/cgi-bin
 	mkdir $TARGET/docs
 	mkdir $TARGET/etc
+	mkdir $TARGET/etc/init.d
 
 	echo -e "* Program Files"	
 	for i in $PROG_FILES
@@ -85,6 +87,14 @@ else
 		echo -e "- Adding $i to $TARGET/etc"
 		cp $SRCPATH/etc/$i $TARGET/etc
 	done
+
+	echo -e "* Init scripts"	
+	for i in $INIT_SCRIPTS
+	do
+		echo -e "- Adding $i to $TARGET/etc/init.d"
+		cp $SRCPATH/etc/init.d/$i $TARGET/etc/init.d
+	done
+
 
 	cd $TARPATH
 	tar -czf $FILENAME openfpc-$VER
