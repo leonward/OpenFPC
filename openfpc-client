@@ -122,6 +122,23 @@ sub showhelp{
 EOF
 }
 
+=head2 convbytes
+	Convert a number of bytes into MB or GB
+=cut
+sub convbytes{
+	my $bytes=shift;
+	my $units="Bytes";
+
+	if ($bytes >=1000000000 ) {
+		$bytes = sprintf( "%0.2f", $bytes/1000000000 );
+		$units = "GB";
+	} elsif ( $bytes >= 1000000 ) {
+		$bytes = sprintf( "%0.2f", $bytes/1000000 );
+		$units = "MB";
+	} 
+
+	return("$bytes $units");
+}
 
 sub displayResult{
 	# TODO, why the hell is $result a global?
@@ -148,9 +165,9 @@ sub displayResult{
 					" Packet utilization  :  $result{'packetspace'}\% \n" .
 					" Session utilization :  $result{'sessionspace'}\% \n" .
 					" Storage utilization :  $result{'savespace'}\% \n" .
-					" Packet space used   :  $result{'packetused'} \n" . 
-					" Session space used  :  $result{'sessionused'} \n" .
-					" Storage used        :  $result{'saveused'}\n".
+					" Packet space used   :  $result{'packetused'} (" . convbytes($result{'packetused'}) . ")\n" .
+					" Session space used  :  $result{'sessionused'} (" . convbytes($result{'sessionused'}) . ")\n" .
+					" Storage used        :  $result{'saveused'} (" . convbytes($result{'saveused'}) . ")\n" .
 					" Load avg 1          :  $result{'ld1'} \n" .
 					" Load avg 5          :  $result{'ld5'} \n" .
 					" Load avg 15         :  $result{'ld15'} \n" .

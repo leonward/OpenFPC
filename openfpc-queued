@@ -449,20 +449,20 @@ sub getstatus{
 	my $exec=0;
 	my %stat = ( 
 		success => 0,
-		ofpctype => 0,		# Proxy or node
-		nodename => 0,		# Name of the node
-		firstpacket => 0,	# Oldest packet timestamp
-		packetspace => 0,	# Space available in PCAP partition
+		ofpctype => 0,			# Proxy or node
+		nodename => 0,			# Name of the node
+		firstpacket => 0,		# Oldest packet timestamp
+		packetspace => 0,		# Space available in PCAP partition
 		packetused => 0,
-		sessionspace => 0,	# Space available in session data partition
-		sessionused => 0,	# Space consumed by session data (excluding DB)
-		savespace => 0,		# Space availabe in the savepath
-		saveused => 0,		# Space availabe in the savepath
-		comms => 0,		# Communication with nodes (proxy only)
-		ld1 => 0,		# UNIX load average 1,5, and 15
+		sessionspace => "Disabled",	# Space available in session data partition
+		sessionused => "Disabled",	# Space consumed by session data (excluding DB)
+		savespace => 0,			# Space availabe in the savepath
+		saveused => 0,			# Space availabe in the savepath
+		comms => 0,			# Communication with nodes (proxy only)
+		ld1 => 0,			# UNIX load average 1,5, and 15
 		ld5 => 0,
 		ld15 => 0,
-		message => 0,		# Message for error text
+		message => 0,			# Message for error text
 	);
 
 	unless ($config{'PROXY'}) { 	# Process as a node. Don't check proxy specific stuff like comms
@@ -486,13 +486,14 @@ sub getstatus{
 
 		my $oldestfile=0;
 		foreach (@files) {
-			if ($_  !~ /$config{'NODENAME'}-pcap/) {
+			if ($_  =~ /$config{'NODENAME'}\.pcap/) {
 				$oldestfile=$_;
+				wlog("DEBUG: Oldest PCAP file is $oldestfile") if $debug;
 				last;
 			}
 		}
 
-		if ( $oldestfile =~ /$config{'NODENAME'}-pcap\.([0-9]+)/ ) {
+		if ( $oldestfile =~ /$config{'NODENAME'}\.pcap\.([0-9]+)/ ) {
 			$stat{'firstpacket'} = $1;
 		}
 
@@ -500,10 +501,12 @@ sub getstatus{
 		my $packetref=df("$config{'BUFFER_PATH'}");
 		$stat{'packetspace'} = $packetref->{'per'};
 		$stat{'packetused'} = $packetref->{'used'};
-		
-		my $sessionref=df("$config{'SESSION_DIR'}");
-		$stat{'sessionspace'} = $sessionref->{'per'};
-		$stat{'sessionused'} = $sessionref->{'used'};
+
+		if ($config{'ENABLE_SESSION'}) {
+			my $sessionref=df("$config{'SESSION_DIR'}");
+			$stat{'sessionspace'} = $sessionref->{'per'};
+			$stat{'sessionused'} = $sessionref->{'used'};
+		}
 
 		my $saveref=df("$config{'SAVEDIR'}");
 		$stat{'savespace'} = $saveref->{'per'};
@@ -1073,7 +1076,7 @@ sub bufferRange {
 		"Ending search in $endfile ($endtimestamp)\n" if ($vdebug);
 
 	# Look for files between startfile and endfile
-	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-$config{'NODENAME'}-pcap.*`;	
+	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-$config{'NODENAME'}.pcap.*`;	
         foreach(@pcaptemp) {
                 chomp $_;
 		if ($_ =~ /$startfile/) {
@@ -1113,7 +1116,7 @@ sub findBuffers {
 
 	wlog("DEBUG: WARNING vdebug not enabled to inspect pcap filename selection\n") if ($debug and not $vdebug);
 
-	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-$config{'NODENAME'}-pcap.*`;
+	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-$config{'NODENAME'}.pcap.*`;
         foreach(@pcaptemp) {
                 chomp $_;
                 push(@pcaps,$_);

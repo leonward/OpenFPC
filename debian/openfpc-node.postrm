@@ -9,7 +9,7 @@ set -e
 case "$1" in
        purge|disappear)
                 # Remove logfiles
-                rm -rf /var/lib/openfpc/
+                rm -rf /var/tmp/openfpc/
 
                 # Remove configuration
                 if [ -e /etc/openfpc/openfpc.conf ] ; then
@@ -33,7 +33,7 @@ case "$1" in
        remove|upgrade|failed-upgrade|abort-install|abort-upgrade)
                 # nothing
                 # We may not delete the user openfpc, as there may be
-                # files owned by it in /var/lib/openfpc and /etc/openfpc.
+                # files owned by it in /var/tmp/openfpc and /etc/openfpc.
                 ;;
 esac
 

@@ -12,7 +12,7 @@ PERL_MODS="Parse.pm Request.pm"
 WWW_FILES="index.php bluegrade.png"
 CGI_FILES="extract.cgi"
 DOC_FILES="README INSTALL TODO"
-ETC_FILES="openfpc.apache2.conf"
+ETC_FILES="openfpc.apache2.conf openfpc-example-node.conf openfpc-example-proxy.conf routes.ofpc"
 INIT_SCRIPTS="openfpc-daemonlogger openfpc-cxtracker openfpc-cx2db openfpc-queued"
 VERFILES="openfpc-install.sh openfpc-client openfpc openfpc-queued"
 

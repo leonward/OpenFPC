@@ -29,6 +29,7 @@
 openfpcver="0.2"
 PROG_DIR="/usr/local/bin"
 CONF_DIR="/etc/openfpc"
+CONF_FILES="etc/openfpc-example-node.conf etc/openfpc-example-proxy.conf etc/routes.ofpc"
 PROG_FILES="openfpc-client openfpc-queued openfpc-setup.pl openfpc-cx2db openfpc"
 WWW_FILES="index.php bluegrade.png"
 WWW_DIR="/var/www/openfpc"
@@ -189,6 +190,14 @@ function doinstall()
 		cp $file $PROG_DIR
 	done
 
+	###### Config files ######
+
+	for file in $CONF_FILES
+	do
+		echo -e " -  Installing OpenFPC conf: $file"
+		cp $file $CONF_DIR
+	done
+
 	###### WWW files #####
 
 
@@ -242,9 +251,11 @@ function doinstall()
 [*] Installation Complete 
 
     OpenFPC should now be installed and ready for configuration.
-    To configure OpenFPC execute...
-
-    $ sudo $PROG_DIR/openfpc-setup.pl -c $CONF_DIR/openfpc.conf 
+   
+    1) Go configure /etc/openfpc/*.conf
+    2) Start OpenFPC
+    
+    $ sudo openfpc --action start
 
     For more information, and advanced setup options take a look at $PROG_DIR/setup-openfpc.pl --help
     You may also want to check the status of OpenFPC's dependancies 
@@ -332,6 +343,13 @@ function remove()
 		echo NOT DONE	
 	fi
 	echo -e "------------------------------------------------"
+
+        for file in $INIT_SCRIPTS
+        do
+		echo -e " -  Removing $INIT_DIR/$file"
+		rm $INIT_DIR/$file
+        done
+
 	echo -e "[*] Removal process complete"
 }
 
