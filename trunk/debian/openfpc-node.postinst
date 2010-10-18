@@ -5,7 +5,7 @@ if ! getent passwd openfpc >/dev/null; then
 fi
 
 HOSTNAME=`hostname -s`
-OFPC_DIR=/var/lib/openfpc
+OFPC_DIR=/var/tmp/openfpc
 PCAP_DIR=$OFPC_DIR/pcap
 SESSION_DIR=$OFPC_DIR/sessions
 

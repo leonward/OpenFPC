@@ -51,7 +51,8 @@ my %defaults=(  PIDPATH => "/var/run",
 		DAEMONLOGGER_CMD => "/usr/bin/daemonlogger",
 		CXTRACKER_CMD => "/usr/bin/cxtracker" ,
 		OPENFPC_QUEUED_CMD => "/usr/bin/openfpc-queued",
-		SESSION_DIR => "/var/lib/openfpc/session",
+		SESSION_DIR => "/var/tmp/openfpc/session",
+		BUFFER_DIR => "/var/tmp/openfpc/pcap",
 		CX2DB_CMD => "/usr/bin/openfpc-cx2db",
 		BPF_FILTER => 0,
 		);
@@ -75,6 +76,7 @@ my %defaults=(  PIDPATH => "/var/run",
 =cut
 
 sub getType{
+	my $thing=shift;
 	my %result=( 	type => 0 ,
 			instance => 0,
 			filename => 0, 
@@ -110,7 +112,7 @@ sub getType{
 		}
 	}
 
-
+	print "type is $type\n";
 	# We don't know what it is.
 	return(\%result);	
 }
@@ -125,20 +127,23 @@ sub getInstanceByDaemon{
 	my @instances=();
 
 	foreach my $conf (keys(%configs)) {
-		if ( $configs{$conf}{'OFPC_ENABLED'} eq "y") {
-			if ($configs{$conf}{'PROXY'} == 1) {
-				# Enabled Proxy
-				if ( grep $_ eq $daemon, @daemonsProxy ) {
-					push(@instances, $conf);
-				}
-			} elsif ($configs{$conf}{'PROXY'} == 0 ) {
-				if ($configs{$conf}{'ENABLE_SESSION'} == 1) {
-					if ( grep $_ eq $daemon, @daemonsNode ) {
+		if (defined $configs{$conf}{'OFPC_ENABLED'} ) {
+			#print "$conf is valid\n";
+			if ($configs{$conf}{'OFPC_ENABLED'} eq "y") {
+				if ($configs{$conf}{'PROXY'} == 1) {
+					# Enabled Proxy
+					if ( grep $_ eq $daemon, @daemonsProxy ) {
 						push(@instances, $conf);
 					}
-				} else {
-					if ( grep $_ eq $daemon, @daemonsNodeNoSession ) {
-						push(@instances, $conf);
+				} elsif ($configs{$conf}{'PROXY'} == 0 ) {
+					if ($configs{$conf}{'ENABLE_SESSION'} == 1) {
+						if ( grep $_ eq $daemon, @daemonsNode ) {
+							push(@instances, $conf);
+						}
+					} else {
+						if ( grep $_ eq $daemon, @daemonsNodeNoSession ) {
+							push(@instances, $conf);
+						}
 					}
 				}
 			}
@@ -155,7 +160,6 @@ sub getInstanceByDaemon{
 sub getDaemonsByInstance{
 	my $instance=shift;
 	my @daemons=();
-
 	if ($configs{$instance}{'PROXY'} == 1 ) {
 		return(@daemonsProxy);
 	} elsif ($configs{$instance}{'PROXY'} == 0  ) {
@@ -320,9 +324,9 @@ sub openfpcqueued{
 		case "status" {
 			printf '%-70s', "OpenFPC Queue Daemon  ($configs{$instance}{'NODENAME'}):"; 
 			if ($running) {
-				printf '%10s', "running (pid $pid)\n";
+				printf '%10s', "Running\n";
 			} else {
-				printf '%10s', "stopped\n";
+				printf '%10s', "Stopped\n";
 			}
 		} 
 	}
@@ -414,9 +418,9 @@ sub openfpcdaemonlogger{
 		case "status" {
 			printf '%-70s', "Daemonlogger ($configs{$instance}{'NODENAME'}) :"; 
 			if ($running) {
-				printf '%10s', "running (pid $pid)\n";
+				printf '%10s', "Running\n";
 			} else {
-				printf '%10s', "stopped\n";
+				printf '%10s', "Stopped\n";
 			}
 		} 
 	}
@@ -502,9 +506,9 @@ sub openfpccxtracker{
 		case "status" {
 			printf '%-70s', "OpenFPC Connection Tracker ($configs{$instance}{'NODENAME'}) :"; 
 			if ($running) {
-				printf '%10s', "running (pid $pid)\n";
+				printf '%10s', "Running\n";
 			} else {
-				printf '%10s', "stopped\n";
+				printf '%10s', "Stopped\n";
 			}
 		} 
 	}
@@ -576,9 +580,9 @@ sub openfpccx2db{
 			if ($running) {
 				printf '%-70s', "OpenFPC Connection Uploader ($configs{$instance}{'NODENAME'}) :"; 
 				if ($running) {
-					printf '%10s', "running (pid $pid)\n";
+					printf '%10s', "Running\n";
 				} else {
-					printf '%10s', "stopped\n";
+					printf '%10s', "Stopped\n";
 				}
 			}
 		} 
@@ -649,7 +653,7 @@ GetOptions (    'a|action=s' => \$action,		# Action to take
 &showhelp if ($help);
 
 # Check if we are root
-unless ($> == 0 || $< == 0) { die "You need root privs to run openfpc-ctl" }
+unless ($> == 0 || $< == 0) { die "You need root privs to run this tool." }
 
 
 # Read in a hash of all configs on the system
@@ -676,13 +680,16 @@ die("[!] No action specified. See --usage for more options") unless ($action);
 
 # Check if we need to act in the context of a daemon type, or an instance.
 # Get the type of the thing the user wants to start/stop
-
 if ($thing) {
 	my $ofpc=getType($thing);
 	#print "Filename is $ofpc->{'filename'} \nType is $ofpc->{'type'} \n" unless $quiet;
 
 	if ( $ofpc->{'type'} eq "daemon" ) {
 		my @instances=getInstanceByDaemon($thing);
+		#foreach (@instances) {
+		#	print "- $_\n";
+		#}
+
 		switch($thing) {
 			case "openfpc-queued" {
 				foreach (@instances){
@@ -738,41 +745,48 @@ if ($thing) {
 	# all daemons for all instances.
 	my $fail;
 	foreach my $instance (keys(%configs)) {
-		unless ($quiet) {
-			print "###############################################################################\n";
-			print "[*] OpenFPC instance $instance\n";
-			print " -  NODENAME:      $configs{$instance}{'NODENAME'} \n" 	  if defined $configs{$instance}{'NODENAME'};
-			print " -  DESCRIPTION:   $configs{$instance}{'DESCRIPTION'} \n"  if defined $configs{$instance}{'DESCRIPTION'};
-			print " -  INTERFACE:     $configs{$instance}{'INTERFACE'}\n" 	  if defined $configs{$instance}{'INTERFACE'};
-			print " -  PORT:          $configs{$instance}{'OFPC_PORT'}\n"     if defined $configs{$instance}{'OFPC_PORT'};
-                        if ( defined $configs{$instance}{'ENABLE_SESSION'}) {
-				if ($configs{$instance}{'ENABLE_SESSION'} == 1 ) {
-					print " -  SESSION CAP:   ENABLED\n" ;
-				} else {
-					print " -  SESSION CAP:   DISABLED\n";	
+		if (defined $configs{$instance}{'OFPC_ENABLED'}) {
+
+			unless ($quiet) {
+				print "###############################################################################\n";
+				print "[*] OpenFPC instance $instance\n";
+				print " -  NODENAME:              $configs{$instance}{'NODENAME'} \n" 	  if defined $configs{$instance}{'NODENAME'};
+				print " -  DESCRIPTION:           $configs{$instance}{'DESCRIPTION'} \n"  if defined $configs{$instance}{'DESCRIPTION'};
+				print " -  PORT:                  $configs{$instance}{'OFPC_PORT'}\n"     if defined $configs{$instance}{'OFPC_PORT'};
+				unless ( $configs{$instance}{'PROXY'} == 1 ) {
+					print " -  INTERFACE:             $configs{$instance}{'INTERFACE'}\n" 	  if defined $configs{$instance}{'INTERFACE'};
+					print " -  FULL PACKET CAPTURE:   ENABLED\n"	  if defined $configs{$instance}{'BUFFER_PATH'};
+					print " -  PACKET STORE:          $configs{$instance}{'BUFFER_PATH'}\n"	  if defined $configs{$instance}{'BUFFER_PATH'};
+       	                 		if ( defined $configs{$instance}{'ENABLE_SESSION'}) {
+						if ($configs{$instance}{'ENABLE_SESSION'} == 1 ) {
+							print " -  SESSION DATA SEARCH:   ENABLED\n" ;
+						} else {
+							print " -  SESSION DATA SEARCH:   DISABLED\n";	
+						}
+					} else {
+						print " -  SESSION DATA SEARCH:   DISABLED\n";	
+					}
 				}
-			} else {
-				print " -  SESSION CAP:   DISABLED\n";	
 			}
-		}
-		my @daemons=getDaemonsByInstance($instance);
-		foreach (@daemons) {
-			switch($_) {
-				case "openfpc-queued" {
-					openfpcqueued($action,$instance) or $fail=1;
-				}
-				case "openfpc-daemonlogger" {
-					openfpcdaemonlogger($action,$instance) or $fail=1;
-				}
-				case "openfpc-cxtracker" {
-					openfpccxtracker($action,$instance) or $fail=1;
-				}
-				case "openfpc-cx2db" {
-					openfpccx2db($action,$instance) or $fail=1;
-				}
-				else {
-					print "Unknown daemon $_\n";
-					$fail=1;
+			my @daemons=getDaemonsByInstance($instance);
+			foreach (@daemons) {
+				switch($_) {
+					case "openfpc-queued" {
+						openfpcqueued($action,$instance) or $fail=1;
+					}
+					case "openfpc-daemonlogger" {
+						openfpcdaemonlogger($action,$instance) or $fail=1;
+					}
+					case "openfpc-cxtracker" {
+						openfpccxtracker($action,$instance) or $fail=1;
+					}
+					case "openfpc-cx2db" {
+						openfpccx2db($action,$instance) or $fail=1;
+					}
+					else {
+						print "Unknown daemon $_\n";
+						$fail=1;
+					}
 				}
 			}
 		}
