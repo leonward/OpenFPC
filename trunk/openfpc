@@ -27,6 +27,7 @@ use warnings;
 use Getopt::Long;
 use Switch;
 use Data::Dumper;
+use File::Path qw(make_path);
 
 my $openfpcver=0.3;
 my $conf_dir="/etc/openfpc";
@@ -35,17 +36,18 @@ my ($quiet,$usertype,$verbose,$help);
 my $init=0;						# init script friendly output (i.e not much!)
 my $type=0;
 my $thing=0;
-#my $instance=0;
 my %configs=();						# Hash of all configs in $CONF_DIR;
 my $action=0;
 my @daemonsNode=("openfpc-daemonlogger", 		# Daemons we want to start in OpenFPC Node mode
 		"openfpc-queued",
 		"openfpc-cxtracker",
 		"openfpc-cx2db" );
+my @daemonsNodeNoSession=("openfpc-daemonlogger", 	# Daemons we want to start in OpenFPC Node mode
+		"openfpc-queued");			# with ENABLE_SESSION=0
 
 my @daemonsProxy=("openfpc-queued"); 			# Daemons we want to start in OpenFPC proxy mode
 
-my %defaults=( PIDPATH => "/var/run",
+my %defaults=(  PIDPATH => "/var/run",
 		DAEMONLOGGER_CMD => "/usr/bin/daemonlogger",
 		CXTRACKER_CMD => "/usr/bin/cxtracker" ,
 		OPENFPC_QUEUED_CMD => "/usr/bin/openfpc-queued",
@@ -53,10 +55,12 @@ my %defaults=( PIDPATH => "/var/run",
 		CX2DB_CMD => "/usr/bin/openfpc-cx2db",
 		BPF_FILTER => 0,
 		);
-		
 
+############################################
+# End of globals
+############################################
 
-=head2 getType
+=head2  getType
 	Unless a user has specified if we are taking action on a daemon, or a configuration, this function will try to autodetect.
 	The only real risk of failing to detect is if someone stupidly names a configuration the same name as a daemon
 	e.g. NODENAME="openfpc-daemonlogger"
@@ -68,11 +72,9 @@ my %defaults=( PIDPATH => "/var/run",
 	  	instance => "instance" ,
 		filename => "/etc/openfpc/config.filename",
 	)
- 
 =cut
+
 sub getType{
-	
-	#my $thing=shift; 			# What type of thing is $thing
 	my %result=( 	type => 0 ,
 			instance => 0,
 			filename => 0, 
@@ -113,7 +115,7 @@ sub getType{
 	return(\%result);	
 }
 
-=head2 getInstanceByDaemon
+=head2  getInstanceByDaemon
 	Get a list of instances that this daemon needs to be started for.
 	returns an array of instances (config filenames)
 =cut
@@ -130,8 +132,14 @@ sub getInstanceByDaemon{
 					push(@instances, $conf);
 				}
 			} elsif ($configs{$conf}{'PROXY'} == 0 ) {
-				if ( grep $_ eq $daemon, @daemonsNode ) {
-					push(@instances, $conf);
+				if ($configs{$conf}{'ENABLE_SESSION'} == 1) {
+					if ( grep $_ eq $daemon, @daemonsNode ) {
+						push(@instances, $conf);
+					}
+				} else {
+					if ( grep $_ eq $daemon, @daemonsNodeNoSession ) {
+						push(@instances, $conf);
+					}
 				}
 			}
 		}
@@ -147,18 +155,22 @@ sub getInstanceByDaemon{
 sub getDaemonsByInstance{
 	my $instance=shift;
 	my @daemons=();
-	
+
 	if ($configs{$instance}{'PROXY'} == 1 ) {
 		return(@daemonsProxy);
 	} elsif ($configs{$instance}{'PROXY'} == 0  ) {
-		return(@daemonsNode);
+		if ($configs{$instance}{'ENABLE_SESSION'} == 1) {
+			return(@daemonsNode);
+		} else {
+			return(@daemonsNodeNoSession);
+		}
 	} else {
 		die("Unknown Proxy config for instance: $instance\n");
 	}
 }
 
 =head2 getPidFromFile
-	Open a pidfile, and retuen the pid
+	Open a pidfile, and return the pid
 =cut
 
 sub getPidFromFile($){
@@ -184,6 +196,71 @@ sub isPidRunning($){
 	}
 }
 
+=head2 findcmd
+	Seach for installed file.
+	We need this because /usr/bin/ is really for system provided bins.
+	/usr/local/ makes more sense when installing from src.
+	I also want to allow user specification in a .conf
+	-Leon
+	Expects a daemon and an instance.
+	Returns the path to the daemon
+
+	e.g. findcmd("openfpc-daemonlogger","openfpc-example.conf");
+=cut
+sub findcmd{
+	my $daemon=shift;
+	my $instance=shift;
+	my @daemoncmds=();
+
+	switch($daemon) {
+		case "openfpc-queued" {
+			@daemoncmds=( "$defaults{'OPENFPC_QUEUED_CMD'}",
+				"/usr/local/bin/openfpc-queued",
+				"/usr/bin/openfpc-queued",
+				"./openpfc-queued");
+			unshift(@daemoncmds, $configs{$instance}{'OPENFPC_QUEUED_CMD'})  if defined $configs{$instance}{'OPENFPC_QUEUED_CMD'};
+		}
+		case "openfpc-daemonlogger" {
+			@daemoncmds=( "$defaults{'DAEMONLOGGER_CMD'}",
+				"/usr/local/bin/daemonlogger",
+				"/usr/bin/daemonlogger",
+				"./daemonlogger");
+			unshift(@daemoncmds, $configs{$instance}{'DAEMONLOGGER_CMD'})  if defined $configs{$instance}{'DAEMONLOGGER_CMD'};
+		}
+		case "openfpc-cxtracker" {
+			@daemoncmds=( "$defaults{'CXTRACKER_CMD'}",
+				"/usr/local/bin/cxtracker",
+				"/usr/bin/cxtracker",
+				"./cxtracker");
+			unshift(@daemoncmds, $configs{$instance}{'CXTRACKER_CMD'})  if defined $configs{$instance}{'CXTRACKER_CMD'};
+		}
+		case "openfpc-cx2db" {
+			@daemoncmds=( "$configs{$instance}{'CX2DB_CMD'}",
+				"$defaults{'CX2DB_CMD'}",
+				"/usr/local/bin/openfpc-cx2db",
+				"/usr/bin/openfpc-cx2db",
+				"./openfpc-cx2db");
+			unshift(@daemoncmds, $configs{$instance}{'CX2DB_CMD'})  if defined $configs{$instance}{'CX2DB_CMD'};
+		}
+		else {
+			print "Unknown daemon $_\n";
+			return(0);
+		}
+	}
+
+	foreach (@daemoncmds) {
+		if ( -x $_) {
+			print " - $daemon is $_ \n" if $verbose;
+			return($_);
+		}
+	}
+	print " V Unable to find $daemon for $instance\n" if $verbose;
+	foreach (@daemoncmds){
+		print " - Tried : $_ \n" if $verbose;
+	}
+	return(0);				
+}
+
 =head2 openfpcqueued
 	Start/Stop the OpenFPC Queue Daemon
 	- Leon 2010	
@@ -193,16 +270,14 @@ sub openfpcqueued{
 	my $action=shift;
 	my $instance=shift;
 	my $pidpath=$defaults{'PIDPATH'};
-	my $daemoncmd="openfpc-queued";	
+	my $daemoncmd=findcmd("openfpc-queued", $instance);	
+
 	my $daemonargs="-c $conf_dir/$instance --daemon";
-	#my $pidfile=$configs{$instance}{'OFPC_Q_PID'} . $configs{$instance}{'OFPC_PORT'};	# Adding the port number to prevent
-												# multiple daemons trying to use the same pidfile
 
 	$pidpath=$configs{$instance}{'PIDPATH'} if defined $configs{$instance}{'PIDPATH'};
 	my $pidfile="/tmp/openfpc-queued-" . $configs{$instance}{'NODENAME'} . ".pid";
 
-	$daemoncmd=$configs{$instance}{'OPENFPC_QUEUED_CMD'} if ($configs{$instance}{'OPENFPC_QUEUED_CMD'});
-	# Get a PID, and check if it's runnings
+	# Get a PID, and check if it's running
 	my $pid=getPidFromFile($pidfile);
 	my $running=isPidRunning($pid) if ($pid);
 
@@ -216,14 +291,14 @@ sub openfpcqueued{
 					my $result=system("$daemoncmd $daemonargs");
 					if ($result) {
 						printf '%10s', "Failed\n";
-						print "->Check syslog for details\n" unless $quiet;
+						print " - Check syslog for details\n" unless $quiet;
 					} else {
 						printf '%10s', "Done\n";
 						return(1);
 					}
 				} else {
 					printf '%10s', "Failed\n";
-					print "-> Unable to exec $daemoncmd!\n";
+					print " - Cant find openfpc-queued. Check your conifg and OpenFPC install $daemoncmd!\n";
 				}	
 			}
 
@@ -263,6 +338,8 @@ sub openfpcqueued{
 sub openfpcdaemonlogger{
 	my $action=shift;
 	my $instance=shift;
+	my $daemoncmd=findcmd("openfpc-daemonlogger",$instance);
+
 	my $pidpath=$defaults{'PIDPATH'};
 	$pidpath=$configs{$instance}{'PIDPATH'} if defined $configs{$instance}{'PIDPATH'};
 
@@ -276,15 +353,8 @@ sub openfpcdaemonlogger{
 			"-P $pidpath " .
 			"-n openfpc-$configs{$instance}{'NODENAME'}.pcap" .
 			" >> /tmp/openfpc-dl-out 2>&1 ";
-
-	# Daemonlogger is verbose at startup, and we need to store the op to find 
-	# any problems if found. Throwing it to a file in /tmp works for now.
-
-	# Check we have a sane config to start dl
-
-
-	my $daemoncmd="/usr/bin/daemonlogger";
-	$daemoncmd=$configs{$instance}{'DAEMONLOGGER_CMD'} if ($configs{$instance}{'DAEMONLOGGER_CMD'});
+			# Daemonlogger is verbose at startup, and we need to store the op to find 
+			# any problems if found. Throwing it to a file in /tmp works for now.
 
 	# Get a PID, and check if it's runnings
 	my $pid=getPidFromFile("$pidpath/$pidfile");
@@ -300,16 +370,17 @@ sub openfpcdaemonlogger{
 				# Check if interface is available
 				if (system("ifconfig $configs{$instance}{'INTERFACE'} up > /dev/null 2>&1")){
 					printf '%10s', "Failed\n";
-					print "->Cant bring $configs{$instance}{'INTERFACE'} up\n" unless $quiet;
+					print " - Cant bring $configs{$instance}{'INTERFACE'} up\n" unless $quiet;
 					return(0);
 				}
 				# Check if BUFFER_PATH exists and is writable
 				if ( ! -d  $configs{$instance}{'BUFFER_PATH'}){
-					printf '%10s',"Failed\n";	
-					print "-> Log path $configs{$instance}{'BUFFER_PATH'} doesn't exist\n" unless $quiet;
-					return(0);
+					unless (make_path($configs{$instance}{'BUFFER_PATH'})) { 
+						printf '%10s',"Failed\n";	
+						print " - Unable to create $configs{$instance}{'BUFFER_PATH'}\n" unless $quiet;
+						return(0);
+					}
 				}
-
 				if ( -x $daemoncmd ) {
 					my $result=system("$daemoncmd $daemonargs");
 					if ($result) {
@@ -320,6 +391,7 @@ sub openfpcdaemonlogger{
 					}
 				} else {
 					printf '%10s', "Failed\n";
+					printf " - Dameonlogger not found on this system.\n" unless $quiet;
 					return(0);
 				}	
 			}
@@ -356,12 +428,11 @@ sub openfpccxtracker{
 	my $action=shift;
 	my $instance=shift;
 	my $pidpath=$defaults{'PIDPATH'};
-	my $daemoncmd=$defaults{'CXTRACKER_CMD'};
+	my $daemoncmd=findcmd("openfpc-cxtracker", $instance);
 	my $sessiondir=$defaults{'SESSION_DIR'};
 	my $pidfile="openfpc-cxtracker-$configs{$instance}{'NODENAME'}.pid";	
 
 	$pidpath=$configs{$instance}{'PIDPATH'} if defined $configs{$instance}{'PIDPATH'};
-	$daemoncmd=$configs{$instance}{'CXTRACKER_CMD'} if defined $configs{$instance}{'CXTRACKER_CMD'};
 	$sessiondir=$configs{$instance}{'SESSION_DIR'} if defined $configs{$instance}{'SESSION_DIR'};
 
 	my $daemonargs="-i $configs{$instance}{'INTERFACE'} " .
@@ -383,15 +454,22 @@ sub openfpccxtracker{
 				# Check if interface is available
 				if (system("ifconfig $configs{$instance}{'INTERFACE'} up > /dev/null 2>&1")){
 					printf '%10s', "Failed\n";
-					print "->Cant bring $configs{$instance}{'INTERFACE'} up\n" unless $quiet;
+					print " - Cant bring $configs{$instance}{'INTERFACE'} up\n" unless $quiet;
 					return(0);
 				}
 				# Check if BUFFER_PATH exists and is writable
 				if ( ! -d  $configs{$instance}{'SESSION_DIR'}){
+					unless (make_path($configs{$instance}{'SESSION_DIR'})) { 
+						printf '%10s',"Failed\n";	
+						print " - Unable to create $configs{$instance}{'SESSION_DIR'}\n" unless $quiet;
+						return(0);
+					}
 					printf '%10s', "Failed\n";	
-					print "->Log path $configs{$instance}{'SESSION_DIR'} doesn't exist\n" unless $quiet;
+					print " - Log path $configs{$instance}{'SESSION_DIR'} doesn't exist\n" unless $quiet;
 					return(0);
 				}
+
+
 				if ( -x $daemoncmd ) {
 					my $result=system("$daemoncmd $daemonargs");
 					if ($result) {
@@ -402,7 +480,7 @@ sub openfpccxtracker{
 					}
 				} else {
 					printf '%10s', "Failed\n";
-					print "-> Unable to exec $daemoncmd \n" unless $quiet;
+					print " - openfpc-cxtracker not found on this system\n" unless $quiet;
 				}	
 			}
 
@@ -441,11 +519,10 @@ sub openfpccx2db{
 	my $action=shift;
 	my $instance=shift;
 	my $pidpath=$defaults{'PIDPATH'};
-	my $daemoncmd=$defaults{'CX2DB_CMD'};
+	my $daemoncmd=findcmd("openfpc-cx2db", $instance);;
 	my $pidfile="openfpc-cx2db-$configs{$instance}{'NODENAME'}.pid";	
 
 	$pidpath=$configs{$instance}{'PIDPATH'} if defined $configs{$instance}{'PIDPATH'};
-	$daemoncmd=$configs{$instance}{'CX2DB_CMD'} if defined $configs{$instance}{'CX2DB_CMD'};
 
 	my $daemonargs="--daemon --config $conf_dir/$instance " .
 			"> /tmp/openfpc-cx2db-$configs{$instance}{'NODENAME'}.log";
@@ -463,7 +540,7 @@ sub openfpccx2db{
 				# Check if BUFFER_PATH exists and is writable
 				if ( ! -d  $configs{$instance}{'SESSION_DIR'}){
 					printf '%10s', "Failed. \n";	
-					print "->Log path $configs{$instance}{'SESSION_DIR'} doesn't exist\n" unless $quiet;
+					print " - Log path $configs{$instance}{'SESSION_DIR'} doesn't exist\n" unless $quiet;
 					return(0);
 				}
 				if ( -x $daemoncmd ) {
@@ -476,7 +553,7 @@ sub openfpccx2db{
 					}
 				} else {
 					printf '%10s', "Failed\n";
-					print "-> Unable to exec $daemoncmd \n" unless $quiet;
+					print " - cx2db command not found on this system \n" unless $quiet;
 				}	
 			}
 
@@ -602,7 +679,7 @@ die("[!] No action specified. See --usage for more options") unless ($action);
 
 if ($thing) {
 	my $ofpc=getType($thing);
-	print "Filename is $ofpc->{'filename'} \nType is $ofpc->{'type'} \n" unless $quiet;
+	#print "Filename is $ofpc->{'filename'} \nType is $ofpc->{'type'} \n" unless $quiet;
 
 	if ( $ofpc->{'type'} eq "daemon" ) {
 		my @instances=getInstanceByDaemon($thing);
@@ -668,6 +745,15 @@ if ($thing) {
 			print " -  DESCRIPTION:   $configs{$instance}{'DESCRIPTION'} \n"  if defined $configs{$instance}{'DESCRIPTION'};
 			print " -  INTERFACE:     $configs{$instance}{'INTERFACE'}\n" 	  if defined $configs{$instance}{'INTERFACE'};
 			print " -  PORT:          $configs{$instance}{'OFPC_PORT'}\n"     if defined $configs{$instance}{'OFPC_PORT'};
+                        if ( defined $configs{$instance}{'ENABLE_SESSION'}) {
+				if ($configs{$instance}{'ENABLE_SESSION'} == 1 ) {
+					print " -  SESSION CAP:   ENABLED\n" ;
+				} else {
+					print " -  SESSION CAP:   DISABLED\n";	
+				}
+			} else {
+				print " -  SESSION CAP:   DISABLED\n";	
+			}
 		}
 		my @daemons=getDaemonsByInstance($instance);
 		foreach (@daemons) {
