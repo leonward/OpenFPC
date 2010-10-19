@@ -12,15 +12,12 @@ case "$1" in
                 rm -rf /var/tmp/openfpc/
 
                 # Remove configuration
-                if [ -e /etc/openfpc/openfpc.conf ] ; then
-                        rm /etc/openfpc/openfpc.conf
+                if [ -e /etc/openfpc/openfpc-example-node.conf ] ; then
+                        rm /etc/openfpc/openfpc-example-node.conf
                 fi
 
                 # Remove configuration dir
                 [ -d /etc/openfpc ] && rmdir --ignore-fail-on-non-empty /etc/openfpc
-
-                # Remove init.d
-                update-rc.d -f openfpc remove >/dev/null
 
                 # Remove user/group
                 if getent passwd | grep -q "^openfpc:"; then
@@ -30,7 +27,13 @@ case "$1" in
                         delgroup --only-if-empty openfpc 2>/dev/null || true
                 fi
                 ;;
-       remove|upgrade|failed-upgrade|abort-install|abort-upgrade)
+       remove) 
+                update-rc.d -f openfpc-daemonlogger remove >/dev/null
+                update-rc.d -f openfpc-queued remove >/dev/null 
+                update-rc.d -f openfpc-cxtracker remove >/dev/null
+                update-rc.d -f openfpc-cx2db remove >/dev/null
+	;;
+       upgrade|failed-upgrade|abort-install|abort-upgrade)
                 # nothing
                 # We may not delete the user openfpc, as there may be
                 # files owned by it in /var/tmp/openfpc and /etc/openfpc.

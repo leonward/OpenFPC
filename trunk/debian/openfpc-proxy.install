@@ -3,5 +3,6 @@ openfpc usr/bin/
 
 etc/init.d/openfpc-queued etc/init.d
 
-debian/debian.confs/openfpc-proxy.conf etc/openfpc/
+etc/openfpc-example-proxy.conf etc/openfpc/
+etc/routes.ofpc etc/openfpc/
 
