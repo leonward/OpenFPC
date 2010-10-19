@@ -7,6 +7,8 @@ openfpc usr/bin
 openfpc-setup.pl usr/bin 
 openfpc-queued usr/bin
 
-etc/openfpc.apache2.conf /etc/apache2/sites-available
+etc/openfpc.apache2.site etc/apache2/sites-available
 
-debian/debian.confs/openfpc-node.conf etc/openfpc
+etc/openfpc-example-node.conf etc/openfpc
+etc/openfpc-example-proxy.conf etc/openfpc
+etc/routes.ofpc etc/openfpc

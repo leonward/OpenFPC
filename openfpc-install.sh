@@ -50,6 +50,7 @@ IAM=$(whoami)
 DATE=$(date)
 PATH=$PATH:/usr/sbin
 
+
 function die()
 {
         echo "$1"
@@ -93,7 +94,7 @@ function checkdeps()
 
 	if [ "$DEPSOK" != 0 ]
 	then
-		echo -e "--------------------------------"
+		echo -e "[-] --------------------------------"
 		echo -e "Problem with above dependencies, please install them before continuing"
 		if [ "$DISTRO" == "DEBIAN" ] 
 		then
@@ -212,12 +213,12 @@ function doinstall()
 
 	if [ -d /etc/apache2/sites-available ]
 	then
-		echo -e "[*] -------- Enabling and restarting Apache2 --------"	
+		echo -e "[*] Enabling and restarting Apache2"	
 		# Add openfpc config in apache
-		cp etc/openfpc.apache2.conf /etc/apache2/sites-available/openfpc
-		a2ensite openfpc
+		cp etc/openfpc.apache2.site /etc/apache2/sites-available/
+		a2ensite openfpc.apache2.site
 		service apache2 reload
-		echo -e "-----------------------------------------------------"
+		echo -e "[-] -----------------------------------------------------"
 	else
 		echo -e "[!] Cant find apache conf dir. Won't enable web UI"
 	fi
@@ -236,8 +237,13 @@ function doinstall()
 
 		for file in $INIT_SCRIPTS
 		do
-			echo -e "[*] Updating rc.d with $file"
-		 	update-rc.d $file defaults
+		 	update-rc.d $file defaults 
+
+			if ! getent passwd openfpc >/dev/null
+			then
+				echo -e "[*] Adding user openfpc"
+  				adduser --quiet --system --group --no-create-home --shell /usr/sbin/nologin openfpc
+			fi
 		done
 	elif [ "$DISTRO" == "REDHAT" ]
 	then
@@ -246,6 +252,7 @@ function doinstall()
 		exit 1
 	fi
 
+
 	echo -e "
 **************************************************************************
 [*] Installation Complete 
@@ -253,12 +260,9 @@ function doinstall()
     OpenFPC should now be installed and ready for configuration.
    
     1) Go configure /etc/openfpc/*.conf
+       (Make sure you change the default username/password )
     2) Start OpenFPC
-    
-    $ sudo openfpc --action start
-
-    For more information, and advanced setup options take a look at $PROG_DIR/setup-openfpc.pl --help
-    You may also want to check the status of OpenFPC's dependancies 
+       $ sudo openfpc --action start
      
 "
 }
@@ -280,9 +284,12 @@ function remove()
 	done
 
 	echo -e "[*] Disabling OpenFPC GUI"
-	a2dissite openfpc
-	service apache2 reload
-	[ -f /etc/apache2/sites-available/openfpc ] && rm /etc/apache2/sites-available/openfpc 
+	if [ -f /etc/apache2/sites-available/openfpc.apache2.site ]
+	then	
+		a2dissite openfpc.apache2.site
+		service apache2 reload
+	fi
+	[ -f /etc/apache2/sites-available/openfpc.apache2.site ] && rm /etc/apache2/sites-available/openfpc.apache2.site 
 
 
 	echo -e "[*] Removing openfpc-progs ..."
@@ -294,7 +301,7 @@ function remove()
 			echo -e "    Removed   $PROG_DIR/$file"
 			rm $PROG_DIR/$file || echo -e "unable to delete $PROG_DIR/$file"
 		else
-			echo -e "    Not Found $PROG_DIR/$file"	
+			echo -e "    Cant Find $PROG_DIR/$file"	
 		fi
 	done
 	
@@ -305,7 +312,7 @@ function remove()
 		then	
 			rm $OFPC_LIB_DIR/$file  || echo -e "[!] Unable to delete $file"
 		else
-			echo -e "    $OFPC_LIB_DIR/$file Not found"
+			echo -e "    Cant Find $OFPC_LIB_DIR/$file"
 		fi
 	done
 
@@ -316,7 +323,7 @@ function remove()
 		then	
 			rm $WWW_DIR/$file  || echo -e "[!] Unable to delete $WWW_DIR/$file"
 		else
-			echo -e "    $WWW_DIR/$file Not found"
+			echo -e "    Cant Find $WWW_DIR/$file"
 		fi
 	done
 
@@ -330,24 +337,33 @@ function remove()
 		echo -e " -  Removed $WWW_DIR"
 	fi
 
-	echo -e "-Updating init---------------------------------"
+	echo -e "[-] Updating init sciprts"
         if [ "$DISTRO" == "DEBIAN" ]
         then
                 for file in $INIT_SCRIPTS
                 do
-			update-rc.d $file remove
+			update-rc.d -f $file remove
                 done
-
+	
+		if getent passwd openfpc >/dev/null
+		then
+			echo "[*] Removing user openfpc"
+			deluser openfpc  > /dev/null
+		fi
+	
         elif [ "$DISTRO" == "REDHAT" ]
 	then
 		echo NOT DONE	
 	fi
-	echo -e "------------------------------------------------"
+	echo -e "[-] -----------------------------------------------"
 
         for file in $INIT_SCRIPTS
         do
-		echo -e " -  Removing $INIT_DIR/$file"
-		rm $INIT_DIR/$file
+		if [ -f $INIT_DIR/$file ] 
+		then
+			echo -e " -  Removing $INIT_DIR/$file"
+			rm $INIT_DIR/$file
+		fi
         done
 
 	echo -e "[*] Removal process complete"
@@ -390,14 +406,14 @@ function installstatus()
 	done
 
 
-	echo -e "--------------------------------"
+	echo -e "[-] ----------------------------------"
 	if [ $SUCCESS == 1 ] 
 	then
 		echo -e "  Installation Okay"
 	else
 		echo -e "  OpenFPC Not installed correctly"
 	fi
-	echo -e "--------------------------------"
+	echo -e "[-] --------------------------------"
 }
 
 echo -e "

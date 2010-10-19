@@ -604,12 +604,11 @@ either an instance, or all copies of a specific daemon.
 
 e.g
 To start all daemons required to operate an OpenFPC node with the name 
-\"DefaultNode\"
+\"Example_Node\"
 
-     openfpc --action start -t DefaultNode  
-
-To start all daemons required to operate a node by specifying a config files
-     openfpc --action start -t openfpc-default.conf
+     openfpc --action start -t Example_Node  
+     or
+     openfpc --action start -t openfpc-example-node.conf
 
 To start all the instances of the openfpc-queued daemon
      openfpc --action start -t openfpc-queued
@@ -617,9 +616,7 @@ To start all the instances of the openfpc-queued daemon
 To get the status of all daemons that are configured to run on this host
     openfpc --action status
 
-See --usage for command line options.
 ###############################################################################
-Usage:
 
 openfpc --action --thing <thing to take action on> --quiet
 	--action  or -a         start/stop/status
@@ -651,6 +648,10 @@ GetOptions (    'a|action=s' => \$action,		# Action to take
 );
 
 &showhelp if ($help);
+unless ($action) {
+	print "No action specified. See --help\n";
+	showhelp;	
+}
 
 # Check if we are root
 unless ($> == 0 || $< == 0) { die "You need root privs to run this tool." }
@@ -676,7 +677,6 @@ while(my $file=readdir $dh) {
 closedir($dh);
 # Make sure we have the minimum input to do something of use.
 
-die("[!] No action specified. See --usage for more options") unless ($action);
 
 # Check if we need to act in the context of a daemon type, or an instance.
 # Get the type of the thing the user wants to start/stop

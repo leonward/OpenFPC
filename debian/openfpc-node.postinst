@@ -16,16 +16,16 @@ do
 	if [ ! -d $DIR ]; then
         	mkdir -vp $DIR || exit 74
 	        chown -vR openfpc:openfpc $DIR || exit 74
-	else
-        	echo "Can't create $DIR folder. Please inspect."
-#               	 exit 77
 	fi
 done
 
-update-rc.d  openfpc-node defaults
+update-rc.d  openfpc-daemonlogger defaults > /dev/null
+update-rc.d  openfpc-queued defaults > /dev/null
+update-rc.d  openfpc-cxtracker defaults > /dev/null
+update-rc.d  openfpc-cx2db defaults > /dev/null
 
 # openfpc.apache2.conf
-a2ensite openfpc
+a2ensite openfpc.apache2.site
 service apache2 reload
 
 #DEBHELPER#
