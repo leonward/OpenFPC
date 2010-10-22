@@ -239,8 +239,8 @@ sub findcmd{
 			unshift(@daemoncmds, $configs{$instance}{'CXTRACKER_CMD'})  if defined $configs{$instance}{'CXTRACKER_CMD'};
 		}
 		case "openfpc-cx2db" {
-			@daemoncmds=( "$configs{$instance}{'CX2DB_CMD'}",
-				"$defaults{'CX2DB_CMD'}",
+            # "$configs{$instance}{'CX2DB_CMD'}", # <-- Not sure if this should be here - cast error!
+			@daemoncmds=( "$defaults{'CX2DB_CMD'}",
 				"/usr/local/bin/openfpc-cx2db",
 				"/usr/bin/openfpc-cx2db",
 				"./openfpc-cx2db");
