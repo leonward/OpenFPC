@@ -259,8 +259,8 @@ function doinstall()
 
     OpenFPC should now be installed and ready for configuration.
    
-    1) Go configure /etc/openfpc/*.conf
-       (Make sure you change the default username/password )
+    1) Go configure /etc/openfpc/<OpenFPC instance>.conf
+       (Make sure you change the default username/password!)
     2) Start OpenFPC
        $ sudo openfpc --action start
      
@@ -385,7 +385,7 @@ function installstatus()
 	
 	for file in $INIT_SCRIPTS
 	do
-		if [ -f $PROG_DIR/$file ]
+		if [ -f $INIT_DIR/$file ]
 		then
 			echo -e "  Yes $PROG_DIR/$file Exists"
 		else

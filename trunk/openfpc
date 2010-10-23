@@ -104,15 +104,16 @@ sub getType{
 
 	# Check if thing is a node-name in any of the config files.
 	foreach (keys(%configs)) {
-		my $filename=$_;
-		if ( $thing eq $configs{$_}{'NODENAME'} ) {
-			$result{'type'} = "instance";
-			$result{'filename'} = "$filename";
-			return(\%result);
+		if (defined $configs{$_} ) {
+			my $filename=$_;
+			if ( $thing eq $configs{$_}{'NODENAME'} ) {
+				$result{'type'} = "instance";
+				$result{'filename'} = "$filename";
+				return(\%result);
+			}
 		}
 	}
 
-	print "type is $type\n";
 	# We don't know what it is.
 	return(\%result);	
 }
@@ -128,7 +129,6 @@ sub getInstanceByDaemon{
 
 	foreach my $conf (keys(%configs)) {
 		if (defined $configs{$conf}{'OFPC_ENABLED'} ) {
-			#print "$conf is valid\n";
 			if ($configs{$conf}{'OFPC_ENABLED'} eq "y") {
 				if ($configs{$conf}{'PROXY'} == 1) {
 					# Enabled Proxy
@@ -434,7 +434,6 @@ sub openfpccxtracker{
 	my $daemoncmd=findcmd("openfpc-cxtracker", $instance);
 	my $sessiondir=$defaults{'SESSION_DIR'};
 	my $pidfile="openfpc-cxtracker-$configs{$instance}{'NODENAME'}.pid";	
-
 	$pidpath=$configs{$instance}{'PIDPATH'} if defined $configs{$instance}{'PIDPATH'};
 	$sessiondir=$configs{$instance}{'SESSION_DIR'} if defined $configs{$instance}{'SESSION_DIR'};
 
@@ -467,11 +466,7 @@ sub openfpccxtracker{
 						print " - Unable to create $configs{$instance}{'SESSION_DIR'}\n" unless $quiet;
 						return(0);
 					}
-					printf '%10s', "Failed\n";	
-					print " - Log path $configs{$instance}{'SESSION_DIR'} doesn't exist\n" unless $quiet;
-					return(0);
 				}
-
 
 				if ( -x $daemoncmd ) {
 					my $result=system("$daemoncmd $daemonargs");
@@ -653,29 +648,37 @@ unless ($action) {
 }
 
 # Check if we are root
-unless ($> == 0 || $< == 0) { die "You need root privs to run this tool." }
-
+unless ($> == 0 || $< == 0) { die "You need root privs to run this tool.\n" }
 
 # Read in a hash of all configs on the system
 
 opendir(my $dh, $conf_dir) || die("Unable to open config dir $conf_dir\n");
 while(my $file=readdir $dh) {
+	my $goodfile=0;
+	# Check if this is an OpenFPC config file, or some other junk.
 	open FILE, '<', "$conf_dir/$file" or die "Unable to open config file $conf_dir/$file $!";
-	while(my $line=<FILE>) {
-        	chomp $line;
-	        if ( $line =~ m/^[a-zA-Z]/) {
-	                (my $key, my @value) = split /=/, $line;
-	                unless ($key eq "USER") {
-	                        $configs{$file}{$key} = join '=', @value;
-                	}    
-        	}
+	while(<FILE>) {
+		chomp $_;
+		$goodfile=1 if ( $_ =~ /^OFPC_ENABLED=/) ;
 	}
 	close(FILE);
-
+	# Open file to read config if it is a valid OpenFPC config file
+	if ($goodfile) {
+		open FILE, '<', "$conf_dir/$file" or die "Unable to open config file $conf_dir/$file $!";
+		while(my $line=<FILE>) {
+        		chomp $line;
+		        if ( $line =~ m/^[a-zA-Z]/) {
+		                (my $key, my @value) = split /=/, $line;
+		                unless ($key eq "USER") {
+		                        $configs{$file}{$key} = join '=', @value;
+	       	         	}    
+	        	}
+		}
+		close(FILE);
+	}
 }
 closedir($dh);
 # Make sure we have the minimum input to do something of use.
-
 
 # Check if we need to act in the context of a daemon type, or an instance.
 # Get the type of the thing the user wants to start/stop
@@ -685,10 +688,14 @@ if ($thing) {
 
 	if ( $ofpc->{'type'} eq "daemon" ) {
 		my @instances=getInstanceByDaemon($thing);
+
 		#foreach (@instances) {
 		#	print "- $_\n";
 		#}
-
+		my $num=@instances;
+		unless ($num) {
+			print "WARNING: daemon $thing is not enabled in any instance\n" if $verbose;
+		}
 		switch($thing) {
 			case "openfpc-queued" {
 				foreach (@instances){
@@ -737,7 +744,7 @@ if ($thing) {
 			}
 		}
 	} else {
-		die("Dont know what this is");
+		die("Sorry, I Don't know what \"$thing\" is.\nIt doesn't match any of the openfpc-daemon names, instance filenames, or Node names\n");
 	}
 } else {
 	# Thing not speficied, taking action on 
