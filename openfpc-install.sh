@@ -387,9 +387,9 @@ function installstatus()
 	do
 		if [ -f $INIT_DIR/$file ]
 		then
-			echo -e "  Yes $PROG_DIR/$file Exists"
+			echo -e "  Yes $INIT_DIR/$file Exists"
 		else
-			echo -e "  No  $PROG_DIR/$file does not exist"
+			echo -e "  No  $INIT_DIR/$file does not exist"
 			SUCCESS=0
 		fi	
 	done
