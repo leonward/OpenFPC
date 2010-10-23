@@ -116,7 +116,6 @@ unless ( -d "$SDIR" ) {
 # If Failed subfolder doesn't exist, lets add it
 unless ( -d "$FDIR" )  {
 	mkdir "$FDIR" or die("Unable to create failed instertion dir $FDIR");
-	warn "[-] Created failed insertion dir $FDIR\n";
 }
 
 warn "[*] Starting openfpc-cx2db.pl...\n" unless ($DAEMON);
