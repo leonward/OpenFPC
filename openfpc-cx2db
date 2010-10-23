@@ -34,7 +34,7 @@ our $VERSION       = 0.1;
 our $DEBUG         = 0;
 our $DAEMON        = 0;
 our $TIMEOUT       = 5;
-our $HOSTNAME      = q(aruba);
+our $HOSTNAME      = q(default);
 our $CONFFILE	   = 0;
 my  $SDIR          = "/nsm_data/$HOSTNAME/session/";
 my  $LOGFILE       = q(/var/log/openfpc-cx2db.log);
@@ -78,18 +78,19 @@ if ($CONFFILE) {
 			(my $key, my @value) = split /=/, $_; 
 			$CONFIG{$key} = join '=', @value;
 		}
-   }
+    }
 
-        $PIDFILE = "/var/run/openfpc-cx2db-" . $CONFIG{'NODENAME'} . ".pid" if (defined $CONFIG{'NODENAME'});
-	$DB_NAME = $CONFIG{'SESSION_DB_NAME'} if (defined $CONFIG{'SESSION_DB_NAME'});
-	$DB_USERNAME = $CONFIG{'SESSION_DB_USER'} if (defined $CONFIG{'SESSION_DB_USER'});
-	$DB_PASS = $CONFIG{'SESSION_DB_PASS'} if (defined $CONFIG{'SESSION_DB_PASS'});
-	$SDIR = $CONFIG{'SESSION_DIR'} if (defined $CONFIG{'SESSION_DIR'});
-	$FDIR="$SDIR/failed";
+    $HOSTNAME= $CONFIG{'NODENAME'} if (defined $CONFIG{'NODENAME'});
+    $PIDFILE = "/var/run/openfpc-cx2db-" . $CONFIG{'NODENAME'} . ".pid" if (defined $CONFIG{'NODENAME'});
+    $DB_NAME = $CONFIG{'SESSION_DB_NAME'} if (defined $CONFIG{'SESSION_DB_NAME'});
+    $DB_USERNAME = $CONFIG{'SESSION_DB_USER'} if (defined $CONFIG{'SESSION_DB_USER'});
+    $DB_PASS = $CONFIG{'SESSION_DB_PASS'} if (defined $CONFIG{'SESSION_DB_PASS'});
+    $SDIR = $CONFIG{'SESSION_DIR'} if (defined $CONFIG{'SESSION_DIR'});
+    $FDIR="$SDIR/failed";
 
-	close $CONFIG;
+    close $CONFIG;
 } else {
-	warn "[-] No config file specified. Using defaults.\n" if ($DEBUG);
+    warn "[-] No config file specified. Using defaults.\n" if ($DEBUG);
 }
 
 our $DBI = "DBI:mysql:$DB_NAME:$DB_HOST:$DB_PORT";
