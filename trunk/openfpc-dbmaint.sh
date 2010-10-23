@@ -24,6 +24,10 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #########################################################################################
 
+ACTION=$1
+CONFIG=$2
+
+
 function die
 {
 	echo ERROR: $1
@@ -34,7 +38,7 @@ function die
 function addfuncs
 {
 	# Create mysql IPv6 functions
-
+	echo Adding function INET_ATON6... to DB $SESSION_DB_NAME
 	SQL="
 use $SESSION_DB_NAME;
 DELIMITER //
@@ -95,15 +99,29 @@ DELIMITER ;
 function config
 {
 
-	CONFIG=/etc/openfpc/openfpc.conf
+	if [ -f $CONFIG ] ; then
+		source $CONFIG || die "Unable to read config file \"$CONFIG\""
+		# Check all vars required are set in $CONFIG
+		[ -n "$ENABLE_SESSION" ] || die "ENABLE_SESSION not set in $CONFIG"
+		[ -n "$SESSION_DB_NAME" ] || die "SESSION_DB_NAME not set in $CONFIG"
+		[ -n "$SESSION_DB_USER" ] || die "SESSION_DB_USER not set in $CONFIG"
+		[ -n "$SESSION_DB_PASS" ] || die "SESSION_DB_PASS not set in $CONFIG"
 
-	echo ---------------------------
-	echo Reading configuration from $CONFIG
-	source /etc/openfpc/openfpc.conf || die "Unable to read config file $CONFIG"
-	echo ---------------------------
-	echo Enter user/pass to connect to your local mysql server
-	read -p "DB Username: " DBUSER
-	read -p "DB Password: " DBPASS
+		if [ "$ENABLE_SESSION" != "1" ] ; then
+			echo ---------------------------
+			echo -e "WARNING: Instance $CONFIG has session data disabled."
+			echo ---------------------------
+		fi	
+
+
+		echo Enter user/pass to connect to your local mysql server
+		read -p "DB root Username: " DBUSER
+		read -p "DB root Password: " DBPASS
+
+	else
+		die "Unable to read config file $CONFIG"
+	fi
+
 }
 
 function create
@@ -138,6 +156,13 @@ function drop
 
 	echo Done.
 }
+
+ARGC=$#
+if [ "$ARGC" == "1" ] ; then 
+	echo -e "Error: incorrect arguements"
+	exit 1
+fi
+
 case $1 in 
 	create)
 		config
@@ -152,9 +177,14 @@ case $1 in
 	clean)
 	;;
 	*)
-		echo -e "Usage...."
-		echo -e "openfpc-dbmaint.sh create DB and user"
-		echo -e "openfpc-dbmaint.sh drop DB and user"
+		echo -e ""
+		echo -e "* openfpc-dbmaint.sh "
+		echo -e "  Create and maintain an OpenFPC session database"
+		echo -e "  Usage:"
+		echo -e "      openfpc-dbmaint.sh create <openfpc-node.conf>"
+		echo -e "      openfpc-dbmaint.sh drop <openfpc-node.conf>"
+		echo -e "  Example:"
+		echo -e "      ./openfpc-dbmaint.sh create /etc/openfpc/openfpc-example-node.conf"
 
 	;;
 
