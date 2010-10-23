@@ -69,7 +69,7 @@ function checkdeps()
 {
 	if [ "$DISTRO" == "DEBIAN" ] 
 	then
-		DEPS="apache2 daemonlogger tcpdump tshark libarchive-zip-perl libfilesys-df-perl libapache2-mod-php5 mysql-server php5-mysql libdatetime-perl" 
+		DEPS="apache2 daemonlogger tcpdump tshark libarchive-zip-perl libfilesys-df-perl libapache2-mod-php5 mysql-server php5-mysql libdatetime-perl libdbi-perl" 
 	elif [ "$DISTRO" == "REDHAT" ] 
 	then
 		DEPS=""

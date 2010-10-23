@@ -478,7 +478,7 @@ sub openfpccxtracker{
 					}
 				} else {
 					printf '%10s', "Failed\n";
-					print " - openfpc-cxtracker not found on this system\n" unless $quiet;
+					print " - cxtracker not found on this system\n" unless $quiet;
 				}	
 			}
 
@@ -551,7 +551,7 @@ sub openfpccx2db{
 					}
 				} else {
 					printf '%10s', "Failed\n";
-					print " - cx2db command not found on this system \n" unless $quiet;
+					print " - openfpc-cx2db command not found on this system \n" unless $quiet;
 				}	
 			}
 
@@ -571,13 +571,11 @@ sub openfpccx2db{
 			}
 		} 
 		case "status" {
-			if ($running) {
 				printf '%-70s', "OpenFPC Connection Uploader ($configs{$instance}{'NODENAME'}) :"; 
-				if ($running) {
-					printf '%10s', "Running\n";
-				} else {
-					printf '%10s', "Stopped\n";
-				}
+			if ($running) {
+				printf '%10s', "Running\n";
+			} else {
+				printf '%10s', "Stopped\n";
 			}
 		} 
 	}
@@ -766,6 +764,15 @@ if ($thing) {
        	                 		if ( defined $configs{$instance}{'ENABLE_SESSION'}) {
 						if ($configs{$instance}{'ENABLE_SESSION'} == 1 ) {
 							print " -  SESSION DATA SEARCH:   ENABLED\n" ;
+							# Get count of files in SESSION_DIR (these are waiting to be processed)
+							# A high number here shows we have an problem with uploading to DB
+							my $count=0;
+							if (opendir(SESSION_DIR,$configs{$instance}{'SESSION_DIR'}) ) {
+								while (my $filename=readdir(SESSION_DIR)) {
+									$count++ unless $filename =~ /^\./;
+								}
+								print " -  SESSION LAG:           $count\n";
+							}
 						} else {
 							print " -  SESSION DATA SEARCH:   DISABLED\n";	
 						}
