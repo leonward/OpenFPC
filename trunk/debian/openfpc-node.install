@@ -6,6 +6,9 @@ etc/init.d/openfpc-queued etc/init.d
 openfpc usr/bin
 openfpc-setup.pl usr/bin 
 openfpc-queued usr/bin
+openfpc-cx2db usr/bin
+openfpc-dbmaint usr/bin
+
 
 etc/openfpc.apache2.site etc/apache2/sites-available
 
