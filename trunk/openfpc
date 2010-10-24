@@ -764,12 +764,13 @@ if ($thing) {
        	                 		if ( defined $configs{$instance}{'ENABLE_SESSION'}) {
 						if ($configs{$instance}{'ENABLE_SESSION'} == 1 ) {
 							print " -  SESSION DATA SEARCH:   ENABLED\n" ;
+							print " -  SESSION DATABASE NAME: $configs{$instance}{'SESSION_DB_NAME'}\n";
 							# Get count of files in SESSION_DIR (these are waiting to be processed)
 							# A high number here shows we have an problem with uploading to DB
 							my $count=0;
 							if (opendir(SESSION_DIR,$configs{$instance}{'SESSION_DIR'}) ) {
 								while (my $filename=readdir(SESSION_DIR)) {
-									$count++ unless $filename =~ /^\./;
+									$count++ unless $filename =~ /^(\.|failed)/;
 								}
 								print " -  SESSION LAG:           $count\n";
 							}

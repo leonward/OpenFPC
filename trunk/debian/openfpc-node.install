@@ -9,6 +9,8 @@ openfpc-queued usr/bin
 openfpc-cx2db usr/bin
 openfpc-dbmaint usr/bin
 
+www/index.php usr/share/openfpc/www
+www/bluegrade.png usr/share/openfpc/www
 
 etc/openfpc.apache2.site etc/apache2/sites-available
 

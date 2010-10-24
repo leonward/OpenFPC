@@ -27,5 +27,6 @@ update-rc.d  openfpc-cx2db defaults > /dev/null
 # openfpc.apache2.conf
 a2ensite openfpc.apache2.site
 service apache2 reload
+touch /etc/openfpc/apache2.passwd
 
 #DEBHELPER#
