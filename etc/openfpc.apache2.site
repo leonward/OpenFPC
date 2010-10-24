@@ -1,6 +1,6 @@
-Alias /openfpc /opt/openfpc/www
+Alias /openfpc /usr/share/openfpc/
  
-<Directory /opt/openfpc/www>
+<Directory /usr/share/openfpc/>
 	Options FollowSymLinks
 
 	# The OpenFPC UI provides the ability to search for and
@@ -19,9 +19,9 @@ Alias /openfpc /opt/openfpc/www
 </Directory>
 
 #ScriptAlias /dev/ /home/lward/code/openfpc/cgi-bin/
-<Directory "/opt/openfpc/cgi-bin">
-     	AllowOverride None
-      	Options +ExecCGI -MultiViews +SymLinksIfOwnerMatch
-       	Order allow,deny
-       	Allow from all
-</Directory>
+#<Directory "/usr/share/openf">
+#     	AllowOverride None
+#      	Options +ExecCGI -MultiViews +SymLinksIfOwnerMatch
+#       	Order allow,deny
+#       	Allow from all
+#</Directory>

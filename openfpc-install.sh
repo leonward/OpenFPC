@@ -32,7 +32,7 @@ CONF_DIR="/etc/openfpc"
 CONF_FILES="etc/openfpc-example-node.conf etc/openfpc-example-proxy.conf etc/routes.ofpc"
 PROG_FILES="openfpc-client openfpc-queued openfpc-setup.pl openfpc-cx2db openfpc"
 WWW_FILES="index.php bluegrade.png"
-WWW_DIR="/var/www/openfpc"
+WWW_DIR="/usr/share/openfpc/www"
 PERL_MODULES="Parse.pm Request.pm"
 INIT_SCRIPTS="openfpc-daemonlogger openfpc-cx2db openfpc-cxtracker openfpc-queued"
 INIT_DIR="/etc/init.d/" 
@@ -245,13 +245,17 @@ function doinstall()
   				adduser --quiet --system --group --no-create-home --shell /usr/sbin/nologin openfpc
 			fi
 		done
+
 	elif [ "$DISTRO" == "REDHAT" ]
 	then
 		echo "[*] Performing a RedHat init Install"
 		echo NOT DONE!!!!!
 		exit 1
 	fi
-
+	echo -------------------------------
+	echo "OpenFPC has a web UI. For now we use Basic Auth to secure it"
+	read -p "Username: " user
+	htpasswd -c /etc/openfpc/apache2.passwd $user
 
 	echo -e "
 **************************************************************************

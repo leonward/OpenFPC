@@ -19,39 +19,47 @@
 
 
 // Read in configuration from openfpc.conf
-$configfile="/etc/openfpc/openfpc.conf";
+$configfile="/etc/openfpc/openfpc-example-node.conf";
+# --------------------------------------------------------------------------
+// Nothing to do below this line.
+$debug = 0;
 $file = fopen($configfile, "r");
 
 // Save config and users into an array
 while ( $line = fgets($file, 200) ) {
-#	print "$line<br>";
 	if ( preg_match("/^USER/", "$line")) {
 		list ($tmp,$user,$pass) = (explode("=",$line));
 		$users["$user"] = $pass;
 	}
 
-	list ($configkey,$configval) = (explode("=",$line));
-	$config["$configkey"] = $configval;
+	if (preg_match("/^[A-Z]/", $line)) {
+		list ($configkey,$configval) = (explode("=",$line));
+		chop($configval);
+		$config["$configkey"] = $configval;
+	}
 }
 fclose($file);
 
 // openfpc Database Settings
 $dbhost = "127.0.0.1";
-$dbuser = $config["SESSION_DB_USER"];
-$dbpass = $config["SESSION_DB_PASS"];
-$dbname = $config["SESSION_DB_NAME"];
+$dbuser = "openfpc";
+$dbname = "openfpc";
+$dbpass = "openfpc";
+
+if ($config["SESSION_DB_NAME"]) $dbname = $config["SESSION_DB_NAME"];
+if ($config["SESSION_DB_USER"]) $dbuser =  $config["SESSION_DB_USER"] ;
+if ($config["SESSION_DB_PASS"]) $dbpass =  $config["SESSION_DB_PASS"] ;
 
 //OFPC Queue Daemon Settings
-$ofpcuser = $config["GUIUSER"];
-$ofpcpass = $config["GUIPASS"];
+$ofpcuser = "openfpc";
+$ofpcpass = "openfpc";
+ 
+if ($config["GUIUSER"])  $ofpcuser=$config["GUIUSER"]  ;
+if ($config["GUIPASS"])  $ofpcpass=$config["GUIPASS"]  ;
 
 // Settings
-$maxRows = 20;
-#$openfpcdir = "/var/tmp/openfpc/";
-#$mrgtmpdir = "/tmp/merge/";
-#$tcpdump = "/usr/sbin/tcpdump";
-#$mergecap = "/usr/bin/mergecap";
-$ofpc_client = "/opt/openfpc/ofpc-client.pl";
+$maxRows = 100;
+$ofpc_client = "openfpc-client";
 
 // Variable Initialization
 $op         = sanitize("op");         if (empty($op))         $op = "search";
@@ -79,15 +87,24 @@ if ($notdstip) $dstip = strip_not($dstip);
 if ($notsrcport)  $srcport = strip_not($srcport);
 if ($notdstport)  $dstport = strip_not($dstport);
 
+// Dump some debug output
+if ($debug) {
+	print "Debug<br>";
+	print "dbuser is $dbuser<br>" ;
+	print "db is $dbname<br>";
+	print "dbpass is $dbpass<br>";
+	print "openfpcuser is $ofpcuser<br>";
+	print "openfpcpass is $ofpcpass<br>";
+}
+
 // OP Director
 
 switch ($op) {
 
     case "Search connection table":
-
         $out = mainDisplay();
 	$out .= showResults();
-        //$data = doSessionQuery();
+        $data = doSessionQuery();
         //pollParse($data);
         break;
 
@@ -101,17 +118,16 @@ switch ($op) {
         
     case "dump":
 	$out = mainDisplay();
-	$out .= extractPcapFromSession();
+	#$out .= extractPcapFromSession();
 	$out .= showResults();
         #$out = dumpDisplay();   
         break;
-
-    case "Store pcap":
+    case "Store pcap form event":
 	$out = mainDisplay();
 	$out .= extractPcapFromLog("store");
 	break;
 
-    case "Fetch pcap":
+    case "Fetch pcap from event":
 
 	$out = mainDisplay();
 	$out .= extractPcapFromLog("fetch");
@@ -204,9 +220,9 @@ function mainDisplay() {
     $out .= "<tr>";
     $out .= "<td width=250 valign=middle align=center><div style=\"font-size: 10px; color: #DEDEDE\">";
     $out .= "Event <input type=text size=100 bgcolor=\"#2299bb\" name=\"logline\"\n";
-    $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"Fetch pcap\"><br>\n";
+    $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"Fetch pcap from event\"><br>\n";
     $out .= "Comment <input type=text size=96 bgcolor=\"#2299bb\" name=\"comment\" value=\"\"\n";
-    $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"Store pcap\">\n";
+    $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"Store pcap form event\">\n";
     $out .= "</table><div>\n";
     return $out;
 }
@@ -238,7 +254,7 @@ function infoBox($infomsg) {
 
 # Calls ofpc-client.pl to extract the data if the user enters a "log" line.
 function extractPcapFromLog($action) {
-	global $logline, $ofpcuser, $ofpcpass, $comment, $ofpc_client;
+	global $logline, $ofpcuser, $ofpcpass, $comment, $ofpc_client, $debug;
 
 	$out = "<!-- extractPcapFromLog -->\n";
 
@@ -253,7 +269,7 @@ function extractPcapFromLog($action) {
 	$e = escapeshellcmd($exec);
 
 	# These are defined in ofpc-client.pl
-
+	if ($debug) { print "Exec is $e<br>"; }
 	$cmdresult = shell_exec($e);
 	list($result,$action,$filename,$size,$md5,$expected_md5,$position,$message) = explode(",",$cmdresult);
 
@@ -320,7 +336,7 @@ function extractPcapFromSession() {
 // Why? Well there are two answers to that. 
 // 1) I think there will be times when people don't track connection data (storage, CPU, IO limits)
 // 2) On a proxy device, there won't be a central DB to search over. This way a quick extraction can
-// take place.
+// take place using the proxy-to-node function.
 // -Leon 
 
 function extractPcapFromSearch() {
@@ -518,7 +534,7 @@ function doSessionQuery() {
     global $cxtid, $ipv, $sessp;
 
     $siteDB = new siteDB();
-    $ipv=$sessp;
+    //$ipv=$sessp;
     
     if ( $ipv == 2 ) {
         $query = "SELECT sessionid, start_time,end_time,
@@ -536,7 +552,6 @@ function doSessionQuery() {
                           FROM session
                           WHERE sessionid = '$cxtid' limit 1;";
     }
-
         $siteQ = $siteDB->query($query);
         for ($i = 0; $row = mysql_fetch_row($siteQ); $i++) {
 
@@ -552,11 +567,10 @@ function doSessionQuery() {
 }
 
 function doSearchQuery() {
-        global $maxRows, $srcip, $dstip, $srcport, $dstport, $start_date, $end_date;
+        global $maxRows, $srcip, $dstip, $srcport, $dstport, $start_date, $end_date, $debug;
         global $protocol, $ipv, $notsrcip, $notdstip, $notsrcport, $notdstport;
 	$out="";
         $siteDB = new siteDB();
-
         $orderBy = "start_time";
 
     //if ( preg_match("/^(\d){1,2}$/",$ipv) ) {
@@ -632,7 +646,9 @@ function doSearchQuery() {
                 $query .= "ORDER BY $orderBy DESC limit $maxRows;";
     }
 
+	if ($debug) { print "Query is $query<br>" ; }
         $siteQ = $siteDB->query($query);
+	
         for ($i = 0; $row = mysql_fetch_row($siteQ); $i++) {
 
                 for ($p = 0; $p < count($row); $p++) {
@@ -1061,16 +1077,19 @@ function serv_pcap($filepath,$cxid) {
 
 class siteDB {
     function siteDB() {
-        global $dbhost, $dbuser, $dbpass, $dbname;
+        global $dbhost, $dbuser, $dbpass, $dbname, $debug;
 
-        $this->host = $dbhost;
-        $this->db   = $dbname;
-        $this->user = $dbuser;
-        $this->pass = $dbpass;
+        $this->host = chop($dbhost);
+        $this->db   = chop($dbname);
+        $this->user = chop($dbuser);
+        $this->pass = chop($dbpass);
+        $this->link = mysql_connect($this->host, $this->user, $this->pass, 1);
 
-    $this->link = mysql_connect($this->host, $this->user, $this->pass, 1);
-        
-        mysql_select_db($this->db);
+        $connected = mysql_select_db($this->db);
+        if (!$connected) {
+		if ($debug) print "Error unable to connect to Database!";
+	}
+
     }
 
     function query($query) {
