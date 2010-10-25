@@ -59,7 +59,7 @@ my $CONFIG_FILE=0;
 my $daemon=0;		# NOT DONE YET
 $verbose=0;
 $debug=0;
-
+my $vdebug=0;
 sub showhelp{
 	print <<EOF
 
@@ -163,8 +163,6 @@ sub decoderequest($){
 
 	# Check logline is valid
 	my ($eventdata, $error)=OpenFPC::Parse::parselog($request{'logline'});
-
-	wlog("DEBUG: The bpf used is \"$eventdata->{'bpf'}\"") if $debug;
 
 	unless ($eventdata) {
 		wlog("ERROR: Cannot parse logline-> $error");
@@ -921,8 +919,14 @@ sub donode{
 		# Event, single look over roster
 		@pcaproster=findBuffers($request->{'timestamp'}, 2);
 	} 
-
-	wlog("DEBUG: PCAP roster for extract is:  @pcaproster\n") if $debug;
+	# If we don't get any pcap files, there is no point in doExtract
+	
+	my $pcapcount=@pcaproster;
+	unless ($pcapcount) {
+		$result{'message'} = "No suitable pcap files found in $config{'BUFFER_PATH'}";
+		return(\%result);
+	} 
+	wlog("DEBUG: PCAP roster (count is $pcapcount) for extract is:  @pcaproster\n") if $debug;
 
 	(my $filename, my $size, my $md5) = doExtract($bpf,\@pcaproster,$request->{'tempfile'});
 	if ($filename) {
@@ -1064,7 +1068,6 @@ sub bufferRange {
 	my $include=0;
 	my @pcaps=();
 	my @tmp=();	# temp array for a call to findBuffers;
-	my $vdebug=1;
 
 	@tmp=findBuffers($starttimestamp,0);
 	my $startfile=$tmp[0];		# Grab expected -1
@@ -1111,8 +1114,6 @@ sub findBuffers {
         my %timeHash=();
         my @timestampArray=();
 	my @pcaps;
-	my $vdebug=0;	# Enable this to debug the pcap selection process
-			# It's VERY verbose, so it's off even when debugging is enabled
 
 	wlog("DEBUG: WARNING vdebug not enabled to inspect pcap filename selection\n") if ($debug and not $vdebug);
 
@@ -1129,7 +1130,9 @@ sub findBuffers {
         $timeHash{$targetTimeStamp} = "TARGET";                 # Method to identify our target timestamp in the hash
 
         foreach my $pcap (@pcaps) {
-                (my $fileprefix, my $timestamp)  = split(/\./,$pcap);
+		my $splitstring="$config{'NODENAME'}\.pcap\.";
+		print "SPLIT is $splitstring\n";
+                (my $fileprefix, my $timestamp)  = split(/$splitstring/,$pcap);
                 print " - Adding file $pcap with timestamp $timestamp (" . localtime($timestamp) . ") to hash of timestamps \n" if ($vdebug and $debug);
                 $timeHash{$timestamp} = $pcap;
                 push(@timestampArray,$timestamp);
@@ -1299,10 +1302,17 @@ GetOptions (    'c|conf=s' => \$CONFIG_FILE,
 		'h|help' => \$help,
 		'debug' => \$debug,
 		'v|verbose' => \$verbose,
+		'vdebug' => \$vdebug,
                 );
 if ($debug) { 
 	$verbose=1;
 	wlog("DEBUG Enabled\n");
+}
+if ($vdebug) {
+	$verbose=1;
+	$debug=1;
+	wlog("VDEBUG Enabled\n");
+
 }
 
 if ($help) { 
@@ -1321,7 +1331,7 @@ while(<$config>) {
                 unless ($key eq "USER") {
                         $config{$key} = join '=', @value;
                 } else {
-                        wlog("CONF: Adding user \"$value[0]\" Pass \"$value[1]\"\n") if ($verbose);
+                        wlog("CONF: Adding user \"$value[0]\" Pass \"$value[1]\"\n") if ($debug);
                         $userlist{$value[0]} = $value[1] ;
                 }
         }
@@ -1356,6 +1366,14 @@ if ($config{'PROXY'}) {
 	}
 } else {
         wlog("CONF: Starting OFPC Node \"$config{'NODENAME'}\" as an OpenFPC Node");
+}
+
+# Print verbose config info if debug is enabled
+if ($debug) {
+	wlog("CONF: Node Description: $config{'DESCRIPTION'}");
+	wlog("CONF: Enabled : $config{'OFPC_ENABLED'}");
+	wlog("CONF: local savedir : $config{'SAVEDIR'}");
+	wlog("CONF: Buffer Path : $config{'BUFFER_PATH'}");
 }
 
 # Start listener

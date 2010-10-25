@@ -1,4 +1,4 @@
-#!/usr/bin/perl -I ..
+#!/usr/bin/perl -I ../
 
 # leon@rm-rf.co.uk
 # Quick script to test event parsing. Nothing to see here. Move on.
@@ -22,13 +22,14 @@ my $auto=0;
 
 #Sourcefire 3D (copy/paste from IPS event table view)
 #my $input="	 2010-03-31 13:24:36	 high	 	 	 IPS Demo DE / sfukse3d00.lab.emea.sourcefire.com	 tcp	Go to Host View 192.168.4.248	Go to Host View 207.46.108.86	 Viktor Westcott (viktor.westcott, ldap)	 	 3044/tcp	 1863/tcp	 Standard Text Rule	 CHAT MSN message (1:540)	 Potential Corporate Policy Violation	 0";   # SF49IPS 
-
+#Sourcefire 3D 4.9.1
+#my $input="2010-10-25 11:56:29	high		 	IPS Demo DE / sfukse3d00.lab.emea.sourcefire.com	tcp	 192.168.4.249	 69.104.33.82	 	 	3537/tcp	6667 (ircd)/tcp	Standard Text Rule	CHAT IRC message (1:1463)	Potential Corporate Policy Violation";
 # Snort "Fast" format - full details
 #my $input="05/14-09:01:49.390801  [**] [1:12628:2] RPC portmap Solaris sadmin port query udp portmapper sadmin port query attempt [**] [Classification: Decode of an RPC Query] [Priority: 2] {UDP} 192.168.133.50:666 -> 192.168.10.90:32772";
 
 # Snort "Fast" format - missing port(s)
 #my $input="05/14-09:01:49.390801  [**] [1:12628:2] RPC portmap Solaris sadmin port query udp portmapper sadmin port query attempt [**] [Classification: Decode of an RPC Query] [Priority: 2] {UDP} 192.168.133.50:12 -> 192.168.10.90:32772";
-my $input="05/14-09:01:49.390801  [**] [1:12628:2] RPC portmap Solaris sadmin port query udp portmapper sadmin port query attempt [**] [Classification: Decode of an RPC Query] [Priority: 2] {UDP} 192.168.133.50: -> 192.168.10.90:";
+#my $input="05/14-09:01:49.390801  [**] [1:12628:2] RPC portmap Solaris sadmin port query udp portmapper sadmin port query attempt [**] [Classification: Decode of an RPC Query] [Priority: 2] {UDP} 192.168.133.50: -> 192.168.10.90:";
 
 # Random ofpc-v1 samples
 #my $input="ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 spt:3432 dpt:1234 proto:tcp time:246583 msg:Some freeform text";
@@ -36,6 +37,7 @@ my $input="05/14-09:01:49.390801  [**] [1:12628:2] RPC portmap Solaris sadmin po
 #my $input="ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 spt:222 timestamp:1274864808";
 #my $input="ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 spt:222 timestamp:1274864808";
 #my $input="ofpc-v1 type:search dip:192.168.222.1 dpt:22 stime:1283171182 etime:1283174182";
+my $input="ofpc-v1 type:event sip:192.168.222.1 etime:1285142949";
 
 # ofpc-v1-bpf BPF example
 #my $input="ofpc-v1-bpf host 1.1.1.1 and host 2.2.2.2 not tcp port 23 stime:1274864808 etime:1274864899";
@@ -56,8 +58,7 @@ if ($auto) {
 	}
 } else { # Manual 
 	print "* Manual type set\n";
-
-	%eventdata=OpnFPC::Parse::SnortFast($input);
+		%eventdata=OpenFPC::Parse::OFPC1Event($input);
 }
 	if ($eventdata{'type'}) {
 		print "\nGot event type $eventdata{'type'}\n";
