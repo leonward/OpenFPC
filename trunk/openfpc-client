@@ -93,7 +93,7 @@ sub showhelp{
   --port or -o <TCP PORT>		Port to connect to (default 4242)
   --user or -u <username>		Username	
   --password or -p <password>		Password (if not supplied, it will be prompted for)
-  --action or -a <action>		OFPC action to take, e.g. fetch, store, status, status, ctx
+  --action or -a <action>		OFPC action to take. fetch, store, status
   --verbose or -v 			Run in verbose mode
   --debug or -d				Run in debug mode (very verbose)
   --write or -w				Output PCAP file to write to
