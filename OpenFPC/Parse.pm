@@ -70,7 +70,7 @@ sub sessionToLogline{
 
 	$logline .= "stime:$req->{'stime'} " if ($req->{'stime'});
 	$logline .= "etime:$req->{'etime'} " if ($req->{'etime'});
-	$logline .= "etime:$req->{'timestamp'} " if ($req->{'timestamp'});
+	$logline .= "timestamp:$req->{'timestamp'} " if ($req->{'timestamp'});
 
 	unless ($req->{'timestamp'} or ($req->{'stime'} and $req->{'etime'})) { 	
 		# No timestamp specified, lets assume a NOW - $timeoffset seconds
