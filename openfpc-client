@@ -298,7 +298,6 @@ if ($cmdargs{'gui'}) {
 }
 
 
-	print Dumper %cmdargs;
 # Convert session info into a "logline" to make a request.
 unless ($cmdargs{'logline'}) {
 	my $logline=OpenFPC::Parse::sessionToLogline(\%cmdargs);
