@@ -227,12 +227,14 @@ sub SF49IPS{
 		'timestamp' => 0,
 		'bpf' => 0,
 		'device' => 0,
-		'parsed' => 0
+		'parsed' => 0,
+		'stime' => 0,
+		'etime' => 0
 		);
 
 	my $logline=shift;
-
-        if ($logline =~ m/(.*)( high| medium| low)/) {   # Timestamp comes before priority
+		print "PROCESSING $1\n";
+        if ($logline =~ m/(.*)( *high| medium| low)/) {   # Timestamp comes before priority
         	$event{'timestamp'}=`date --date='$1' +%s`;
 		chomp $event{'timestamp'};
         }   
@@ -245,12 +247,13 @@ sub SF49IPS{
                 $event{'dip'}=$1;
         }   
 
-	if ($logline =~ m/(\d{1,5})\/(tcp|udp)\s*(\d{1,5})\/(tcp|udp)/) {
+	#if ($logline =~ m/(\d{1,5})\/(tcp|udp)\s*(\d{1,5})\/(tcp|udp)/) {
+	if  ($logline =~ m/(\d{1,5})(\/tcp|\/udp| .*{2-10}\/tcp| .*{2-10}\/udp).(\d{1,5})( |\/)/) {
                 $event{'spt'}=$1;
                 $event{'dpt'}=$3;
         }   
 
-	if ($logline =~ m/(tcp|udp|icmp)\s*Go to Host View/ ) {
+	if ($logline =~ m/(tcp|udp|icmp)/ ) {
 		$event{'proto'}=$1;
 	}
 
