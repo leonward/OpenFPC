@@ -33,6 +33,7 @@ openfpc-cx2db.pl - Load session metadata from cxtracker into a db
 our $VERSION       = 0.1;
 our $DEBUG         = 0;
 our $DAEMON        = 0;
+our $NOT_ESTABLISHED = 1;
 our $TIMEOUT       = 5;
 our $HOSTNAME      = q(default);
 our $CONFFILE	   = 0;
@@ -367,6 +368,16 @@ sub put_session2db {
        $dst_dip, $dst_port, $src_packets, $src_byte, $dst_packets, $dst_byte, 
        $src_flags, $dst_flags) = split /\|/, $SESSION, 15;
 
+   if ( $NOT_ESTABLISHED && $ip_type == 6 ) {
+      if ( $tot_time <= 1 ) { # Do we need this ?
+         if ( $src_packets == 0 || $dst_packets == 0 ) { # What if a reset is sent?
+            # $src_flags & $dst_flags ?
+            warn "Skipping record: Only established TCP sessions are recorded\n" if $DEBUG;
+            return 0;
+         }
+      }
+   }
+
    if ( ip_is_ipv6($src_dip) || ip_is_ipv6($dst_dip) ) {
       if ($CONFIG{'ENABLE_IP_V6'} ) {
           # We should verify that src and dst are both ipv6! else b0rk!
@@ -376,7 +387,7 @@ sub put_session2db {
           $dst_dip = "INET_ATON6(\'$dst_dip\')";
           $ip_version = 10; # AF_INET6
       } else {
-	  print "Skipping record, ipV6 disabled\n";
+	  warn "[*] Skipping record: IPv6 disabled\n" if $DEBUG;
 	  return 0; 
       }
    }
