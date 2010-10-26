@@ -128,15 +128,15 @@ EOF
 sub convbytes{
 	my $bytes=shift;
 	my $units="Bytes";
-
-	if ($bytes >=1000000000 ) {
-		$bytes = sprintf( "%0.2f", $bytes/1000000000 );
-		$units = "GB";
-	} elsif ( $bytes >= 1000000 ) {
-		$bytes = sprintf( "%0.2f", $bytes/1000000 );
-		$units = "MB";
-	} 
-
+	if ($bytes =~ /\d+/) {
+		if ($bytes >=1000000 ) {
+			$bytes = sprintf( "%0.2f", $bytes/1000000 );
+			$units = "GB";
+		} elsif ( $bytes >= 1000000 ) {
+			$bytes = sprintf( "%0.2f", $bytes/1000000 );
+			$units = "MB";
+		} 
+	}
 	return("$bytes $units");
 }
 
