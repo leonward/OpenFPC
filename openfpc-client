@@ -164,6 +164,7 @@ sub displayResult{
 					" Oldest Packet       :  $result{'firstpacket'} (" . localtime($result{'firstpacket'}) .")\n".
 					" Packet utilization  :  $result{'packetspace'}\% \n" .
 					" Session utilization :  $result{'sessionspace'}\% \n" .
+					" Session DB Size     :  $result{'sessioncount'} rows \n" .
 					" Storage utilization :  $result{'savespace'}\% \n" .
 					" Packet space used   :  $result{'packetused'} (" . convbytes($result{'packetused'}) . ")\n" .
 					" Session space used  :  $result{'sessionused'} (" . convbytes($result{'sessionused'}) . ")\n" .

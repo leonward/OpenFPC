@@ -38,6 +38,7 @@ use Filesys::Df;
 use Sys::Syslog;
 use OpenFPC::Parse;
 use OpenFPC::Request;
+use DBI;
 
 =head1 NAME
 
@@ -454,6 +455,7 @@ sub getstatus{
 		packetused => 0,
 		sessionspace => "Disabled",	# Space available in session data partition
 		sessionused => "Disabled",	# Space consumed by session data (excluding DB)
+		sessioncount => "Disabled",	# Number of sessions in DB
 		savespace => 0,			# Space availabe in the savepath
 		saveused => 0,			# Space availabe in the savepath
 		comms => 0,			# Communication with nodes (proxy only)
@@ -519,6 +521,22 @@ sub getstatus{
 			$stat{'ld15'} = $3;
 		}
 
+		# If session data is enabled, connect to the DB and get some data back
+		if ($config{'ENABLE_SESSION'}) {
+			wlog("DEBUG: Session data enabled on this node. Checking DB status") if $debug;
+			my $dbh= DBI->connect("dbi:mysql:database=$config{'SESSION_DB_NAME'};host=localhost",$config{'SESSION_DB_USER'},$config{'SESSION_DB_PASS'}) 
+				or wlog("DEBUG: Unable to connect to DB for stats info");
+			my $sth= $dbh->prepare("SELECT COUNT(*) FROM session") or wlog("STATUS: ERROR: Unable to get session table size $DBI::errstr");
+			$sth->execute() or wlog("STATUS: ERROR: Unable to exec SQL command");
+			my @row;
+			while ( @row = $sth->fetchrow_array ) {
+  				$stat{'sessioncount'} = @row[0];
+			}
+			wlog("DEBUG: Session DB count is $stat{'sessioncount'}\n") if $debug;
+			$dbh->disconnect or wlog("Unable to disconnect from DB $DBI::errstr");
+		} else {
+			wlog("DEBUG: Session data disabled on this node");
+		}
 		# Check we are providing back some valid data
 
 		if ($stat{'packetspace'} and $stat{'savespace'} and
@@ -530,7 +548,6 @@ sub getstatus{
 			
 			$stat{'success'} = 1; 	
 		}
-
 
 	} else {
 		wlog("Recieved PROXY STATUS request - Not implemented");
@@ -699,6 +716,7 @@ sub comms{
 									"$status->{'packetused'}||" .
 									"$status->{'sessionspace'}||" .
 									"$status->{'sessionused'}||".
+									"$status->{'sessioncount'}||".
 									"$status->{'savespace'}||" .
 									"$status->{'saveused'}||".
 									"$status->{'ld1'}||" .
