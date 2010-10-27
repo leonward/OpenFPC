@@ -25,6 +25,7 @@ sub cx_build_query {
    my $today = today();
    my $weekago = $today - 7;
    my $yesterday = $today->prev;
+   my $DLIMIT = 100;
 
    my $QUERY = q();
    $QUERY = qq[SELECT start_time,INET_NTOA(src_ip),src_port,INET_NTOA(dst_ip),dst_port,ip_proto,src_flags,dst_flags \
