@@ -1304,7 +1304,8 @@ sub doExtract{
         wlog("DEBUG: Doing Extraction with BPF $bpf into tempdir $tempdir\n") if ($debug);
 
         foreach (@filelist){
-                (my $pcappath, my $pcapid)=split(/\./, $_);
+		my $splitstring="$config{'NODENAME'}\.pcap\.";
+                (my $pcappath, my $pcapid)=split(/$splitstring/, $_);
                 chomp $_;
                 my $filename="$tempdir/$mergefile-$pcapid.pcap";
                 push(@outputpcaps,$filename);
@@ -1335,7 +1336,7 @@ sub doExtract{
 	wlog("NODE: Extracted to $mergefile, $filesize, $md5\n");
 
         # Clean up temp files that have been merged...
-	File::Temp::cleanup();
+	File::Temp::cleanup() unless ($vdebug);
 
 	return($mergefile,$filesize,$md5);
 }
