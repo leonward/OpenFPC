@@ -1,21 +1,21 @@
 #!/bin/sh
 #
 ### BEGIN INIT INFO
-# Provides:          openfpc-queued
+# Provides:          openfpc-cxtracker
 # Required-Start:    $network
 # Required-Stop:     $network
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: openfpc-queued extract data from OpenFPC nodes
-# Description:       This is perl daemon administrates all
-#                    the activities for an OpenFPC Proxy or 
-#                    OpenFPC Node
+# Short-Description: Connection tracker for OpenFPC
+# Description:       Capture connection cata to disk
+#	 	     Part of the OpenFPC project
+#		     http://www.openfpc.org
 ### END INIT INFO
 
 # Leon Ward - leon@openfpc.org
 # This looks simple because it is. All of the magic is in the openfpc perl script
 
-COMPONENT=openfpc-queued
+COMPONENT=openfpc-cxtracker
 IAM=`whoami`;
 
 die(){
