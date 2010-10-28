@@ -89,7 +89,7 @@ if ($notdstport)  $dstport = strip_not($dstport);
 
 // Dump some debug output
 if ($debug) {
-	print "Debug<br>";
+	print "PCAPS will be b0rked in debug mode!<br>";
 	print "dbuser is $dbuser<br>" ;
 	print "db is $dbname<br>";
 	print "dbpass is $dbpass<br>";
@@ -1070,7 +1070,7 @@ function is_file_pcap($_file) {
 
 function serv_pcap($filepath,$cxid) {
     header('Content-Type: application/pcap-capture');
-    header("Content-Disposition: attachment; filename=\"$cxid.pcap\"");
+    header("Content-Disposition: attachment; filename=\"$cxid\"");
     readfile("$filepath");
     #exit(0);
 }
