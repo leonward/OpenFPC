@@ -103,7 +103,7 @@ switch ($op) {
 
     case "Search connection table":
         $out = mainDisplay();
-	$out .= showResults();
+        $out .= showResults();
         $data = doSessionQuery();
         //pollParse($data);
         break;
@@ -111,30 +111,28 @@ switch ($op) {
     case "Extract pcap":
         $out = mainDisplay();
         //$data = doSessionQuery();
-	$out .= extractPcapFromSearch();	
+        $out .= extractPcapFromSearch();	
         //pollParse($data);
         break;
-        
-        
+       
     case "dump":
-	$out = mainDisplay();
-	#$out .= extractPcapFromSession();
-	$out .= showResults();
+        $out = mainDisplay();
+        $out .= extractPcapFromSession();
+        #$out .= showResults();
         #$out = dumpDisplay();   
         break;
+        
     case "Store pcap form event":
-	$out = mainDisplay();
-	$out .= extractPcapFromLog("store");
-	break;
+        $out = mainDisplay();
+        $out .= extractPcapFromLog("store");
+        break;
 
     case "Fetch pcap from event":
-
-	$out = mainDisplay();
-	$out .= extractPcapFromLog("fetch");
-	break;
+        $out = mainDisplay();
+        $out .= extractPcapFromLog("fetch");
+        break;
 
     default:
-
         $out = mainDisplay();
         break;
 }
@@ -298,7 +296,7 @@ function extractPcapFromLog($action) {
 # Calls ofpc-client.pl to extract the traffic when the user selects a session entry in the table
 
 function extractPcapFromSession() {
-	global $ofpcuser, $ofpcpass;
+    global $ofpcuser, $ofpcpass, $ofpc_client, $debug;
 	$array=doSessionQuery();
 	$sddate = dirdate($array["start_time"]);
 	$eddate = dirdate($array["end_time"]);
@@ -307,13 +305,15 @@ function extractPcapFromSession() {
 
 	$exec = "$ofpc_client -u $ofpcuser -p $ofpcpass " . 
 		" --gui " .
-		" --timestamp " . $sudate .
+        # Leon - sanitise this.. we should have sddate and eddate
+		#" --timestamp " . $sudate .
 		" --src-addr "  . $array["src_ip"] .
 		" --dst-addr "  . $array["dst_ip"] .
 		" --src-port "  . $array["src_port"] .
 		" --dst-port "  . $array["dst_port"] .
 		" --proto "     . $array["ip_proto"];
 
+    if ($debug) { print "openfpc-client CMD: $exec<br>" ; }
 	$e = escapeshellcmd($exec);
 	$shellresult = shell_exec($e);
 
@@ -325,6 +325,7 @@ function extractPcapFromSession() {
 		serv_pcap("$filename","$file");
 		exit(0);
 	} else {
+        if ($debug) { print "sessions-extract-error: $message<br>" ; }
 		$infobox ="Error: $message <br>";
 	}
 
@@ -531,12 +532,12 @@ function mainFooting() {
 // Functions
 
 function doSessionQuery() {
-    global $cxtid, $ipv, $sessp;
-
+    global $cxtid, $ipv, $sessp, $debug;
+    if ($debug) {print "doSessionQuery got: $cxtid, $ipv, $sessp <br>" ; };
     $siteDB = new siteDB();
     //$ipv=$sessp;
     
-    if ( $ipv == 2 ) {
+    if ( $sessp == 2 ) {
         $query = "SELECT sessionid, start_time,end_time,
                  inet_ntoa(src_ip) as src_ip,src_port,
                      inet_ntoa(dst_ip) as dst_ip,dst_port,
@@ -544,7 +545,7 @@ function doSessionQuery() {
               FROM session
               WHERE sessionid = '$cxtid' limit 1;";
     }
-    else if ( $ipv == 10 ) {
+    else if ( $sessp == 10 ) {
         $query = "SELECT sessionid, start_time,end_time,
                                  inet_ntoa6(src_ip) as src_ip,src_port,
                                  inet_ntoa6(dst_ip) as dst_ip,dst_port,
@@ -567,16 +568,19 @@ function doSessionQuery() {
 }
 
 function doSearchQuery() {
-        global $maxRows, $srcip, $dstip, $srcport, $dstport, $start_date, $end_date, $debug;
-        global $protocol, $ipv, $notsrcip, $notdstip, $notsrcport, $notdstport;
-	$out="";
-        $siteDB = new siteDB();
-        $orderBy = "start_time";
+    global $maxRows, $srcip, $dstip, $srcport, $dstport, $start_date, $end_date, $debug;
+    global $protocol, $ipv, $notsrcip, $notdstip, $notsrcport, $notdstport;
+    $out="";
+    $siteDB = new siteDB();
+    $orderBy = "start_time";
 
     //if ( preg_match("/^(\d){1,2}$/",$ipv) ) {
     //  if ( $ipv != 2 || $ipv != 10 || $ipv !=12 ) $ipv = 12; 
     //}
     if ($protocol == "any") $protocol = "";
+
+    if ($debug) { print "SRC_IP is $srcip<br>" ; }
+    if ($debug) { print "DST_IP is $dstip<br>" ; }
 
     $query = "";
     if ( $ipv == 2 || $ipv == 12 ) {
@@ -626,38 +630,37 @@ function doSearchQuery() {
             if ($notsrcip) $query .= "!";
             $query .= "= inet_aton6('$srcip') ";
         }
-                if (!empty($dstip) && isip6($dstip)) {
+        if (!empty($dstip) && isip6($dstip)) {
             $query .= "and dst_ip ";
             if ($notdstip) $query .= "!";
             $query .= "= inet_aton6('$dstip') ";
         }
-                if (!empty($srcport)) {
+        if (!empty($srcport)) {
             $query .= "and src_port ";
             if ($notsrcport) $query .= "!";
             $query .= "= '$srcport' ";
         }
-                if (!empty($dstport)) {
+        if (!empty($dstport)) {
             $query .= "and dst_port ";
             if ($notdstport) $query .= "!";
             $query .= "= '$dstport' ";
         }
-                if (!empty($protocol)) $query .= "and ip_proto = '$protocol' ";
+        if (!empty($protocol)) $query .= "and ip_proto = '$protocol' ";
 
-                $query .= "ORDER BY $orderBy DESC limit $maxRows;";
+        $query .= "ORDER BY $orderBy DESC limit $maxRows;";
     }
 
 	if ($debug) { print "Query is $query<br>" ; }
         $siteQ = $siteDB->query($query);
 	
         for ($i = 0; $row = mysql_fetch_row($siteQ); $i++) {
+            for ($p = 0; $p < count($row); $p++) {
+                $array[mysql_field_name($siteQ, $p)] = $row[$p];
+            }
 
-                for ($p = 0; $p < count($row); $p++) {
-                        $array[mysql_field_name($siteQ, $p)] = $row[$p];
-                }
+            $out .= "<div class=eventBox \">" . eventRowFormat($array) . "</div>\n";
 
-                $out .= "<div class=eventBox \">" . eventRowFormat($array) . "</div>\n";
-
-                unset($array);
+            unset($array);
         }
 
         $siteDB->close();
@@ -675,76 +678,75 @@ function eventRowFormat($data) {
     //$out .= "(&#39;?op=SessionQuery&obj=object1&id=" . $data["sessionid"] . "&s=" . $data["ip_version"] . "&#39;)";
     $out .= ">";
     
-        // Sensor
-        $out .= "</td><td width=30 valign=middle align=center>";
+    // Sensor
+    $out .= "</td><td width=30 valign=middle align=center>";
 
-                //$out .= "<div style=\"font-size: 10px;\">" . $data["cnt"] . "</div>";
-        $out .= "<div style=\"font-size: 10px; color: #DEDEDE\">" . $data["sessionid"] . "</div>";
-                $out .= "<div style=\"font-size: 10px; text-align: center;\">cxtid</div>";
+    //$out .= "<div style=\"font-size: 10px;\">" . $data["cnt"] . "</div>";
+    $out .= "<div style=\"font-size: 10px; color: #DEDEDE\">" . $data["sessionid"] . "</div>";
+    $out .= "<div style=\"font-size: 10px; text-align: center;\">cxtid</div>";
 
-        $out .= "</td><td width=12 valign=top>";
-
-                $out .= "&nbsp;";
+    $out .= "</td><td width=12 valign=top>";
+    $out .= "&nbsp;";
 
     // Source IP
     $out .= "</td><td width=80 valign=middle align=center>";
 
-        $out .= "<div style=\"font-size: 10px; text-align: center; color: #DEDEDE\">" . $data["src_ip"] . "</div>";
+    $out .= "<div style=\"font-size: 10px; text-align: center; color: #DEDEDE\">" . $data["src_ip"] . "</div>";
 
-        $out .= "<div style=\"font-size: 10px; text-align: center;\">Source IP</div>";
+    $out .= "<div style=\"font-size: 10px; text-align: center;\">Source IP</div>";
 
-       $out .= "</td><td width=1 valign=top>";
+    $out .= "</td><td width=1 valign=top>";
 
-                $out .= "&nbsp;";
+    $out .= "&nbsp;";
 
-        // Source PORT
-        $out .= "</td><td width=30 valign=middle align=center>";
+    // Source PORT
+    $out .= "</td><td width=30 valign=middle align=center>";
 
-                $out .= "<div style=\"font-size: 10px; text-align: center; color: #DEDEDE\">";
+    $out .= "<div style=\"font-size: 10px; text-align: center; color: #DEDEDE\">";
 
-        if ($data["src_port"]) {
-            $out .= $data["src_port"];
-        } else {
-            $out .= "0";
-        }
+    if ($data["src_port"]) {
+        $out .= $data["src_port"];
+    } else {
+        $out .= "0";
+    }
         
-        $out .= "</div>";
+    $out .= "</div>";
 
-        $out .= "<div style=\"font-size: 10px; text-align: center;\">SrcPort</div>";
+    $out .= "<div style=\"font-size: 10px; text-align: center;\">SrcPort</div>";
 
-       $out .= "</td><td width=12 valign=top>";
+    $out .= "</td><td width=12 valign=top>";
 
-                $out .= "&nbsp;";
+    $out .= "&nbsp;";
 
     // Destination IP
     $out .= "</td><td width=80 valign=middle align=center>";
 
-        $out .= "<div style=\"font-size: 10px; text-align: center; color: #DEDEDE\">" . $data["dst_ip"] . "</div>";
+    $out .= "<div style=\"font-size: 10px; text-align: center; color: #DEDEDE\">" . $data["dst_ip"] . "</div>";
 
-        $out .= "<div style=\"font-size: 10px; text-align: center;\">Destination IP</div>";
+    $out .= "<div style=\"font-size: 10px; text-align: center;\">Destination IP</div>";
 
-       $out .= "</td><td width=1 valign=top>";
+    $out .= "</td><td width=1 valign=top>";
 
-                $out .= "&nbsp;";
+    $out .= "&nbsp;";
 
-        // Destination PORT
-        $out .= "</td><td width=30 valign=middle align=center>";
+    // Destination PORT
+    $out .= "</td><td width=30 valign=middle align=center>";
 
-                $out .= "<div style=\"font-size: 10px; text-align: center; color: #DEDEDE\">";
+    $out .= "<div style=\"font-size: 10px; text-align: center; color: #DEDEDE\">";
+    
+    if ($data["dst_port"]) {
+        $out .= $data["dst_port"];
+    } else {
+        $out .= "0";
+    }
+    
+    $out .= "</div>";
+    
+    $out .= "<div style=\"font-size: 10px; text-align: center;\">DstPort</div>";
+    
+    $out .= "</td><td width=15 valign=top>";
 
-                if ($data["dst_port"]) {
-                        $out .= $data["dst_port"];
-                } else {
-                        $out .= "0";
-                }
-
-                $out .= "</div>";
-
-                $out .= "<div style=\"font-size: 10px; text-align: center;\">DstPort</div>";
-
-        $out .= "</td><td width=15 valign=top>";
-
-                $out .= "&nbsp;";
+    $out .= "&nbsp;";
     
         // Protocol
         $out .= "</td><td width=20 valign=middle align=center>";
