@@ -622,7 +622,7 @@ Note: --thing can be one of...
    openfpc-cx2db
    openfpc-cxtracker
  - Config file e.g.
-   openfpc-dafault.conf
+   openfpc-default.conf
  - Node name (defined in any config file in conf_dir)
    MyOpenFPCNode
    CORP.UK.DMZ.WWW

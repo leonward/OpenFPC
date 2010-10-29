@@ -63,7 +63,7 @@ $ofpc_client = "openfpc-client";
 
 // Variable Initialization
 $op         = sanitize("op");         if (empty($op))         $op = "search";
-$ipv        = sanitize("ipv");        if (empty($ipv))        $ipv = "12";
+$ipv        = sanitize("ipv");        if (empty($ipv))        $ipv = "2";
 $cxtid      = sanitize("cxtid");      if (empty($cxtid))      $cxtid = "";
 $sessp      = sanitize("sessp");      if (empty($sessp))      $sessp = "";
 $srcip      = sanitize("srcip");      if (empty($srcip))      $srcip = "";
