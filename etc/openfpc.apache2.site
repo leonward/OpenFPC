@@ -1,6 +1,6 @@
-Alias /openfpc /usr/share/openfpc/
+Alias /openfpc /usr/share/openfpc/www/
  
-<Directory /usr/share/openfpc/>
+<Directory /usr/share/openfpc/www/>
 	Options FollowSymLinks
 
 	# The OpenFPC UI provides the ability to search for and
