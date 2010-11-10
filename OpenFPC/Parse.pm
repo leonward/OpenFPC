@@ -86,7 +86,7 @@ sub sessionToLogline{
 sub parselog{
         # Recieve a logline, and return a ref to a hash that contains its data if valid
         my $logline=shift;
-	my $debug=0;
+	my $debug=1;
         if ($debug) { print "   Parsing the logline :$logline\n"; }
         my %eventdata = ();     # Hash of decoded event
 
@@ -102,7 +102,7 @@ sub parselog{
         }   
  
         if ($debug) {
-                print "   ---Decoded Event---\n" .
+                print "   ---Decoded Event from parselog---\n" .
                        "   Type: $eventdata{'type'}\n" .
                        "   Timestamp: $eventdata{'timestamp'} (" . localtime($eventdata{'timestamp'}) . ")\n" .
 		       "   stime: $eventdata{'stime'} \n" .
@@ -248,9 +248,12 @@ sub SF49IPS{
         }   
 
 	#if ($logline =~ m/(\d{1,5})\/(tcp|udp)\s*(\d{1,5})\/(tcp|udp)/) {
-	if  ($logline =~ m/(\d{1,5})(\/tcp|\/udp| .*{2-10}\/tcp| .*{2-10}\/udp).(\d{1,5})( |\/)/) {
+	if  ($logline =~ m/(\d{1,5})(\/tcp|\/udp|{2-10}\/tcp| .*{2-10}\/udp).(\d{1,5})(\s|\/)/) {
+	#if  ($logline =~ m/(\d{1,5})(\/tcp|\/udp| .*{2-10}\/tcp| .*{2-10}\/udp).(\d{1,5})(\s|\/)/) {
                 $event{'spt'}=$1;
                 $event{'dpt'}=$3;
+		print "LDON LOGLINE IS $logline\n";
+		print "LEON DEST PORT IS $3\n";
         }   
 
 	if ($logline =~ m/(tcp|udp|icmp)/ ) {

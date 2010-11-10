@@ -34,7 +34,7 @@ use Term::ReadKey;
 
 my $now=time();
 my $openfpcver="0.2";
-my $timeoffset=600;		# Default time offset if a --timstamp isn't specified 
+my $timeoffset=0;		# Default time offset if a --timstamp isn't specified 
 my $debug;
 my (%config,$verbose);
 my $version=0.1;
