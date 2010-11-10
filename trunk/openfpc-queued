@@ -749,8 +749,8 @@ sub comms{
 							} 
 						} elsif ($request->{'action'} eq "status") {
 							wlog ("COMMS: $client_ip Recieved Status Request");
-							wlog ("COMMS: $client_ip Running ummary report");
-							my $sum=mksumreport();
+							#wlog ("COMMS: $client_ip Running Summary report");
+							#my $sum=mksumreport();
 							my $status=getstatus($request);
 							my $statmsg="$status->{'success'}||" .
 									"$status->{'ofpctype'}||".
