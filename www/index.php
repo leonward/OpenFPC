@@ -217,9 +217,9 @@ function mainDisplay() {
     $out .= "<form METHOD=\"GET\" NAME=\"logline\" ACTION=\"\">";
     $out .= "<tr>";
     $out .= "<td width=250 valign=middle align=center><div style=\"font-size: 10px; color: #DEDEDE\">";
-    $out .= "Event <input type=text size=100 bgcolor=\"#2299bb\" name=\"logline\"\n";
+    $out .= "Event <input type=text size=100 bgcolor=\"#2299bb\" name=\"logline\">\n";
     $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"Fetch pcap from event\"><br>\n";
-    $out .= "Comment <input type=text size=96 bgcolor=\"#2299bb\" name=\"comment\" value=\"\"\n";
+    $out .= "Comment <input type=text size=96 bgcolor=\"#2299bb\" name=\"comment\" value=\"No comment\">\n";
     $out .= "<input TYPE=\"submit\" NAME=\"op\" VALUE=\"Store pcap form event\">\n";
     $out .= "</table><div>\n";
     return $out;
