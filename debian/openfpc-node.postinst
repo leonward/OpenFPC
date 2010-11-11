@@ -29,4 +29,15 @@ a2ensite openfpc.apache2.site
 service apache2 reload
 touch /etc/openfpc/apache2.passwd
 
+while [ `wc -l /etc/openfpc/apache2.passwd|awk {'print $1'}` -lt "1" ];do
+
+    read -p "[*] Enter webgui username: (empty==skip)"
+    if [ "$REPLY" != "" ]; then
+        htpasswd -c /etc/openfpc/htpasswd $REPLY
+    else
+        exit 0
+    fi
+
+done
+
 #DEBHELPER#
