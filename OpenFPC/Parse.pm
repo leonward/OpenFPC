@@ -247,13 +247,9 @@ sub SF49IPS{
                 $event{'dip'}=$1;
         }   
 
-	#if ($logline =~ m/(\d{1,5})\/(tcp|udp)\s*(\d{1,5})\/(tcp|udp)/) {
-	if  ($logline =~ m/(\d{1,5})(\/tcp|\/udp|{2-10}\/tcp| .*{2-10}\/udp).(\d{1,5})(\s|\/)/) {
-	#if  ($logline =~ m/(\d{1,5})(\/tcp|\/udp| .*{2-10}\/tcp| .*{2-10}\/udp).(\d{1,5})(\s|\/)/) {
+	if  ($logline =~ m/(\d{1,5})(\/tcp|\/udp|.*{2-10}\/tcp|.*{2-10}\/udp).(\d{1,5})( |\/)/) {
                 $event{'spt'}=$1;
                 $event{'dpt'}=$3;
-		print "LDON LOGLINE IS $logline\n";
-		print "LEON DEST PORT IS $3\n";
         }   
 
 	if ($logline =~ m/(tcp|udp|icmp)/ ) {

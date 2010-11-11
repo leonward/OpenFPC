@@ -1309,7 +1309,8 @@ sub doExtract{
                 chomp $_;
                 my $filename="$tempdir/$mergefile-$pcapid.pcap";
                 push(@outputpcaps,$filename);
-                my $exec="$config{'TCPDUMP'} -r $_ -w $filename $bpf > /dev/null 2>&1";
+		my $exec="$config{'TCPDUMP'} -r $_ -w $filename $bpf > /dev/null 2>&1";
+                $exec="$config{'TCPDUMP'} -r $_ -w $filename $bpf" if ($debug) ; # Show tcpdump o/p if debug is on
 		wlog("DEBUG: Exec: $exec\n") if ($debug);
                 `$exec`;
         }
