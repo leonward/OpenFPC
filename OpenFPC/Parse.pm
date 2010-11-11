@@ -86,7 +86,7 @@ sub sessionToLogline{
 sub parselog{
         # Recieve a logline, and return a ref to a hash that contains its data if valid
         my $logline=shift;
-	my $debug=1;
+	my $debug=0;
         if ($debug) { print "   Parsing the logline :$logline\n"; }
         my %eventdata = ();     # Hash of decoded event
 
