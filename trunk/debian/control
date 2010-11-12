@@ -28,7 +28,7 @@ Section: net
 Priority: optional
 Architecture: all
 Depends: ${shlibs:Depends}, ${misc:Depends}, openfpc-common
-Recommends: wireshark
+Recommends: wireshark, unzip
 Description: OpenFPC - An Open Full Packet Capture Setup
  OpenFPC is a set of scripts that combine to provide
  a lightweight full-packet network traffic recorder

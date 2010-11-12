@@ -498,6 +498,7 @@ sub getstatus{
 		sessionspace => "Disabled",	# Space available in session data partition
 		sessionused => "Disabled",	# Space consumed by session data (excluding DB)
 		sessioncount => "Disabled",	# Number of sessions in DB
+		sessionlag => 0,		# Number of sessions lagging
 		savespace => 0,			# Space availabe in the savepath
 		saveused => 0,			# Space availabe in the savepath
 		comms => 0,			# Communication with nodes (proxy only)
@@ -576,11 +577,16 @@ sub getstatus{
 			}
 			wlog("DEBUG: Session DB count is $stat{'sessioncount'}\n") if $debug;
 			$dbh->disconnect or wlog("Unable to disconnect from DB $DBI::errstr");
+                        if (opendir(SESSION_DIR,$config{'SESSION_DIR'}) ) { 
+                        	while (my $filename=readdir(SESSION_DIR)) {
+                                	$stat{'sessionlag'}++ unless $filename =~ /^(\.|failed)/;
+                                }
+			}
 		} else {
 			wlog("DEBUG: Session data disabled on this node");
 		}
-		# Check we are providing back some valid data
 
+		# Check we are providing back some valid data
 		if ($stat{'packetspace'} and $stat{'savespace'} and
 				$stat{'sessionspace'} and
 				$stat{'ld1'} and
@@ -761,6 +767,7 @@ sub comms{
 									"$status->{'sessionspace'}||" .
 									"$status->{'sessionused'}||".
 									"$status->{'sessioncount'}||".
+									"$status->{'sessionlag'}||".
 									"$status->{'savespace'}||" .
 									"$status->{'saveused'}||".
 									"$status->{'ld1'}||" .
