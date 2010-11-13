@@ -1,5 +1,4 @@
 #!/usr/bin/perl
-
 #########################################################################################
 # Copyright (C) 2010 Leon Ward 
 # extract.cgi - Part of the OpenFPC - (Full Packet Capture) project
@@ -43,7 +42,7 @@ my $openfpcpass="bob";	# Password to log into the openfpc-queued instance
 my $openfpcserver="localhost";	# OpenFPC Queue address (hostname/ip)
 my $openfpcport="4242";		# OpenFPC port
 ############# Nothing to do below this line #################
-my $debug=0;	# If 1, we will display a link to the file to download rather than
+my $debug=1;	# If 1, we will display a link to the file to download rather than
 		# push the pcap file for download directly. Includes verbose data
 
 my %req=(   	user => $openfpcuser,
@@ -72,6 +71,7 @@ my %result=(
                 expected_md5 => 0,
                 message => 0,
                 size => 0,
+		filetype => 0,
 );  
 my $tempdir=tempdir(CLEANUP => 1);
 my $now=time();
@@ -87,29 +87,54 @@ sub norm_time($) {
 
 	unless ( $ts =~ /^\d{1,10}$/ ) {
 		$epoch=str2time($ts);
+        	return($epoch);
+	} else {
+		return($ts);
 	}
-        return($epoch);
 }
 
 # Input validation of param(s);
-
-$req{'sip'}  	= param('sip')	    if param('sip')        =~	/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/; 
-$req{'dip'}  	= param('dip')      if param('dip')        =~ 	/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/; 
-$req{'proto'}	= param('proto')    if (param('proto')     =~ 	/^(tcp|udp|icmp)$/);
-$req{'dpt'}  	= param('dpt')      if (param('dpt')       =~ 	/^\d{1,5}$/ );
-$req{'spt'}  	= param('spt')      if (param('spt')       =~ 	/^\d{1,5}$/ );
-$req{'action'}	= param('action')   if (param('action')    =~   /^(fetch|store|status)$/);
-$req{'comment'}	= param('comment')  if (param('comment')   =~   /^[A-Za-z0-9\s]/ ) ;
-$req{'filename'}= param('filename') if (param('filename')  =~   /^[A-Za-z0-9\s]/ ) ;
-$req{'logline'}	= param('logline')  if (param('logline'));      # How can I validate this? 
-$debug=1 if param('debug');
+if (defined param('sip')) { 
+	$req{'sip'} = param('sip') 		if param('sip')  =~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/ ;
+}
+if (defined param('dip')) {
+	$req{'dip'} = param('dip')      	if param('dip')	 =~ 	/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/; 
+}
+if (defined param('proto')) {
+	$req{'proto'}	= param('proto')    	if param('proto')	 =~ 	/^(tcp|udp|icmp)$/;
+}
+if (defined param('dpt')) {
+	$req{'dpt'}  	= param('dpt')      	if param('dpt')	 =~ 	/^\d{1,5}$/;
+}
+if (defined param('spt')) {
+	$req{'spt'}  	= param('spt')      	if param('spt')	 =~ 	/^\d{1,5}$/;
+}
+if (defined param('action')) {
+	$req{'action'}	= param('action')   	if param('action')    =~   /^(fetch|store|status)$/;
+}
+if (defined param('comment')) {
+	$req{'comment'}	= param('comment')  	if param('comment')   =~   /^[A-Za-z0-9\s]/;
+}
+if (defined param('filename')) {
+	$req{'filename'}= param('filename') 	if param('filename')  =~   /^[A-Za-z0-9\s]/;
+}
+if (defined param('logline')) {
+	$req{'logline'}	= param('logline')  	if param('logline');      # How can I validate this? 
+}
+if (defined param('debug')){ 
+	$debug=1 if param('debug');
+}
+if (defined param('timestamp')) {
+	$req{'timestamp'} = norm_time(param('timestamp'));
+}
+if (defined param('stime')) {
+	$req{'stime'} = norm_time(param('stime'));
+}
+if (defined param('etime')){
+	$req{'etime'} = norm_time(param('etime'));
+}
 
 # Timestamps are "special" because we want to support multiple date formats. Date::Parse to the rescue!
-
-$req{'tstamp'} = norm_time(param('tstamp')) if (param('tstamp')) ;
-$req{'ststamp'} = norm_time(param('ststamp')) if (param('ststamp')) ;
-$req{'etstamp'} = norm_time(param('etstamp')) if (param('etstamp')) ;
-
 
 unless ($req{'filename'}) {
 	$req{'filename'} = "$tempdir/openfpc-noname-$now";
@@ -128,8 +153,9 @@ my $sock = IO::Socket::INET->new(
 	Proto => 'tcp',
 );
 unless ($sock) {
-         $result{'message'} = "Unable to create socket to server $openfpcserver on TCP:$openfpcport\n";
-         exit 1;
+	print "Content-type: text/html\n\n";
+        $result{'message'} = "Unable to create socket to server $openfpcserver on TCP:$openfpcport\n";
+	print "Error $result{'message'} \n"; 
 }
  
 %result=OpenFPC::Request::request($sock,\%req);
@@ -149,19 +175,20 @@ if ($debug) {
 		"dpt = $req{'dpt'} \n" .
 		"protocol = $req{'proto'} \n" .
 		"Logline = $req{'logline'} \n" .
-		"Timestamp = $req{'tstamp'} (" . localtime($req{'tstamp'}) . ")\n" .
-		"sTimestamp = $req{'ststamp'} (" . localtime($req{'ststamp'}) . ")\n".
-		"eTimestamp = $req{'etstamp'} (" . localtime($req{'etstamp'}) . ")\n".
+		"Timestamp = $req{'timestamp'} (" . localtime($req{'timestamp'}) . ")\n" .
+		"sTimestamp = $req{'stime'} (" . localtime($req{'stime'}) . ")\n".
+		"eTimestamp = $req{'etime'} (" . localtime($req{'etime'}) . ")\n".
 		"Filename = $req{'filename'}\n" .
 		"now = $now (" . localtime($now) .") \n";
-		print "-----------Result-----------<br>" .
+
+	print "-----------Result-----------\n" .
 		"Message: $result{'message'} <br>" .
 		"Filename: $result{'filename'}<br>". 
 		"MD5 $result{'md5'}<br>" .
 		"Success: $result{'success'} <br>" .
 		"Filetype: $result{'filetype'} \n" .
 		"\n" ;
-		print Dumper %result;
+	print Dumper %result;
 } else {
 	if ($result{'success'}) {
 

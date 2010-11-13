@@ -45,6 +45,7 @@ sub receivefile{
 		size => 0,
 		filename => 0,
 		ext => 0,
+		filetype => 0,
 	};
 
         print "Expecting MD5 for file is $svrmd5\n" if ($debug); 
@@ -139,6 +140,7 @@ sub request{
 			'message' => 'Unknown Error',
 			'md5'	=> 0,
 			'position' => 'None',
+			'filetype' => 0,
 			'expected_md5'	=> 0,
 			'filename' => 0,
 			'size' => 0,
