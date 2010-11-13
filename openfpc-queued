@@ -1130,6 +1130,34 @@ sub mkBPF($) {
 }
 
 
+=head2 getBufferInfo
+	Get info about the traffic buffer.
+	Takes no args,
+	Returns a hash of buffer info.
+=cut
+sub getBufferInfo{
+	my %info=(
+		path => 0,
+		firstfilename => 0,
+		firsttimestamp => 0,
+		lastfilename => 0,
+		lasttimestamp => 0,
+		fileprefix => 0,
+	);
+	my $splitstring="$config{'NODENAME'}\.pcap\.";
+
+	opendir(DIR,$config{'BUFFER_PATH'}) or wlog("ERROR: Cant open buffer_path");
+
+	my @files=readdir(DIR);
+	@files=reverse sort(@files);
+	$info{'firstfilename'} = shift(@files);
+	$info{'lastfilename'} = $files[-1];
+        ($info{'fileprefix'}, $info{'firsttimestamp'})  = split(/$splitstring/,$info{'firstfilename'});
+        ($info{'fileprefix'}, $info{'lasttimestamp'})  = split(/$splitstring/,$info{'lastfilename'});
+
+	return(\%info);
+}
+
 =head2 bufferRange
 	Return an array of filenames of PCAP files to serch over
 	Expects a startfilename, and an endfilename
@@ -1141,16 +1169,32 @@ sub bufferRange {
 	my $endtimestamp=shift;
 	my $include=0;
 	my @pcaps=();
-	my @tmp=();	# temp array for a call to findBuffers;
+	my $startfile=0;
+	my $endfile=0;
+	my $bufferinfo=getBufferInfo();
 
-	@tmp=findBuffers($starttimestamp,0);
-	my $startfile=$tmp[0];		# Grab expected -1
-	@tmp=findBuffers($endtimestamp,0);
-	my $endfile=$tmp[0];		# Grab expected +1 
+	wlog("DEBUG: Buffer Range mode") if $debug;
 
-	print "\nbufferRange mode \n".
-		"Starting seach in $startfile ($starttimestamp)\n".
-		"Ending search in $endfile ($endtimestamp)\n" if ($vdebug);
+	# Find first and last files/timestamps in case we are performing an out-of-bounds search
+
+	my @starttmp=findBuffers($starttimestamp,0);
+	if (defined $starttmp[0] ) {
+		$startfile=$starttmp[0];
+	} else {
+		wlog("DEBUG: Startfile to early for buffer range. Using first file $bufferinfo->{'firstfilename'}\n");
+		$startfile=$bufferinfo->{'firstfilename'};
+	}
+
+	my @endtmp=findBuffers($endtimestamp,0);
+	if (defined $endtmp[0] ) {
+		$endfile=$endtmp[0];
+	} else {
+		wlog("DEBUG: Endfile to late for buffer range. Using last file $bufferinfo->{'lastfilename'}\n");
+		$endfile=$bufferinfo->{'lastfilename'};
+	}
+
+	wlog("Starting serach in $startfile ($starttimestamp)\n") if ($vdebug);
+	wlog("Ending   search in $endfile ($endtimestamp)\n") if ($vdebug);
 
 	# Look for files between startfile and endfile
 	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-$config{'NODENAME'}.pcap.*`;	
@@ -1197,7 +1241,7 @@ sub findBuffers {
                 push(@pcaps,$_);
         }
 
-        wlog("DEBUG: $numberOfFiles requested each side of target timestamp ($targetTimeStamp) \n") if $debug;
+        wlog("DEBUG: $numberOfFiles requested each side of target timestamp ($targetTimeStamp) ( " . localtime($targetTimeStamp) . ")\n") if $debug;
 
         $targetTimeStamp=$targetTimeStamp-0.5;                  # Remove risk of TARGET conflict with file timestamp.   
         push(@timestampArray, $targetTimeStamp);                # Add target timestamp to an array of all file timestamps
