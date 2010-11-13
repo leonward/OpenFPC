@@ -1,3 +1,30 @@
+# OpenFPC Apache2 Config
+
+ScriptAlias /openfpc/cgi-bin/ /usr/share/openfpc/cgi-bin/
+
+<Directory /usr/share/openfpc/cgi-bin>
+     	AllowOverride None
+      	Options +ExecCGI -MultiViews +SymLinksIfOwnerMatch
+#       	Order allow,deny
+#       	Allow from all
+
+	# The OpenFPC UI provides the ability to search for and
+	# extract any traffic found on the network. This of course
+	# is a power that should only be provided to those that are
+	# responsible.
+	# I'm enabling Basic auth here, but in production perhaps
+	# radius would be a better, more manageable and scalable choice.
+	# - Leon
+
+
+	AuthType Basic
+	AuthName "OpenFPC Search and extraction UI"
+	AuthUserFile /etc/openfpc/apache2.passwd
+	Require valid-user
+
+</Directory>
+
+
 Alias /openfpc /usr/share/openfpc/www/
  
 <Directory /usr/share/openfpc/www/>
@@ -18,10 +45,3 @@ Alias /openfpc /usr/share/openfpc/www/
 
 </Directory>
 
-#ScriptAlias /dev/ /home/lward/code/openfpc/cgi-bin/
-#<Directory "/usr/share/openf">
-#     	AllowOverride None
-#      	Options +ExecCGI -MultiViews +SymLinksIfOwnerMatch
-#       	Order allow,deny
-#       	Allow from all
-#</Directory>

@@ -974,6 +974,11 @@ sub donode{
 		$bpf=$request->{'bpf'};
 	}
 
+	unless ($bpf) {
+		wlog("NODE: Request: $request->{'rid'} Insufficent constraints for request (Null BPF)");
+		$result{'message'} = "Insufficent constraints for request (Null BPF)";
+		return(\%result);
+	}
 	wlog("NODE: Request: $request->{'rid'} User: $request->{'user'} BPF: $bpf");
 
 	# Here
@@ -1200,7 +1205,6 @@ sub findBuffers {
 
         foreach my $pcap (@pcaps) {
 		my $splitstring="$config{'NODENAME'}\.pcap\.";
-		print "SPLIT is $splitstring\n";
                 (my $fileprefix, my $timestamp)  = split(/$splitstring/,$pcap);
                 print " - Adding file $pcap with timestamp $timestamp (" . localtime($timestamp) . ") to hash of timestamps \n" if ($vdebug and $debug);
                 $timeHash{$timestamp} = $pcap;
