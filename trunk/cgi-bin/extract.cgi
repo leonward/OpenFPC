@@ -37,17 +37,17 @@ use File::Temp(qw(tempdir));
 # TODO: Decide if these should be configured here, or in a .conf somewhere.
 # For now, this works fine.
 
-my $openfpcuser="bob";	# Username to log into the openfpc-queued instance
-my $openfpcpass="bob";	# Password to log into the openfpc-queued instance
+my $openfpcuser="openfpc";	# Username to log into the openfpc-queued instance
+my $openfpcpass="openfpc";	# Password to log into the openfpc-queued instance
 my $openfpcserver="localhost";	# OpenFPC Queue address (hostname/ip)
 my $openfpcport="4242";		# OpenFPC port
 ############# Nothing to do below this line #################
-my $debug=1;	# If 1, we will display a link to the file to download rather than
+my $debug=0;	# If 1, we will display data about the extracted file rather than
 		# push the pcap file for download directly. Includes verbose data
 
 my %req=(   	user => $openfpcuser,
                 password => $openfpcpass,
-                action => 0, 
+                action => "fetch", 
                 device => 0,
                 logtype => 0,
                 filetype => 0,
@@ -161,7 +161,6 @@ unless ($sock) {
 %result=OpenFPC::Request::request($sock,\%req);
 close($sock);
 
-
 if ($debug) {
 	print "Content-type: text/html\n\n";
 	print "<pre>--------------------------------------------------\n".
@@ -186,6 +185,7 @@ if ($debug) {
 		"Filename: $result{'filename'}<br>". 
 		"MD5 $result{'md5'}<br>" .
 		"Success: $result{'success'} <br>" .
+		"Size: $result{'size'} <br>" .
 		"Filetype: $result{'filetype'} \n" .
 		"\n" ;
 	print Dumper %result;

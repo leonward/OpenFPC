@@ -33,6 +33,8 @@ CONF_FILES="etc/openfpc-example-node.conf etc/openfpc-example-proxy.conf etc/rou
 PROG_FILES="openfpc-client openfpc-queued openfpc-setup.pl openfpc-cx2db openfpc openfpc-dbmaint"
 WWW_FILES="index.php bluegrade.png"
 WWW_DIR="/usr/share/openfpc/www"
+CGI_FILES="extract.cgi"
+CGI_DIR="/usr/share/openfpc/cgi-bin"
 PERL_MODULES="Parse.pm Request.pm"
 INIT_SCRIPTS="openfpc-daemonlogger openfpc-cx2db openfpc-cxtracker openfpc-queued"
 INIT_DIR="/etc/init.d/" 
@@ -171,6 +173,12 @@ function doinstall()
 	else
 		mkdir --parent $WWW_DIR || die "[!] Unable to mkdir $WWW_DIR"
 	fi
+	if [ -d $CGI_DIR ] 
+	then
+		echo -e " *  Found $CGI_DIR"
+	else
+		mkdir --parent $CGI_DIR || die "[!] Unable to mkdir $CGI_DIR"
+	fi
 
 	####################################
 	# Install files
@@ -206,6 +214,14 @@ function doinstall()
 	do
 		echo -e " -  Installing $file"
 		cp www/$file $WWW_DIR/$file
+	done
+
+	###### CGI files #####
+
+	for file in $CGI_FILES
+	do
+		echo -e " -  Installing $file"
+		cp cgi-bin/$file $CGI_DIR/$file
 	done
 
 	#################################
@@ -328,6 +344,16 @@ function remove()
 			rm $WWW_DIR/$file  || echo -e "[!] Unable to delete $WWW_DIR/$file"
 		else
 			echo -e "    Cant Find $WWW_DIR/$file"
+		fi
+	done
+	echo -e "[*] Removing CGI files"
+	for file in $CGI_FILES
+	do
+		if [ -f $CGI_DIR/$file ]
+		then	
+			rm $CGI_DIR/$file  || echo -e "[!] Unable to delete $CGI_DIR/$file"
+		else
+			echo -e "    Cant Find $CGI_DIR/$file"
 		fi
 	done
 
