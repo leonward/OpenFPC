@@ -19,7 +19,7 @@
 
 
 // Read in configuration from openfpc.conf
-$configfile="/etc/openfpc/openfpc-example-node.conf";
+$configfile="/etc/openfpc/openfpc-default.conf";
 # --------------------------------------------------------------------------
 // Nothing to do below this line.
 $debug = 0;
