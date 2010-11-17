@@ -600,7 +600,7 @@ To start all daemons required to operate an OpenFPC node with the name
 
      openfpc --action start -t Example_Node  
      or
-     openfpc --action start -t openfpc-example-node.conf
+     openfpc --action start -t openfpc-default.conf
 
 To start all the instances of the openfpc-queued daemon
      openfpc --action start -t openfpc-queued

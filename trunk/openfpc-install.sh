@@ -29,7 +29,7 @@
 openfpcver="0.2"
 PROG_DIR="/usr/local/bin"
 CONF_DIR="/etc/openfpc"
-CONF_FILES="etc/openfpc-example-node.conf etc/openfpc-example-proxy.conf etc/routes.ofpc"
+CONF_FILES="etc/openfpc-default.conf etc/openfpc-example-proxy.conf etc/routes.ofpc"
 PROG_FILES="openfpc-client openfpc-queued openfpc-setup.pl openfpc-cx2db openfpc openfpc-dbmaint"
 WWW_FILES="index.php bluegrade.png"
 WWW_DIR="/usr/share/openfpc/www"
