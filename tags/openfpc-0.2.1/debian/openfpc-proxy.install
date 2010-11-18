@@ -1,0 +1,8 @@
+openfpc-queued usr/bin/
+openfpc usr/bin/
+
+etc/init.d/openfpc-queued etc/init.d
+
+etc/openfpc-example-proxy.conf etc/openfpc/
+etc/routes.ofpc etc/openfpc/
+

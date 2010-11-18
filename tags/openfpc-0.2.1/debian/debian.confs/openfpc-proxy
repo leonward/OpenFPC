@@ -1,0 +1,42 @@
+function ofpcq_start() 
+{
+        if [ "$IAM" != "root" ]
+        then
+                die "[!] Must be root"
+        fi
+        if [ -f $OFPC_Q_PID ]
+        then
+                QPID=$(cat $OFPC_Q_PID) || QPID=none
+                if ps $QPID > /dev/null 2>&1
+                then
+                        echo -e "[*] OpenFPC Queue Daemon running as Pid: $QPID"
+                fi
+        else
+                echo -e "[*] Starting OpenFPC Queue Daemon"
+                $OPENFPCQD -c $CONFIG --daemon
+                QPID=$(cat $OFPC_Q_PID) || QPI=none
+                if ps $QPID > /dev/null 2>&1
+                then
+                        echo -e "[-] OpenFPC Queue Daemon running as Pid: $QPID"
+                fi
+        fi
+}
+
+function ofpcq_stop()
+{
+        if [ "$IAM" != "root" ]
+        then
+                die "[!] Must be root"
+        fi
+        if [ -f $OFPC_Q_PID ]
+        then
+                QPID=$(cat $OFPC_Q_PID) || QPID=none
+                if ps $QPID > /dev/null 2>&1
+                then
+                        echo -e "[*] OpenFPC Queue Daemon running as Pid: $QPID"
+                        kill $QPID
+                fi
+        else
+                echo -e "[!] OpenFPC Queue Dameon not running"
+        fi
+}

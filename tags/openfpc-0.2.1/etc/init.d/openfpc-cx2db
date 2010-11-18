@@ -1,0 +1,64 @@
+#!/bin/sh
+#
+### BEGIN INIT INFO
+# Provides:          openfpc-cx2db
+# Required-Start:    $network
+# Required-Stop:     $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: openfpc-cx2db
+# Description:       Upload connection data into a mysql DB
+#		     Part of the OpenFPC project
+# 		     http://www.openfpc.org
+### END INIT INFO
+
+# Leon Ward - leon@openfpc.org
+# This looks simple because it is. All of the magic is in the openfpc perl script
+
+COMPONENT=openfpc-cx2db
+IAM=`whoami`;
+
+die(){
+	echo $1
+	exit 1
+}
+
+startstop() {
+	ACTION=$1
+	if [ "$IAM" != "root" ]; then
+        	die "[!] Must be root to run this script"
+	fi
+
+	if [ `which openfpc` ] ; then
+		openfpc -t $COMPONENT --action $ACTION -q
+	else 
+		echo "Failed: (Unable to find openfpc in path)"
+	fi
+}
+
+
+# See how we were called.
+case "$1" in
+  start)
+        startstop $1
+	;;
+  stop)
+        startstop $1
+	;;
+  status)
+	startstop status
+	;;
+  restart)
+        startstop stop 
+        startstop start
+        ;;
+  force-reload)
+        startstop stop 
+        startstop start
+        ;;
+  *)
+        echo "Usage: $0 {start|stop|restart|status|force-reload}"
+        exit 1
+esac
+
+exit 0

@@ -1,0 +1,43 @@
+#!/bin/sh
+
+if ! getent passwd openfpc >/dev/null; then
+       adduser --quiet --system --group --no-create-home --home /nsm_data/ --shell /usr/sbin/nologin openfpc
+fi
+
+HOSTNAME=`hostname -s`
+OFPC_DIR=/var/tmp/openfpc
+PCAP_DIR=$OFPC_DIR/pcap
+SESSION_DIR=$OFPC_DIR/sessions
+
+OFPC_DIRS="$PCAP_DIR $SESSION_DIR"
+
+for DIR in $OFPC_DIRS
+do
+	if [ ! -d $DIR ]; then
+        	mkdir -vp $DIR || exit 74
+	        chown -vR openfpc:openfpc $DIR || exit 74
+	fi
+done
+
+update-rc.d  openfpc-daemonlogger defaults > /dev/null
+update-rc.d  openfpc-queued defaults > /dev/null
+update-rc.d  openfpc-cxtracker defaults > /dev/null
+update-rc.d  openfpc-cx2db defaults > /dev/null
+
+# openfpc.apache2.conf
+a2ensite openfpc.apache2.site
+service apache2 reload
+touch /etc/openfpc/apache2.passwd
+
+while [ `wc -l /etc/openfpc/apache2.passwd|awk {'print $1'}` -lt "1" ];do
+
+    read -p "[*] Enter webgui username: (empty==skip)"
+    if [ "$REPLY" != "" ]; then
+        htpasswd -c /etc/openfpc/htpasswd $REPLY
+    else
+        exit 0
+    fi
+
+done
+
+#DEBHELPER#
