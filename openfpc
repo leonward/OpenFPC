@@ -596,11 +596,11 @@ either an instance, or all copies of a specific daemon.
 
 e.g
 To start all daemons required to operate an OpenFPC node with the name 
-\"Example_Node\"
+\"Default_Node\"
 
-     openfpc --action start -t Example_Node  
+     openfpc --action start -t Default_Node  
      or
-     openfpc --action start -t openfpc-default.conf
+     openfpc --action start -t /etc/openfpc/openfpc-default.conf
 
 To start all the instances of the openfpc-queued daemon
      openfpc --action start -t openfpc-queued
@@ -610,20 +610,20 @@ To get the status of all daemons that are configured to run on this host
 
 ###############################################################################
 
-openfpc --action --thing <thing to take action on> --quiet
+openfpc <arguements>
 	--action  or -a         start/stop/status
         --quiet   or -q         Quiet output for init scripts
         --thing   or -t         Take action on this \"thing\"
 
 Note: --thing can be one of...
- - A Daemon name
+ - A Daemon name e.g.
    openfpc-daemonlogger
    openfpc-queued
    openfpc-cx2db
    openfpc-cxtracker
  - Config file e.g.
    openfpc-default.conf
- - Node name (defined in any config file in conf_dir)
+ - Node name (defined in any config file in conf_dir) e.g.
    MyOpenFPCNode
    CORP.UK.DMZ.WWW
 

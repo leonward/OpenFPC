@@ -72,26 +72,28 @@ function checkdeps()
 	if [ "$DISTRO" == "DEBIAN" ] 
 	then
 		DEPS="apache2 daemonlogger tcpdump tshark libarchive-zip-perl libfilesys-df-perl libapache2-mod-php5 mysql-server php5-mysql libdatetime-perl libdbi-perl" 
+
+		# Check if some obvious dependencies are met	
+		for dep in $DEPS
+		do
+			echo -e "[-] Checking for $dep ..."
+			if  dpkg --status $dep > /dev/null 2>&1
+			then
+				echo -e "    $dep Okay"
+			else
+				DEPSOK=1
+				echo -e "[!] ERROR: Package $dep is not installed."
+			fi
+		done	
+
 	elif [ "$DISTRO" == "REDHAT" ] 
 	then
 		DEPS=""
+		echo -e "[-] Checking status on RedHat"
 	else
 		echo -e "Package checking only supported on Debian/Redhat OSs"
-		echo "Use --force to skip checks, and fix problems by hand"
+		echo "Use --force to skip package checks, and fix any problems by hand"
 	fi
-
-	# Check if some obvious dependencies are met	
-	for dep in $DEPS
-	do
-		echo -e "[-] Checking for $dep ..."
-		if  dpkg --status $dep > /dev/null 2>&1
-		then
-			echo -e "    $dep Okay"
-		else
-			DEPSOK=1
-			echo -e "[!] ERROR: Package $dep is not installed."
-		fi
-	done	
 
 
 	if [ "$DEPSOK" != 0 ]
@@ -265,9 +267,10 @@ function doinstall()
 	elif [ "$DISTRO" == "REDHAT" ]
 	then
 		echo "[*] Performing a RedHat init Install"
-		echo NOT DONE!!!!!
-		exit 1
+		echo "[-] RedHat install un-tested. YMMV"
+
 	fi
+
 	echo -------------------------------
 	echo "OpenFPC has a web UI. For now we use Basic Auth to secure it"
 	read -p "Username: " user
@@ -286,7 +289,6 @@ function doinstall()
      
 "
 }
-
 
 function remove()
 {
