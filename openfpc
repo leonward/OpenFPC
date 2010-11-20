@@ -27,7 +27,7 @@ use warnings;
 use Getopt::Long;
 use Switch;
 use Data::Dumper;
-use File::Path qw(make_path);
+use File::Path qw(mkpath);
 
 my $openfpcver=0.3;
 my $conf_dir="/etc/openfpc";
@@ -378,7 +378,7 @@ sub openfpcdaemonlogger{
 				}
 				# Check if BUFFER_PATH exists and is writable
 				if ( ! -d  $configs{$instance}{'BUFFER_PATH'}){
-					unless (make_path($configs{$instance}{'BUFFER_PATH'})) { 
+					unless (mkpath($configs{$instance}{'BUFFER_PATH'})) { 
 						printf '%10s',"Failed\n";	
 						print " - Unable to create $configs{$instance}{'BUFFER_PATH'}\n" unless $quiet;
 						return(0);
@@ -461,7 +461,7 @@ sub openfpccxtracker{
 				}
 				# Check if BUFFER_PATH exists and is writable
 				if ( ! -d  $configs{$instance}{'SESSION_DIR'}){
-					unless (make_path($configs{$instance}{'SESSION_DIR'})) { 
+					unless (mkpath($configs{$instance}{'SESSION_DIR'})) { 
 						printf '%10s',"Failed\n";	
 						print " - Unable to create $configs{$instance}{'SESSION_DIR'}\n" unless $quiet;
 						return(0);
