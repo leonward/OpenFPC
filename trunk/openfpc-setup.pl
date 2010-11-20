@@ -25,7 +25,7 @@ use warnings;
 use Getopt::Long;
 use Data::Dumper;
 use File::Copy;
-use File::Path qw(make_path);
+use File::Path qw(mkpath);
 
 # Confguration Defaults
 my $debug=0;
@@ -370,7 +370,7 @@ if ($config{'ENABLE_SESSION'})  {
 	
 	unless ( -d $config{'SESSION_DIR'} )  {
 		print "- Creating $config{'SESSION_DIR'}\n";
-		make_path($config{'SESSION_DIR'})  or die("Unable to mkdir $config{'SESSION_DIR'}");
+		mkpath($config{'SESSION_DIR'})  or die("Unable to mkdir $config{'SESSION_DIR'}");
 	}
 }
 
