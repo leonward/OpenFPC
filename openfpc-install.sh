@@ -26,7 +26,7 @@
 # It's goal is to take a system from being OpenFPC-less to one that has OpenFPC operating in a semi-standard setup.
 # By semi-standard i refer to similar to how the .deb install leaves the system.
 
-openfpcver="0.2"
+openfpcver="0.3"
 PROG_DIR="/usr/local/bin"
 CONF_DIR="/etc/openfpc"
 CONF_FILES="etc/openfpc-default.conf etc/openfpc-example-proxy.conf etc/routes.ofpc"
@@ -82,14 +82,27 @@ function checkdeps()
 				echo -e "    $dep Okay"
 			else
 				DEPSOK=1
-				echo -e "[!] ERROR: Package $dep is not installed."
+				echo -e "    ERROR: Package $dep is not installed."
 			fi
 		done	
 
 	elif [ "$DISTRO" == "REDHAT" ] 
 	then
-		DEPS=""
+		DEPS="httpd perl-Archive-Zip perl-DateTime perl-Filesys-Df"
 		echo -e "[-] Checking status on RedHat"
+
+		# Check if some obvious dependencies are met	
+		for dep in $DEPS
+		do
+			echo -e "[-] Checking for $dep ..."
+			if  rpm -q $dep > /dev/null 2>&1
+			then
+				echo -e "    $dep Okay"
+			else
+				DEPSOK=1
+				echo -e "[!] ERROR: Package $dep is not installed."
+			fi
+		done	
 	else
 		echo -e "Package checking only supported on Debian/Redhat OSs"
 		echo "Use --force to skip package checks, and fix any problems by hand"
@@ -106,7 +119,9 @@ function checkdeps()
 			echo -e "Hint: sudo apt-get install $DEPS\n"
 		else 
 			echo -e "As you're running a distro based on RedHat..."
-			echo -e "Hint: yum install $DEPS\n"
+			echo -e "Hine 1) Enable rpmforge"
+			echo -e "Hint 2) sudo yum install httpd perl-Archive-Zip"
+			echo -e "Hint 3) sudo yum --enablerepo=rpmforge install perl-DateTime perl-Filesys-Df "	
 		fi
 
 		exit 1
@@ -139,6 +154,17 @@ function doinstall()
 {
 
 	chkroot
+	# Setup install for distro type
+	if [ "$DISTRO" == "DEBIAN" ]
+	then
+		PERL_LIB_DIR="/usr/local/lib/site_perl"
+	elif [ "$DISTRO" == "REDHAT" ]
+	then
+		PERL_LIB_DIR="/usr/lib/perl5/site_perl"
+	fi
+
+
+
 	##################################
 	# Check for Dirs
 
@@ -226,20 +252,6 @@ function doinstall()
 		cp cgi-bin/$file $CGI_DIR/$file
 	done
 
-	#################################
-	# Enable website
-
-	if [ -d /etc/apache2/sites-available ]
-	then
-		echo -e "[*] Enabling and restarting Apache2"	
-		# Add openfpc config in apache
-		cp etc/openfpc.apache2.site /etc/apache2/sites-available/
-		a2ensite openfpc.apache2.site
-		service apache2 reload
-		echo -e "[-] -----------------------------------------------------"
-	else
-		echo -e "[!] Cant find apache conf dir. Won't enable web UI"
-	fi
 
 	###### init #######
 
@@ -249,9 +261,28 @@ function doinstall()
 		cp etc/init.d/$file $INIT_DIR/$file
         done
 
+
+	##### Distro specific postinst stuff
+
 	if [ "$DISTRO" == "DEBIAN" ]
 	then
+		#################################
+		# Enable website
+
+		if [ -d /etc/apache2/sites-available ]
+		then
+			echo -e "[*] Enabling and restarting Apache2"	
+			# Add openfpc config in apache
+			cp etc/openfpc.apache2.site /etc/apache2/sites-available/
+			a2ensite openfpc.apache2.site
+			service apache2 reload
+		else
+			echo -e "[!] Cant find apache conf dir. Won't enable web UI"
+		fi
 		echo "[*] Updating init config with update-rc.d"
+
+		#################################
+		# Init scripts
 
 		for file in $INIT_SCRIPTS
 		do
@@ -268,10 +299,24 @@ function doinstall()
 	then
 		echo "[*] Performing a RedHat init Install"
 		echo "[-] RedHat install un-tested. YMMV"
+		PERL_LIB_DIR="/usr/lib/perl5/site_perl"
+
+		#################################
+		# Enable website
+
+		if [ -d /etc/httpd/conf.d ]
+		then
+			echo -e "[*] Enabling and restarting httpd"	
+			# Add openfpc config in apache
+			cp etc/openfpc.apache2.site /etc/httpd/conf.d
+			/etc/init.d/httpd restart
+		else
+			echo -e "[!] Cant find apache conf dir. Won't enable web UI"
+		fi
 
 	fi
 
-	echo -------------------------------
+	echo -e "[-] -----------------------------------------------------"
 	echo "OpenFPC has a web UI. For now we use Basic Auth to secure it"
 	read -p "Username: " user
 	htpasswd -c /etc/openfpc/apache2.passwd $user
@@ -443,7 +488,7 @@ function installstatus()
 	then
 		echo -e "  Installation Okay"
 	else
-		echo -e "  OpenFPC Not installed correctly"
+		echo -e "  OpenFPC is not installed correctly"
 	fi
 	echo -e "[-] --------------------------------"
 }
