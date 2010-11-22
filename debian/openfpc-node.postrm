@@ -12,7 +12,7 @@ case "$1" in
                 rm -rf /var/tmp/openfpc/
 
                 # Remove configuration
-                if [ -e /etc/openfpc/openfpc-example-node.conf ] ; then
+                if [ -e /etc/openfpc/openfpc-default.conf ] ; then
                         rm /etc/openfpc/openfpc-example-node.conf
                 fi
 

@@ -14,6 +14,6 @@ www/bluegrade.png usr/share/openfpc/www
 
 etc/openfpc.apache2.site etc/apache2/sites-available
 
-etc/openfpc-example-node.conf etc/openfpc
+etc/openfpc-default.conf etc/openfpc
 etc/openfpc-example-proxy.conf etc/openfpc
 etc/routes.ofpc etc/openfpc
