@@ -1,0 +1,20 @@
+22 November 2010  Leon Ward  <leon@openfpc.org>
+   
+   All updates by Leon <leon@openfpc.org> and Edward <edwardfjellskaal@gmail.com>
+
+ * Multiple configs can co-exist on a single box
+ * Sourcefire IPS event parsing fixed
+ * Snort-Fast event type no longer required port numbers. Makes multi-session extracts more simple (http attacks for example)
+ * Search via bpf (--bpf command line option to openfpc-client) 
+ * Passwords no longer echo to screen
+ * New init scripts to work with the new openfpc command
+ * LSB compliant init scripts
+ * Better log output (wlog) and verbose message handeling 
+ * Added better example configs (openfpc-default.conf and openfpc-example-proxy.conf)
+ * Enabling session data is now far more simple
+ * Included web-ui, now enabled by default
+ * Space now renders in GB rather tha Bytes
+ * Fixed performance hit on cx2db inserting half open sessions.
+ * Improved help text
+ * The out-of-the-box proxy and node configurations now work with each other
+  
