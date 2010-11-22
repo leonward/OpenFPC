@@ -372,9 +372,7 @@ sub openfpcdaemonlogger{
 			} else {
 				# Check if interface is available
 				if (system("ifconfig $configs{$instance}{'INTERFACE'} up > /dev/null 2>&1")){
-					printf '%10s', "Failed\n";
-					print " - Cant bring $configs{$instance}{'INTERFACE'} up\n" unless $quiet;
-					return(0);
+					print " - WARNING unable to bring $configs{$instance}{'INTERFACE'} up\n" unless $quiet;
 				}
 				# Check if BUFFER_PATH exists and is writable
 				if ( ! -d  $configs{$instance}{'BUFFER_PATH'}){
