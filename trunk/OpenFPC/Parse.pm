@@ -233,7 +233,6 @@ sub SF49IPS{
 		);
 
 	my $logline=shift;
-		print "PROCESSING $1\n";
         if ($logline =~ m/(.*)( *high| medium| low)/) {   # Timestamp comes before priority
         	$event{'timestamp'}=`date --date='$1' +%s`;
 		chomp $event{'timestamp'};
@@ -276,7 +275,9 @@ sub Exim4{
 		'timestamp' => 0,
 		'bpf' => 0,
 		'device' => 0,
-		'parsed' => 0
+		'parsed' => 0,
+		'stime' => 0,
+		'etime' => 0,
 		);
 
 	my $logline=shift;
