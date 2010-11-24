@@ -15,7 +15,7 @@ openfpc (0.3) unstable; urgency=low
   * Improved help text
   * The out-of-the-box proxy and node configurations now work with each other
 
- -- Leon Ward <leon@openfpc.org>  Tue, 23 Nov 2010 16:54:00 
+ -- Leon Ward <leon@openfpc.org>  Tue, 23 Nov 2010 16:54:00 +0000
 
 openfpc (0.2-3) unstable; urgency=low
 
