@@ -19,7 +19,7 @@ my $manual=0;
 my $quiet=0;
 
 my %logs=(
-	SnortFast => [ "May  3 15:16:30 rancid snort: [1:13923:3] SMTP MailEnable SMTP HELO command denial of service attempt [Classification: Attempted Denial of     Service] [Priority: 2]: {TCP} 213.138.226.169:2690 -> 80.68.89.43:25"] ,
+	SnortSyslog => [ "May  3 15:16:30 rancid snort: [1:13923:3] SMTP MailEnable SMTP HELO command denial of service attempt [Classification: Attempted Denial of     Service] [Priority: 2]: {TCP} 213.138.226.169:2690 -> 80.68.89.43:25"] ,
 
 	SF49IPS => [ 	"2010-03-31 13:24:36	 high	 	 	 IPS Demo DE / sfukse3d00.lab.emea.sourcefire.com	 tcp	Go to Host View 192.168.4.248	Go to Host View 207.46.108.86	 Viktor Westcott (viktor.westcott, ldap)	 	 3044/tcp	 1863/tcp	 Standard Text Rule	 CHAT MSN message (1:540)	 Potential Corporate Policy Violation	 0" ,
 			"2010-10-25 11:56:29	high		 	IPS Demo DE / sfukse3d00.lab.emea.sourcefire.com	tcp	 192.168.4.249	 69.104.33.82	 	 	3537/tcp	6667 (ircd)/tcp	Standard Text Rule	CHAT IRC message (1:1463)	Potential Corporate Policy Violation" ,
@@ -37,6 +37,8 @@ my %logs=(
 			"ofpc-v1 type:event sip:192.168.222.1 timestamp:1285142949" ] ,
 
 	ofpcv1BPF => [ "ofpc-v1-bpf bpf: host 1.1.1.1 and host 2.2.2.2 not tcp port 23 stime:1274864808 etime:1274864899" ] ,
+
+	BardyardFast => [ "1/24/10-10:43:38.846134  [**] [1:2000:0] Snort Alert [1:2000:0] [**] [Priority: 0] {TCP} 10.10.0.26:38941 -> 10.7.255.53:22" ],
 );
 
 sub checkParse{
@@ -88,7 +90,7 @@ sub displayEvent{
 		"    SPT = $eventdata->{'spt'} DPT = $eventdata->{'dpt'} \n" .
 		"    proto = $eventdata->{'proto'} \n" .
 		"    msg = $eventdata->{'msg'} \n" .
-		"    timestamp = $eventdata->{'timestamp'} \n" .
+		"    timestamp = $eventdata->{'timestamp'} (" . localtime($eventdata->{'timestamp'}) . ") \n" .
 		"    BPF = $eventdata->{'bpf'} \n" .
 		"    Parsed = $eventdata->{'parsed'}\n" .
 		"    Device = $eventdata->{'device'} \n" .
@@ -134,5 +136,5 @@ if ($oneline)  {
 
 if ($problem) {
 	print "ERROR, problem found with one or more logs !\n";
-	return 1;
+	exit 1;
 }

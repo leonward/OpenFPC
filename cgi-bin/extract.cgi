@@ -76,23 +76,6 @@ my %result=(
 my $tempdir=tempdir(CLEANUP => 1);
 my $now=time();
 
-=head2 norm_time
-	Take a timestamp, and shell out to the date command to convert it into epoch
-=cut
-
-sub norm_time($) {
-	# Pass me some time format, and ill give you an epoch value
-        my $ts=shift;
-	my $epoch;
-
-	unless ( $ts =~ /^\d{1,10}$/ ) {
-		$epoch=str2time($ts);
-        	return($epoch);
-	} else {
-		return($ts);
-	}
-}
-
 # Input validation of param(s);
 if (defined param('sip')) { 
 	$req{'sip'} = param('sip') 		if param('sip')  =~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/ ;
@@ -125,13 +108,13 @@ if (defined param('debug')){
 	$debug=1 if param('debug');
 }
 if (defined param('timestamp')) {
-	$req{'timestamp'} = norm_time(param('timestamp'));
+	$req{'timestamp'} = OpenFPC::Parse::norm_time(param('timestamp'));
 }
 if (defined param('stime')) {
-	$req{'stime'} = norm_time(param('stime'));
+	$req{'stime'} = OpenFPC::Parse::norm_time(param('stime'));
 }
 if (defined param('etime')){
-	$req{'etime'} = norm_time(param('etime'));
+	$req{'etime'} = OpenFPC::Parse::norm_time(param('etime'));
 }
 
 # Timestamps are "special" because we want to support multiple date formats. Date::Parse to the rescue!

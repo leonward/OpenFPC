@@ -24,6 +24,7 @@ package OpenFPC::Parse;
 use strict;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
 require Exporter;
+use Date::Parse;
 
 @EXPORT = qw(ALL);
 $VERSION = '0.2';
@@ -82,6 +83,24 @@ sub sessionToLogline{
 }
 
 
+=head2 norm_time
+        Take a timestamp, and shell out to the date command to convert it into epoch.
+	This is basically a wrapper for str2time function provided by Date::Time with
+	an ability to catch values that are already epoch.
+=cut
+
+sub norm_time($) {
+        # Pass me some time format, and ill give you an epoch value
+        my $ts=shift;
+        my $epoch;
+
+        unless ( $ts =~ /^\d{1,10}$/ ) { 
+                $epoch=str2time($ts);
+                return($epoch);
+        } else {
+                return($ts);
+        }   
+}
 
 sub parselog{
         # Recieve a logline, and return a ref to a hash that contains its data if valid
@@ -413,13 +432,23 @@ sub SnortFast{
                 $event{'proto'} = $1; 
         }
 
-	if ($logline =~ m/(^\s*\d\d\/\d\d-\d\d:\d\d:\d\d)/ ) { 
+	if ($logline =~ m/^\s*(\d\d\/\d\d-\d\d:\d\d:\d\d)/ ) { 
 		my $tempdate=$1;
 		$tempdate =~ s/-/ /g;
-		$event{'timestamp'}=`date --date='$tempdate' +%s`;
-        	chomp $event{'timestamp'};
+		my $val=norm_time($tempdate);
+		$event{'timestamp'} = $val;
 	} 
 
+	if ($logline =~ m/^\s*(\d+\/\d+-\d\d-\d\d:\d\d)/ ) { 
+		my $tempdate=$1;
+
+		# Barnyard "fast" output uses - as a delimiter between month/year. This is a PITA
+		# e.g. 1/24-10-10:43. A little split magic lets me break out date from time.
+		my @foo=split(/-/, $tempdate);
+		my $bar="$foo[0]/20$foo[1] $foo[2]$foo[3]";
+		my $val=norm_time($bar);
+		$event{'timestamp'} = $val;
+	} 
 	
   	if ($event{'proto'} eq "ICMP") {
                 if ($logline =~ m/(\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b) -> (\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b)/) {
