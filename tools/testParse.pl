@@ -19,26 +19,37 @@ my $manual=0;
 my $quiet=0;
 
 my %logs=(
-	SnortSyslog => [ "May  3 15:16:30 rancid snort: [1:13923:3] SMTP MailEnable SMTP HELO command denial of service attempt [Classification: Attempted Denial of     Service] [Priority: 2]: {TCP} 213.138.226.169:2690 -> 80.68.89.43:25"] ,
+	SnortSyslog => [ 
+			"May  3 15:16:30 rancid snort: [1:13923:3] SMTP MailEnable SMTP HELO command denial of service attempt [Classification: Attempted Denial of     Service] [Priority: 2]: {TCP} 213.138.226.169:2690 -> 80.68.89.43:25"
+			] ,
 
-	SF49IPS => [ 	"2010-03-31 13:24:36	 high	 	 	 IPS Demo DE / sfukse3d00.lab.emea.sourcefire.com	 tcp	Go to Host View 192.168.4.248	Go to Host View 207.46.108.86	 Viktor Westcott (viktor.westcott, ldap)	 	 3044/tcp	 1863/tcp	 Standard Text Rule	 CHAT MSN message (1:540)	 Potential Corporate Policy Violation	 0" ,
+	SF49IPS => 	[ 	
+			"2010-03-31 13:24:36	 high	 	 	 IPS Demo DE / sfukse3d00.lab.emea.sourcefire.com	 tcp	Go to Host View 192.168.4.248	Go to Host View 207.46.108.86	 Viktor Westcott (viktor.westcott, ldap)	 	 3044/tcp	 1863/tcp	 Standard Text Rule	 CHAT MSN message (1:540)	 Potential Corporate Policy Violation	 0" ,
 			"2010-10-25 11:56:29	high		 	IPS Demo DE / sfukse3d00.lab.emea.sourcefire.com	tcp	 192.168.4.249	 69.104.33.82	 	 	3537/tcp	6667 (ircd)/tcp	Standard Text Rule	CHAT IRC message (1:1463)	Potential Corporate Policy Violation" ,
-	"	2010-10-26 21:54:27	high			IPS Demo DE / sfukse3d00.lab.emea.sourcefire.com	tcp	 10.4.12.53	 10.4.12.12	 	 Gabrielle Schmitt (gabrielle.schmitt, ldap)	32775/tcp	80 (http)/tcp	Standard Text Rule	WEB-IIS cmd.exe access (1:1002)	Web Application Attack	0" ,
-	"2010-10-28 16:03:55	high		 	IPS Demo DE / sfukse3d00.lab.emea.sourcefire.com	tcp	 192.168.6.40	 195.54.102.4	 misterbear16 (aim)	 	3663/tcp	6668/tcp	Standard Text Rule	CHAT IRC message (1:1463)	Potential Corporate Policy Violation	0" ] ,
+			"	2010-10-26 21:54:27	high			IPS Demo DE / sfukse3d00.lab.emea.sourcefire.com	tcp	 10.4.12.53	 10.4.12.12	 	 Gabrielle Schmitt (gabrielle.schmitt, ldap)	32775/tcp	80 (http)/tcp	Standard Text Rule	WEB-IIS cmd.exe access (1:1002)	Web Application Attack	0" ,
+			"2010-10-28 16:03:55	high		 	IPS Demo DE / sfukse3d00.lab.emea.sourcefire.com	tcp	 192.168.6.40	 195.54.102.4	 misterbear16 (aim)	 	3663/tcp	6668/tcp	Standard Text Rule	CHAT IRC message (1:1463)	Potential Corporate Policy Violation	0" 
+			] ,
 
-	Exim4 => [ 	"2010-04-05 10:23:12 1NyiWV-0002IK-QJ <= lodgersau3\@nattydreadtours.com H=(ABTS-AP-dynamic-117.149.169.122.airtelbroadband.in) [122.169.149.117] P=esmtp S=2056 id=000d01cad4a1\$ab5a3780\$6400a8c0\@lodgersau3" ],
+	Exim4 => 	[ 	
+			"2010-04-05 10:23:12 1NyiWV-0002IK-QJ <= lodgersau3\@nattydreadtours.com H=(ABTS-AP-dynamic-117.149.169.122.airtelbroadband.in) [122.169.149.117] P=esmtp S=2056 id=000d01cad4a1\$ab5a3780\$6400a8c0\@lodgersau3" 
+			],
 
-	SnortFast => [ 	"05/14-09:01:49.390801  [**] [1:12628:2] RPC portmap Solaris sadmin port query udp portmapper sadmin port query attempt [**] [Classification: Decode of an RPC Query] [Priority: 2] {UDP} 192.168.133.50:666 -> 192.168.10.90:32772" ,
+	SnortFast => 	[ 	
+			"05/14-09:01:49.390801  [**] [1:12628:2] RPC portmap Solaris sadmin port query udp portmapper sadmin port query attempt [**] [Classification: Decode of an RPC Query] [Priority: 2] {UDP} 192.168.133.50:666 -> 192.168.10.90:32772" ,
 			"05/14-09:01:49.390801  [**] [1:12628:2] RPC portmap Solaris sadmin port query udp portmapper sadmin port query attempt [**] [Classification: Decode of an RPC Query] [Priority: 2] {UDP} 192.168.133.50:12 -> 192.168.10.90:32772" ,
-	"05/14-09:01:49.390801  [**] [1:12628:2] RPC portmap Solaris sadmin port query udp portmapper sadmin port query attempt [**] [Classification: Decode of an RPC Query] [Priority: 2] {UDP} 192.168.133.50: -> 192.168.10.90:" ] ,
+			"05/14-09:01:49.390801  [**] [1:12628:2] RPC portmap Solaris sadmin port query udp portmapper sadmin port query attempt [**] [Classification: Decode of an RPC Query] [Priority: 2] {UDP} 192.168.133.50: -> 192.168.10.90:" ,
+			"1/24-10-10:43:38.846134  [**] [1:2000:0] Snort Alert [1:2000:0] [**] [Priority: 0] {TCP} 10.10.0.26:38941 -> 10.7.255.53:22" 
+			] ,
 
-	OFPC1Event => [ "ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 spt:3432 dpt:1234 proto:tcp timestamp:246583 msg:Some freeform text" ,
+	OFPC1Event => 	[ 
+			"ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 spt:3432 dpt:1234 proto:tcp timestamp:246583 msg:Some freeform text" ,
 			"ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp timestamp:1274864808 msg:Some freeform text" ,
-			"ofpc-v1 type:event sip:192.168.222.1 timestamp:1285142949" ] ,
+			"ofpc-v1 type:event sip:192.168.222.1 timestamp:1285142949" 
+			] ,
 
-	ofpcv1BPF => [ "ofpc-v1-bpf bpf: host 1.1.1.1 and host 2.2.2.2 not tcp port 23 stime:1274864808 etime:1274864899" ] ,
-
-	BardyardFast => [ "1/24/10-10:43:38.846134  [**] [1:2000:0] Snort Alert [1:2000:0] [**] [Priority: 0] {TCP} 10.10.0.26:38941 -> 10.7.255.53:22" ],
+	ofpcv1BPF => 	[ 
+			"ofpc-v1-bpf bpf: host 1.1.1.1 and host 2.2.2.2 not tcp port 23 stime:1274864808 etime:1274864899" 
+			] ,
 );
 
 sub checkParse{
