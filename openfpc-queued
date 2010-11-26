@@ -544,6 +544,7 @@ sub getstatus{
 		my $packetref=df("$config{'BUFFER_PATH'}");
 		$stat{'packetspace'} = $packetref->{'per'};
 		$stat{'packetused'} = $packetref->{'used'};
+		wlog("DEBUG: Packet used is $packetref->{'used'} \n") if $debug;
 
 		if ($config{'ENABLE_SESSION'}) {
 			my $sessionref=df("$config{'SESSION_DIR'}");
@@ -554,6 +555,7 @@ sub getstatus{
 		my $saveref=df("$config{'SAVEDIR'}");
 		$stat{'savespace'} = $saveref->{'per'};
 		$stat{'saveused'} = $saveref->{'used'};
+		wlog("DEBUG: Savespace in $config{'SAVEDIR'} is $stat{'savespace'} \n") if $debug;
 	
 		# Grab uptime data
 		my $uptime=`uptime`;
@@ -587,13 +589,7 @@ sub getstatus{
 		}
 
 		# Check we are providing back some valid data
-		if ($stat{'packetspace'} and $stat{'savespace'} and
-				$stat{'sessionspace'} and
-				$stat{'ld1'} and
-				$stat{'ld5'} and
-				$stat{'ld15'} and
-				$stat{'nodename'} ) {
-			
+		if ( $stat{'ld1'} and $stat{'ld5'} and $stat{'ld15'} and $stat{'nodename'} ) {
 			$stat{'success'} = 1; 	
 		}
 
@@ -777,6 +773,7 @@ sub comms{
 									"$status->{'message'}||" .
 									"$openfpcver" .
 									"\n";
+							wlog("DEBUG: Status msg sent to client is $statmsg\n");	
 							print $client "STATUS: $statmsg";
 	                        			shutdown($client,2);
 						}
