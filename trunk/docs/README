@@ -7,7 +7,9 @@ Notes on actions that can be sent by client to proxy or slave devices.
 fetch         Fetch pcap and return to client/server
 store         Request data for extraction, and disconnect.
 status        Provide status of an OpenFPC Node
-ctxsum        Get traffic/connection summary between starttime/endtime	FUTURE
-ctxall        Get traffic/connection tables between starttime/endtime	FUTURE
+ctxupdate     Force a connection summary updae 
+summary	      Fetch a connection summery 
+ctxclean      Clean out stale connections (older than we have a pcap for)
+ctxsearch     Get traffic/connection tables between starttime/endtime	FUTURE
 replay        Replay traffic (FUTURE)
 
