@@ -137,4 +137,54 @@ sub tftoa {
     return $out;
 }
 
+=head2 ctxupdate
+	Update connection summary data in DB
+	Takes ($dbname, $dbuser, $dbpass)
+=cut
+
+sub ctxupdate{
+	my $dbname = shift;
+	my $dbuser = shift;
+	my $dbpass = shift;
+	my $limit = shift;
+	my $debug=1;
+	if ($debug) {
+		print "DEBUG: DB Name = $dbname \n" .
+			"DEBUG: DB User = $dbuser \n" .
+			"DEBUG: DB Pass = $dbpass \n" ;
+	}
+
+        # This is a hash of the SQL we want to run to generate our simple reports.
+        my %queries=(
+                "Top Source IPs" => "SELECT inet_ntoa(src_ip) AS source, COUNT(src_ip) AS count FROM session GROUP BY src_ip ORDER BY count DESC LIMIT $limit",
+                "Top Destination IPs" => "SELECT inet_ntoa(dst_ip) AS destination, COUNT(dst_ip) AS count FROM session GROUP BY dst_ip ORDER BY count DESC LIMIT $limit",
+                "Top Source Ports - UDP" => "SELECT src_port AS spt, COUNT(src_port) AS count FROM session WHERE ip_proto='17' GROUP BY src_port ORDER BY count DESC LIMIT $limit",
+                "Top Source Ports - TCP" => "SELECT src_port AS spt, COUNT(src_port) AS count FROM session WHERE ip_proto='6' GROUP BY src_port ORDER BY count DESC LIMIT $limit",
+                "Top Destination Ports - UDP" => "SELECT dst_port AS dpt, COUNT(dst_port) AS count FROM session WHERE ip_proto='17' GROUP BY dst_port ORDER BY count DESC LIMIT $limit",
+                "Top Destination Ports - TCP" => "SELECT dst_port AS dpt, COUNT(dst_port) AS count FROM session WHERE ip_proto='6' GROUP BY dst_port ORDER BY count DESC LIMIT $limit",
+        );   
+        my %report=();
+
+        print "DEBUG: Generating session summary\n" if $debug;
+ 
+        if (my $dbh= DBI->connect("dbi:mysql:database=$dbname;host=localhost",$dbuser,$dbpass)) {
+                my $query=$dbh->prepare("SELECT COUNT(*) FROM session") or print "ERROR: Unable to prep query $DBI::errstr";
+                foreach my $table (keys %queries) {
+                        my $query=$dbh->prepare($queries{$table}) or print "ERROR: Unable to prep query $DBI::errstr";
+                        print "Table $table\n-----------------------------------\n" if ($debug);
+                        $query->execute() or print "STATUS: ERROR: Unable to exec SQL query";
+
+                        my @row;
+                        while ( @row = $query->fetchrow_array ) {
+				printf '%20s | %20s', "$row[0]",$row[1];
+				print "\n";
+                                $report{$table}{$row[0]}= $row[1];
+                        }    
+                }    
+                $dbh->disconnect or print "Unable to disconnect from DB $DBI::errstr";
+        } else {
+ 		print "DEBUG: Unable to connect to DB";
+        }    
+}
+
 1;

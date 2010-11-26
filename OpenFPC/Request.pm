@@ -144,6 +144,7 @@ sub request{
 			'expected_md5'	=> 0,
 			'filename' => 0,
 			'size' => 0,
+			'time' => 0,
 		);					# This is the hash we provide back to the calling function.
 	my $debug=0;
 	my $event=0;
@@ -215,7 +216,7 @@ sub request{
 		$result{'message'} = "No user specified";
 		return %result; 
 	}
-	unless ($request->{'action'} =~ m/(store|fetch|status)/) { 
+	unless ($request->{'action'} =~ m/(store|fetch|status|ctxupdate)/) { 
 		$result{'success'} = 0;
 		$result{'message'} = "Invalid action $request->{'action'}";
 	}
@@ -317,6 +318,13 @@ sub request{
                                                 $status{'message'} ,
 						$status{'version'} )= split(/\|\|/,$statresp);	
 					return %status;
+			} case /RESULTS/ {
+					if ($data =~ /^RESULTS:\s*(.*)/) {
+						( $result{'success'},
+							$result{'message'},
+							$result{'time'}) = split(/\|\|/, $1);
+					}
+					return(%result);
 			} case /PCAP/ {
 					my $filetype;
                                         print "DEBUG: Incomming PCAP\n" if ($debug);

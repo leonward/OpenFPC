@@ -173,7 +173,10 @@ sub displayResult{
 					" Load avg 5          :  $result{'ld5'} \n" .
 					" Load avg 15         :  $result{'ld15'} \n" .
 					" Errors              :  $result{'message'} \n";
-				
+			} elsif ($request{'action'} eq "ctxupdate") {
+				print 	"#####################################\n" .
+					" Result              :  $result{'message'}\n" .
+					" Time                :  $result{'time'}\n";
 			} else {
 				die("Unknown action: $request{'action'}\n");
 			}
@@ -286,8 +289,10 @@ if ($request{'action'} =~ m/(fetch|store)/)  {
 		print "Error: This action requres a request line or session identifiers\n\n";
 		exit;
 	}
-} elsif ($request{'action'} eq "status") {
+} elsif ($request{'action'} eq "status" ) {
 	print "Sending status request\n" if ($debug);
+} elsif ($request{'action'} eq "ctxupdate" ) {
+	print "Updating connection summary data\n" if ($debug);
 } else {
 	die("Action $request{'action'} invalid, or not implemented yet");
 }

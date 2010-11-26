@@ -38,6 +38,7 @@ use Filesys::Df;
 use Sys::Syslog;
 use OpenFPC::Parse;
 use OpenFPC::Request;
+use OpenFPC::CXDB;
 use DBI;
 
 =head1 NAME
@@ -195,12 +196,13 @@ sub decoderequest($){
 	# fetch 	Fetch pcap and return to client/server
 	# store		Request data for extraction, and disconnect.
 	# status	Provide status of device 
+	# ctxupdate	Update connection summary
 	# replay	Replay traffic (FUTURE)
 
 	$request{'action'} = lc $request{'action'};
 	$request{'rid'} = getrequestid;
 
-	if ($request{'action'} =~ m/(fetch|store|status)/) {
+	if ($request{'action'} =~ m/(fetch|store|status|ctxupdate)/) {
 		wlog("DECOD: Recieved action $request{'action'}");
 		wlog("DECOD: User $request{'user'} assigned RID: $request{'rid'} for action $request{'action'}. Comment: $request{'comment'} Filetype : $request{'filetype'}");
 		$request{'valid'} = 1;
@@ -438,48 +440,6 @@ sub getmd5{
 	close(MD5);
 	return($md5);
 }
-
-=head2 mksumreport
-	Create a session / flow report from the session DB
-=cut
-sub mksumreport{
-#	my $request=shift;
-	# This is a hash of the SQL we want to run to generate our simple reports.
-	my $limit=10;
-	my %queries=(
-		"Top Source IPs" => "SELECT inet_ntoa(src_ip) AS source, COUNT(src_ip) AS count FROM session GROUP BY src_ip ORDER BY count DESC LIMIT $limit",
-		"Top Destination IPs" => "SELECT inet_ntoa(dst_ip) AS destination, COUNT(dst_ip) AS count FROM session GROUP BY dst_ip ORDER BY count DESC LIMIT $limit",
-		"Top Source Ports" => "SELECT src_port AS spt, COUNT(src_port) AS count FROM session GROUP BY src_port ORDER BY count DESC LIMIT $limit",
-	);
-	my %report=();
-	if ($config{'ENABLE_SESSION'}) {
-
-
-		wlog("DEBUG: Generating session summary") if $debug;
-		my $dbh= DBI->connect("dbi:mysql:database=$config{'SESSION_DB_NAME'};host=localhost",$config{'SESSION_DB_USER'},$config{'SESSION_DB_PASS'}) 
-			or wlog("DEBUG: Unable to connect to DB");
-		#my $query=$dbh->prepare("SELECT COUNT(*) FROM session") or wlog("ERROR: Unable to prep query $DBI::errstr");
-
-		foreach my $table (keys %queries) {
-			my $query=$dbh->prepare($queries{$table}) or wlog("ERROR: Unable to prep query $DBI::errstr");
-			print "Table $table\n";
-			$query->execute() or wlog("STATUS: ERROR: Unable to exec SQL query");
-
-			my @row;
-			while ( @row = $query->fetchrow_array ) {
-				$report{$table}{$row[0]}= $row[1];
-			}
-		}
-		$dbh->disconnect or wlog("Unable to disconnect from DB $DBI::errstr");
-
-		# Write report data to file
-		print "REPORT DATA\n";
-		
-	} else {
-		wlog("DEBUG: Session data disabled on this host");
-	}
-}
-
 
 =head2 getstatus
 	Get the status of a node, or bunch of nodes if this is a proxy device
@@ -776,6 +736,10 @@ sub comms{
 							wlog("DEBUG: Status msg sent to client is $statmsg\n");	
 							print $client "STATUS: $statmsg";
 	                        			shutdown($client,2);
+						} elsif ($request->{'action'} eq "ctxupdate") {
+							wlog("COMMS: $client_ip: RID: $request->{'rid'} Updating CTX summary\n");
+							my $foo=OpenFPC::CXDB::ctxupdate($config{'SESSION_DB_NAME'}, $config{'SESSION_DB_USER'}, $config{'SESSION_DB_PASS'},20);	
+							print $client "RESULTS: 1||Summary Complete||0\n";
 						}
 					} else {
 						wlog("COMMS: $client_ip: BAD request $request->{'msg'}");
