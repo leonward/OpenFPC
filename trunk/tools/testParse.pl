@@ -50,6 +50,11 @@ my %logs=(
 	ofpcv1BPF => 	[ 
 			"ofpc-v1-bpf bpf: host 1.1.1.1 and host 2.2.2.2 not tcp port 23 stime:1274864808 etime:1274864899" 
 			] ,
+	pradslog => 	[
+			"192.168.42.5,0,22,6,SERVER,[ssh:OpenSSH 5.3p1 (Protocol 2.0)],0,1290888581",
+			"192.168.42.107,0,443,6,CLIENT,[unknown:\@https],0,1290816603",
+			"173.194.36.83,0,443,6,SERVER,[unknown:\@https],10,1290816603",
+			],
 );
 
 sub checkParse{
@@ -78,6 +83,7 @@ sub checkParse{
 		%tmpdata=OpenFPC::Parse::Exim4($logline); if ($tmpdata{'parsed'} ) { last; }
 		%tmpdata=OpenFPC::Parse::SnortSyslog($logline); if ($tmpdata{'parsed'} ) { last; }
 		%tmpdata=OpenFPC::Parse::SnortFast($logline); if ($tmpdata{'parsed'} ) { last; }
+		%tmpdata=OpenFPC::Parse::pradslog($logline); if ($tmpdata{'parsed'} ) { last; }
 		last;
 	}
 	
