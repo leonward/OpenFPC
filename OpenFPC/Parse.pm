@@ -117,6 +117,7 @@ sub parselog{
                 %eventdata=OpenFPC::Parse::SnortSyslog($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=OpenFPC::Parse::SnortFast($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=OpenFPC::Parse::ofpcv1BPF($logline); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OpenFPC::Parse::pradslog($logline); if ($eventdata{'parsed'} ) { last; }
                 return(0, "Unable to parse log message");
         }   
  
@@ -485,6 +486,85 @@ sub SnortFast{
 sub foofoo{
 
 	print "foo";
+}
+=head2 initevent
+	Init all of the values needed for a clean OpenFPC event parse
+	simply do a %event=initevent();
+	Takes 0 args, return a clean %event
+
+	-Leon
+=cut
+
+sub initevent(){
+	my %event=(
+		'type' => 0,
+		'spt' => 0,
+		'dpt' => 0,
+		'sip' => 0,
+		'dip' => 0,
+		'proto' => 0,
+		'msg' => 0,
+		'timestamp' => 0,
+		'bpf' => 0,
+		'device' => 0,
+		'parsed' => 0,
+		'stime' => 0,
+		'etime' => 0,
+		);
+
+	return(%event);
+}
+=head2 pradsfile
+	Parse a prads event (from log file) to pull out the session that created the
+	assed discovery. -Leon
+=cut
+
+sub pradslog{
+	my $logline=shift;
+	my %event=initevent();
+	$event{'type'} = "PradsLog";
+	my $debug=0;
+
+	$logline =~ s/@//;
+	
+	# The Prads log file is a csv file.
+	# asset,vlan,port,proto,service,[service-info],distance,discovered
+	# 192.168.42.5,0,22,6,SERVER,[ssh:OpenSSH 5.3p1 (Protocol 2.0)],0,1290888581
+
+	if ((my $ip,	
+		my $vlan,
+		$event{'dpt'},
+		my $ipproto,
+		my $clisvr,	# CLIENT or SERVER
+		$event{'msg'},
+		my $hops,
+		$event{'timestamp'} ) = split(/,/, $logline)) { 
+
+		print "Got a good split\n" if ($debug);
+
+		if ($clisvr eq "CLIENT") {
+			$event{'sip'} = $ip;
+		} else {
+			$event{'dip'} = $ip;
+		}	
+
+		if ($ipproto == 6 ) {
+			$event{'proto'} = "tcp";
+		} else {
+			$event{'proto'} = "udp";
+		}
+
+		if ($event{'timestamp'} and $event{'dpt'} )  {
+			$event{'parsed'} = 1;
+		}
+
+	} else {
+		print "Failed to decode prads event\n" if ($debug);
+	}
+
+
+	
+	return(%event);
 }
 
 sub ofpcv1BPF{
