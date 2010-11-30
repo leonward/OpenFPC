@@ -84,7 +84,7 @@ sub sessionToLogline{
 
 
 =head2 norm_time
-        Take a timestamp, and shell out to the date command to convert it into epoch.
+        Take a timestamp, and convert it into epoch.
 	This is basically a wrapper for str2time function provided by Date::Time with
 	an ability to catch values that are already epoch.
 =cut
@@ -442,12 +442,28 @@ sub SnortFast{
 
 	if ($logline =~ m/^\s*(\d+\/\d+-\d\d-\d\d:\d\d)/ ) { 
 		my $tempdate=$1;
-
+		# I have been shown two different format timestamps from
+		# Barnyard, both are different from the Snort Fast output.
+		# This is #1
 		# Barnyard "fast" output uses - as a delimiter between month/year. This is a PITA
 		# e.g. 1/24-10-10:43. A little split magic lets me break out date from time.
 		my @foo=split(/-/, $tempdate);
 		my $bar="$foo[0]/20$foo[1] $foo[2]$foo[3]";
 		my $val=norm_time($bar);
+		$event{'timestamp'} = $val;
+	} 
+
+	if ($logline =~ m/^\s*(\d+\/\d+\/\d+-\d+:\d+)/ ) { 
+		my $tempdate=$1;
+
+		# This is the second timestamp format I have been shown to 
+		# come from Barnyard. It's also not standard to str2time 
+		# cant parse it. It also has \d\d years!!!!
+
+		my @datetime=split(/-/, $tempdate);
+		my @mdy=split(/\//, $datetime[0]);
+		my $str_to_convert=$mdy[0] . "/" . $mdy[1] . "/" . "20$mdy[2]" . " $datetime[1]";
+		my $val=norm_time($str_to_convert);
 		$event{'timestamp'} = $val;
 	} 
 	

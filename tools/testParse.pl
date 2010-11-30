@@ -38,7 +38,8 @@ my %logs=(
 			"05/14-09:01:49.390801  [**] [1:12628:2] RPC portmap Solaris sadmin port query udp portmapper sadmin port query attempt [**] [Classification: Decode of an RPC Query] [Priority: 2] {UDP} 192.168.133.50:666 -> 192.168.10.90:32772" ,
 			"05/14-09:01:49.390801  [**] [1:12628:2] RPC portmap Solaris sadmin port query udp portmapper sadmin port query attempt [**] [Classification: Decode of an RPC Query] [Priority: 2] {UDP} 192.168.133.50:12 -> 192.168.10.90:32772" ,
 			"05/14-09:01:49.390801  [**] [1:12628:2] RPC portmap Solaris sadmin port query udp portmapper sadmin port query attempt [**] [Classification: Decode of an RPC Query] [Priority: 2] {UDP} 192.168.133.50: -> 192.168.10.90:" ,
-			"1/24-10-10:43:38.846134  [**] [1:2000:0] Snort Alert [1:2000:0] [**] [Priority: 0] {TCP} 10.10.0.26:38941 -> 10.7.255.53:22" 
+			"1/24-10-10:43:38.846134  [**] [1:2000:0] Snort Alert [1:2000:0] [**] [Priority: 0] {TCP} 10.0.0.2:3941 -> 10.10.20.53:80",
+		        "11/30/10-16:07:28.998446  [**] [1:2000:0] Snort Alert [1:2000:0] [**] [Priority: 0] {TCP} 10.0.0.1:3722 -> 10.10.20.53:22",
 			] ,
 
 	OFPC1Event => 	[ 
@@ -55,6 +56,7 @@ my %logs=(
 			"192.168.42.107,0,443,6,CLIENT,[unknown:\@https],0,1290816603",
 			"173.194.36.83,0,443,6,SERVER,[unknown:\@https],10,1290816603",
 			],
+	
 );
 
 sub checkParse{
