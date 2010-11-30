@@ -137,7 +137,7 @@ sub request{
 	my $request=shift;
 	my %result=(
 			'success' => 0,
-			'message' => 'Unknown Error',
+			'message' => 0,
 			'md5'	=> 0,
 			'position' => 'None',
 			'filetype' => 0,
@@ -145,7 +145,9 @@ sub request{
 			'filename' => 0,
 			'size' => 0,
 			'time' => 0,
+			'table' => 0,
 		);					# This is the hash we provide back to the calling function.
+
 	my $debug=0;
 	my $event=0;
 	my ($protover);
@@ -205,6 +207,8 @@ sub request{
                 "   StartTime   $request->{'stime'}\n" .
                 "   EndTime     $request->{'etime'}\n" .
 		"   ShowPos	$request->{'showposition'}" .
+		"   SummaryType $request->{'sumtype'}" .
+		"   DB Save     $request->{'dbsave'}" ;
 		"\n";
         }   
 
@@ -216,15 +220,21 @@ sub request{
 		$result{'message'} = "No user specified";
 		return %result; 
 	}
-	unless ($request->{'action'} =~ m/(store|fetch|status|ctxupdate)/) { 
+	unless ($request->{'action'} =~ m/(store|fetch|status|summary)/) { 
 		$result{'success'} = 0;
 		$result{'message'} = "Invalid action $request->{'action'}";
 	}
 
-	if ($request->{'action'} == "fetch" ) {
+	if ($request->{'action'} =~ m/(fetch)/ ) {
 		unless ($request->{'filename'} and $request->{'savedir'} ) {
 			$result{'success'} = 0;
 			$result{'message'} = "No filename or savedir specified";
+		}
+	}
+	# If we don't have a table requested, send the deafult
+	if ($request->{'action'} =~ m/(summary)/ ) {
+		unless ($request->{'sumtype'}) {
+			$request->{'sumtype'} = "top_source_ip_by_volume";
 		}
 	}
 	
@@ -236,7 +246,8 @@ sub request{
 			"$request->{'filetype'}||" .
 			"$request->{'type'}||" .
 			"$request->{'logline'}||" .
-			"$request->{'comment'}";
+			"$request->{'comment'}||" .
+			"$request->{'sumtype'}";
 
 	while(my $connection = $socket->connected) { # While we are connected to the server
         	my $data=<$socket>;
@@ -362,6 +373,26 @@ sub request{
 					}
 					shutdown($socket,2);
 					return %result;
+			} case /TABLE/ {
+					my @table=();	
+					print "DEBUG: Incomming Table of data\n" if ($debug);
+					$result{'success'} = 1;
+					while (my $line=<$socket>) {
+						my @row=split(/,/, $line);	
+						push @table, [ @row ];
+					}
+ 					if ($debug){
+                				print "DEBUG: Request: Printing table data ---------------\n";
+                				foreach my $foo (@table) {
+                        				foreach (@$foo) {
+                                        			printf '%20s', "$_";
+                        				}   
+                				}   
+                				print "DEBUG: End Table data -----------------------------\n";
+        				}   
+					shutdown($socket,$2);
+					$result{'table'}=\@table; 
+					return %result;
 			} case /FILENAME/ {
 					if ($data =~ /^FILENAME:\s*(.*)/) {
 						$result{'filename'} = $1;
@@ -369,8 +400,6 @@ sub request{
 					}
      			} case /QUEUED/ {
                                         if ($data =~ /^QUEUED:*\s*(\d+)/) {
-						# XXX	
-                                                #my $position=$1;
 						$result{'position'} = $1;
                                                 print "DEBUG: Request accepted. Queue postion $result{'position'}. Disconnecting\n" if ($debug);
                                                 shutdown($socket,2);

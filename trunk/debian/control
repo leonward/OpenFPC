@@ -10,7 +10,7 @@ Package: openfpc-common
 Section: net
 Priority: optional
 Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, libarchive-zip-perl, libfilesys-df-perl, libdatetime-perl
+Depends: ${shlibs:Depends}, ${misc:Depends}, libarchive-zip-perl, libfilesys-df-perl, libdatetime-perl, libdate-simple-perl
 Recommends: wireshark
 Description: OpenFPC - An Open Full Packet Capture Setup
  OpenFPC is a set of scripts that combine to provide

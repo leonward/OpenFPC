@@ -114,6 +114,7 @@ sub getrequestid{
 	Take the OFPC request, and provide a hash(ref) to the decoded data.
 	Example of a OFPC request:
 	ofpc||fetch||||/tmp/foo.pcap||||auto||ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp time:1274864808 msg:Some freeform text||Some comment text
+	ofpc||summary||||||||||||||top_sip_by_volume
 =cut
 
 sub decoderequest($){
@@ -140,13 +141,14 @@ sub decoderequest($){
 			etime	=>	0,
 			comment =>	0,
 			valid   =>	0,
+			sumtype =>	0,
         );
 
         my @requestarray = split(/\|\|/, $rawrequest);
         my $argnum=@requestarray;
 	$request{'rtime'} = gmtime();
 
-        unless ($argnum == 8 ) {
+        unless ($argnum == 9 ) {
                 wlog("-D  Bad request, only $argnum args. Expected 8\n") if $debug;
 		$request{'msg'} = "Bad request. Only $argnum args. Expected 8\n";
                 return(\%request);
@@ -154,64 +156,65 @@ sub decoderequest($){
 
 	# Each request element is seprated by a double-pipe - ||
         ($request{'user'},			# OFPC user
-		$request{'action'},		# Action (store,status,fetch,etc)
+		$request{'action'},		# Action (store,status,fetch,summary,etc)
 		$request{'device'},		# Device to request from i.e openfpc-node
 		$request{'filename'},		# Filename to save file as 
 		$request{'filetype'},		# Filetype zip or pcap?
 		$request{'logtype'},		# Type of log being processed
 		$request{'logline'},		# The log-line (including one made from session identifiers
-		$request{'comment'}		# User comments
+		$request{'comment'},		# User comments
+		$request{'sumtype'}		# Type of connection summary
 		) = split(/\|\|/, $rawrequest);
 
-	# Check logline is valid
-	my ($eventdata, $error)=OpenFPC::Parse::parselog($request{'logline'});
+	$request{'action'} = lc $request{'action'};
+	wlog("DECODE: Recieved action $request{'action'}");
 
-	unless ($eventdata) {
-		wlog("ERROR: Cannot parse logline-> $error");
-		return(\%request);
+	if ($request{'action'} =~ /(fetch|store|summary)/) {
+
+		# Check logline is valid
+		my ($eventdata, $error)=OpenFPC::Parse::parselog($request{'logline'});
+
+		unless ($eventdata) {
+			wlog("ERROR: Cannot parse logline-> $error");
+			return(\%request);
+		} else {
+			# Append the session that is being requested to the hash that is the request itself
+			$request{'sip'} = $eventdata->{'sip'};
+			$request{'dip'} = $eventdata->{'dip'};
+			$request{'spt'} = $eventdata->{'spt'};
+			$request{'dpt'} = $eventdata->{'dpt'};
+			$request{'msg'} = $eventdata->{'msg'};
+			$request{'timestamp'} = $eventdata->{'timestamp'};
+			$request{'stime'} = $eventdata->{'stime'};
+			$request{'etime'} = $eventdata->{'etime'};
+			$request{'proto'} = $eventdata->{'proto'};
+			$request{'bpf'} = $eventdata->{'bpf'};
+		}
+
+		# Default to PCAP file if filetype not specified
+		unless ($request{'filetype'}) {
+			$request{'filetype'} = "PCAP";
+		}
+
+		wlog("DECODE: User $request{'user'} assigned RID: $request{'rid'} for action $request{'action'}. Comment: $request{'comment'} Filetype : $request{'filetype'}");
+		$request{'valid'} = 1;
+
+	} elsif ($request{'action'} =~ /(status|summary)/) {
+		wlog("DECODE: Summary or Status request") if ($debug);
+		$request{'valid'} = 1;
 	} else {
-		# Append the session that is being requested to the hash that is the request itself
-		$request{'sip'} = $eventdata->{'sip'};
-		$request{'dip'} = $eventdata->{'dip'};
-		$request{'spt'} = $eventdata->{'spt'};
-		$request{'dpt'} = $eventdata->{'dpt'};
-		$request{'msg'} = $eventdata->{'msg'};
-		$request{'timestamp'} = $eventdata->{'timestamp'};
-		$request{'stime'} = $eventdata->{'stime'};
-		$request{'etime'} = $eventdata->{'etime'};
-		$request{'proto'} = $eventdata->{'proto'};
-		$request{'bpf'} = $eventdata->{'bpf'};
+		# Invalid action
+		wlog("DECODE: Recieved invalid action $request{'action'}");
+		$request{'msg'} = "recieved invalid action $request{'action'}";
 	}
+
 	unless ($request{'comment'}) {
 		$request{'comment'} = "No comment";
 	}
 
-	# Default to PCAP file if filetype not specified
-	unless ($request{'filetype'}) {
-		$request{'filetype'} = "PCAP";
-	}
-
-	# Check action: Valid actions are:
-
-	# fetch 	Fetch pcap and return to client/server
-	# store		Request data for extraction, and disconnect.
-	# status	Provide status of device 
-	# ctxupdate	Update connection summary
-	# replay	Replay traffic (FUTURE)
-
-	$request{'action'} = lc $request{'action'};
 	$request{'rid'} = getrequestid;
 
-	if ($request{'action'} =~ m/(fetch|store|status|ctxupdate)/) {
-		wlog("DECOD: Recieved action $request{'action'}");
-		wlog("DECOD: User $request{'user'} assigned RID: $request{'rid'} for action $request{'action'}. Comment: $request{'comment'} Filetype : $request{'filetype'}");
-		$request{'valid'} = 1;
-        	return(\%request);
-	} else {
-		wlog("DECOD: Recieved invalid action $request{'action'}");
-		$request{'msg'} = "recieved invalid action $request{'action'}";
-		return(\%request);
-	}
+        return(\%request);
 }
 
 
@@ -736,10 +739,32 @@ sub comms{
 							wlog("DEBUG: Status msg sent to client is $statmsg\n");	
 							print $client "STATUS: $statmsg";
 	                        			shutdown($client,2);
-						} elsif ($request->{'action'} eq "ctxupdate") {
-							wlog("COMMS: $client_ip: RID: $request->{'rid'} Updating CTX summary\n");
-							my $foo=OpenFPC::CXDB::ctxupdate($config{'SESSION_DB_NAME'}, $config{'SESSION_DB_USER'}, $config{'SESSION_DB_PASS'},20);	
-							print $client "RESULTS: 1||Summary Complete||0\n";
+						} elsif ($request->{'action'} eq "summary") {
+							wlog("COMMS: $client_ip: RID: $request->{'rid'} getting summary data\n");
+							wlog("COMMS: $client_ip: RID: $request->{'rid'} Stime=$request->{'stime'} Etime=$request->{'etime'}");
+							(my $success, my $message, my @table)=OpenFPC::CXDB::getctxsummary($config{'SESSION_DB_NAME'}, 
+												$config{'SESSION_DB_USER'}, 
+												$config{'SESSION_DB_PASS'},
+												$request->{'sumtype'},
+												$request->{'stime'},
+												$request->{'etime'},
+												20);	
+							if ($success) {
+								print $client "TABLE:\n";
+								wlog("DEBUG: Sending table....\n") if ($debug);
+								foreach my $row (@table) {
+                   					     		foreach (@$row) {
+                                        					#printf '%20s', "$_" if ($debug);
+										print $client "$_,";
+                        						}   
+										print $client "\n";
+                        							#print "\n" if ($debug);
+                						}   
+							} else {	# Problem found with query
+								print $client "ERROR: $message\n";
+							}
+							wlog("COMMS: $client_ip: RID: $request->{'rid'} Table Sent. Closing connection\n");
+	                        			shutdown($client,2);
 						}
 					} else {
 						wlog("COMMS: $client_ip: BAD request $request->{'msg'}");

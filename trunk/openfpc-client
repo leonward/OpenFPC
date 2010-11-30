@@ -71,6 +71,8 @@ my %request=(	user => 0,
 		stime => 0,
 		etime => 0,
 		comment => 0,
+		sumtype => 0,
+		dbsave => 0,
 		);
 
 my %result=(
@@ -92,7 +94,7 @@ sub showhelp{
   --port or -o <TCP PORT>		Port to connect to (default 4242)
   --user or -u <username>		Username	
   --password or -p <password>		Password (if not supplied, it will be prompted for)
-  --action or -a <action>		OFPC action to take. fetch, store, status
+  --action or -a <action>		OFPC action to take. fetch, store, status, summary
   --verbose or -v 			Run in verbose mode
   --debug or -d				Run in debug mode (very verbose)
   --write or -w				Output PCAP file to write to
@@ -102,17 +104,21 @@ sub showhelp{
   --device 				OpenFPC Node to extract from (via OpenFPC-Proxy --server)
 
   -------- Traffic Constraints -------
-  
   --bpf					Specify constraints with a BPF syntax
   --logline or -e <line>		Logline, must be supported by OpenFPC::Parse
   --src-addr <host>			Source IP
   --dst-addr <host>			Destination IP
   --src-port <port>			Source Port
   --dst-port <port>			Destination Port
-  --vlan <vlan>				VLAN ID (NOT DONE YET)
+  --vlan <vlan>				VLAN (NOT DONE YET)
 
+  -------- Connection Tables -------
+  --summarytype <summary type>		Generate a summary 
+  --save				Save connection data in local database
+  --top <number>			Show top x entries
+ 
   -------- Time Constraints -------
-
+  --last <seconds>			Easy to specify relative time range to \$now
   --timestamp	<timestamp>		Event timestamp
   --eachway <count>			Expand timestamp over extra files (NOT DONE YET)
   --stime				Start timestamp
@@ -173,12 +179,20 @@ sub displayResult{
 					" Load avg 5          :  $result{'ld5'} \n" .
 					" Load avg 15         :  $result{'ld15'} \n" .
 					" Errors              :  $result{'message'} \n";
-			} elsif ($request{'action'} eq "ctxupdate") {
+			} elsif ($request{'action'} eq "summary") {
 				print 	"#####################################\n" .
-					" Result              :  $result{'message'}\n" .
-					" Time                :  $result{'time'}\n";
+					" Summary Table       :  $request{'sumtype'}\n" .
+					" Time Range          :  " . localtime($request{'stime'}) . " -> " . localtime($request{'etime'}) . "\n" .
+					"#####################################\n";
+				my $table=$result{'table'};
+
+                                foreach my $foo (@$table) {
+                                	foreach (@$foo) {
+                                		printf '%15s', "$_";
+                                	}
+                                }
 			} else {
-				die("Unknown action: $request{'action'}\n");
+				die("Results: Unknown action: $request{'action'}\nSorry I don't know how to display this data.");
 			}
 		} else {	
 			# GUI firendly output
@@ -229,6 +243,9 @@ GetOptions (    'u|user=s' => \$cmdargs{'user'},
 		'stime=s' =>  \$cmdargs{'stime'},
 		'etime=s' => \$cmdargs{'etime'},
 		'bpf=s' => \$cmdargs{'bpf'},
+		'sumtype|summarytype=s' => \$cmdargs{'sumtype'},
+		'save' => \$cmdargs{'dbsave'},
+		'l|last=s' => \$cmdargs{'last'},
                 );
 
 # Need to tidy this up.
@@ -246,11 +263,19 @@ $request{'filetype'} 	= "ZIP"			if $cmdargs{'zip'};
 $request{'bpf'}		= $cmdargs{'bpf'}	if $cmdargs{'bpf'};
 $request{'stime'} 	= $cmdargs{'stime'} 	if ($cmdargs{'stime'});
 $request{'etime'} 	= $cmdargs{'etime'} 	if ($cmdargs{'etime'});
-
+$request{'sumtype'}	= $cmdargs{'sumtype'}   if ($cmdargs{'sumtype'});
+$request{'save'}	= $cmdargs{'save'}   	if ($cmdargs{'save'});
 
 if ($cmdargs{'debug'}) { 
 	$debug=1;
 	$verbose=1;
+}
+
+if ($cmdargs{'last'}) {
+	$request{'etime'} = $now;
+	$request{'stime'} = $now - $cmdargs{'last'};
+	$cmdargs{'etime'} = $now;
+	$cmdargs{'stime'} = $now - $cmdargs{'last'};
 }
 
 if ($debug) {
@@ -262,6 +287,10 @@ if ($debug) {
 	"Logtype  :  $request{'logtype'}\n" .
 	"Logline  :  $request{'logline'}\n" .
 	"Filename :  $cmdargs{'filename'}\n" .
+	"SumType  :  $cmdargs{'sumtype'} \n" .
+	"Last     :  $cmdargs{'last'}\n" .
+	"stime    :  $request{'stime'} " . localtime($request{'stime'}) . "\n" .
+	"etime    :  $request{'etime'} " . localtime($request{'etime'}) . "\n" .
 	"\n";
 }
 
@@ -291,8 +320,8 @@ if ($request{'action'} =~ m/(fetch|store)/)  {
 	}
 } elsif ($request{'action'} eq "status" ) {
 	print "Sending status request\n" if ($debug);
-} elsif ($request{'action'} eq "ctxupdate" ) {
-	print "Updating connection summary data\n" if ($debug);
+} elsif ($request{'action'} eq "summary" ) {
+	print "DEBUG: Fetching summary data\n" if ($debug);
 } else {
 	die("Action $request{'action'} invalid, or not implemented yet");
 }

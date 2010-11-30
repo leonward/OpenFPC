@@ -5,6 +5,7 @@ use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
 use Date::Simple ('date', 'today');
 use Getopt::Long qw/:config auto_version auto_help/;
 use DBI;
+use Switch;
 require Exporter;
 
 @EXPORT = qw(ALL);
@@ -137,54 +138,253 @@ sub tftoa {
     return $out;
 }
 
-=head2 ctxupdate
+=head2 getctxsummary
 	Update connection summary data in DB
-	Takes ($dbname, $dbuser, $dbpass)
+	Takes ($dbname, $dbuser, $dbpass, $summarytype, $starttime, $endtime, $limit)
+	Returns ($success,$error_message, @AoA_of_results);
 =cut
 
-sub ctxupdate{
+sub getctxsummary{
 	my $dbname = shift;
 	my $dbuser = shift;
 	my $dbpass = shift;
-	my $limit = shift;
-	my $debug=1;
+	my $type = shift;		# Type of connection summary
+	my $stime = shift;		# Start time for summary
+	my $etime = shift;		# End time for summary
+	my $limit = shift;		# Return top $limit results
+	my $debug=0;			# Print debug data
+	my @table=();			# Data returned to caller
+
+	my $error="None";		# Error text
+
 	if ($debug) {
 		print "DEBUG: DB Name = $dbname \n" .
-			"DEBUG: DB User = $dbuser \n" .
-			"DEBUG: DB Pass = $dbpass \n" ;
+			"     : DB User = $dbuser \n" .
+			"     : DB Pass = $dbpass \n" .
+			"     : Table = $type \n" .
+			"     : Start time = $stime (" . localtime($stime) . ")\n" .
+			"     : End ime = $stime (" . localtime($etime) . ")\n" ;
 	}
 
-        # This is a hash of the SQL we want to run to generate our simple reports.
-        my %queries=(
-                "Top Source IPs" => "SELECT inet_ntoa(src_ip) AS source, COUNT(src_ip) AS count FROM session GROUP BY src_ip ORDER BY count DESC LIMIT $limit",
-                "Top Destination IPs" => "SELECT inet_ntoa(dst_ip) AS destination, COUNT(dst_ip) AS count FROM session GROUP BY dst_ip ORDER BY count DESC LIMIT $limit",
-                "Top Source Ports - UDP" => "SELECT src_port AS spt, COUNT(src_port) AS count FROM session WHERE ip_proto='17' GROUP BY src_port ORDER BY count DESC LIMIT $limit",
-                "Top Source Ports - TCP" => "SELECT src_port AS spt, COUNT(src_port) AS count FROM session WHERE ip_proto='6' GROUP BY src_port ORDER BY count DESC LIMIT $limit",
-                "Top Destination Ports - UDP" => "SELECT dst_port AS dpt, COUNT(dst_port) AS count FROM session WHERE ip_proto='17' GROUP BY dst_port ORDER BY count DESC LIMIT $limit",
-                "Top Destination Ports - TCP" => "SELECT dst_port AS dpt, COUNT(dst_port) AS count FROM session WHERE ip_proto='6' GROUP BY dst_port ORDER BY count DESC LIMIT $limit",
-        );   
-        my %report=();
+	# If stime/etime are not specified, use a default value of one hour
+	unless ($stime and $etime) {
+		print "DEBUG: Using default time window of 1 hour\n" if ($debug);
+		$etime = time();
+		$stime = $etime-3600;
+	}
 
-        print "DEBUG: Generating session summary\n" if $debug;
- 
-        if (my $dbh= DBI->connect("dbi:mysql:database=$dbname;host=localhost",$dbuser,$dbpass)) {
-                my $query=$dbh->prepare("SELECT COUNT(*) FROM session") or print "ERROR: Unable to prep query $DBI::errstr";
-                foreach my $table (keys %queries) {
-                        my $query=$dbh->prepare($queries{$table}) or print "ERROR: Unable to prep query $DBI::errstr";
-                        print "Table $table\n-----------------------------------\n" if ($debug);
-                        $query->execute() or print "STATUS: ERROR: Unable to exec SQL query";
+	lc $type;
+	switch ($type) {
+		case "top_source_ip_by_connection" {
+			($error,@table)=getresults(
+				$dbname,
+				$dbuser,
+				$dbpass, 
+				"SELECT inet_ntoa(src_ip) AS source, COUNT(src_ip) AS count FROM session \
+					where unix_timestamp(start_time) between $stime and $etime \
+					GROUP BY src_ip ORDER BY count DESC LIMIT $limit");
+			unshift(@table, [ "Source IP", "Session Count" ]);
+		}
+		case "top_source_ip_by_volume" {
+			($error,@table)=getresults(
+				$dbname,
+				$dbuser,
+				$dbpass, 
+				"SELECT inet_ntoa(src_ip) AS source_ip, SUM(dst_bytes+src_bytes) AS bytes FROM session \
+					where unix_timestamp(start_time) between $stime and $etime \
+					GROUP BY source_ip ORDER BY bytes DESC LIMIT $limit");
+			unshift(@table, [ "Source IP", "Bytes" ]);
+		} 
+		case "top_destination_ip_by_connection" {
+			($error,@table)=getresults(
+				$dbname,
+				$dbuser,
+				$dbpass, 
+				"SELECT inet_ntoa(dst_ip) AS source, COUNT(dst_ip) AS count FROM session \
+					where unix_timestamp(start_time) between $stime and $etime \
+					GROUP BY dst_ip ORDER BY count DESC LIMIT $limit");
+			unshift(@table, [ "Dest IP", "Session Count" ]);
+		}
+		case "top_destination_ip_by_volume" {
+			($error,@table)=getresults(
+				$dbname,
+				$dbuser,
+				$dbpass, 
+				"SELECT inet_ntoa(dst_ip) AS dest_ip, SUM(dst_bytes+src_bytes) AS bytes FROM session \
+					where unix_timestamp(start_time) between $stime and $etime \
+					GROUP BY dest_ip ORDER BY bytes DESC LIMIT $limit");
+			unshift(@table, [ "Dest IP", "Bytes" ]);
+		}
+		case "top_source_tcp_by_connection"{
+			($error,@table)=getresults(
+				$dbname,
+				$dbuser,
+				$dbpass, 
+        			"SELECT src_port AS spt, COUNT(src_port) AS count FROM session \
+					WHERE ip_proto=6 \
+					AND unix_timestamp(start_time) between $stime and $etime \
+					GROUP BY src_port ORDER BY count DESC LIMIT $limit");
+			unshift(@table, [ "Source TCP Port", "Session Count" ]);
+		}
+		case "top_source_tcp_by_volume" {
+			($error,@table)=getresults(
+				$dbname,
+				$dbuser,
+				$dbpass, 
+				"SELECT src_port AS spt, SUM(dst_bytes+src_bytes) as bytes from session \
+					WHERE ip_proto=6 \
+					AND unix_timestamp(start_time) between $stime and $etime \
+					GROUP BY src_port ORDER BY bytes DESC limit 20");
+			unshift(@table, [ "Source TCP Port", "Bytes" ]);
+		}
+		case "top_destination_tcp_by_connection" {
+			($error,@table)=getresults(
+				$dbname,
+				$dbuser,
+				$dbpass, 
+        			"SELECT dst_port AS dpt, COUNT(dst_port) AS count FROM session \
+					WHERE ip_proto=6 \
+					AND unix_timestamp(start_time) between $stime and $etime \
+					GROUP BY dst_port ORDER BY count DESC LIMIT $limit");
+			unshift(@table, [ "Dest TCP Port", "Session Count" ]);
+		}
+		case "top_destination_tcp_by_volume" {
+			($error,@table)=getresults(
+				$dbname,
+				$dbuser,
+				$dbpass, 
+				"SELECT dst_port AS dpt, SUM(dst_bytes+src_bytes) as bytes from session \
+					WHERE ip_proto=6 \
+					AND unix_timestamp(start_time) between $stime and $etime \
+					GROUP BY dst_port ORDER BY bytes DESC limit 20");
+			unshift(@table, [ "Dest TCP Port", "Bytes" ]);
+		}
+		case "top_destination_udp_by_connection" {
+			($error,@table)=getresults(
+				$dbname,
+				$dbuser,
+				$dbpass, 
+        			"SELECT dst_port AS dpt, COUNT(dst_port) AS count FROM session \
+					WHERE ip_proto=17 \
+					AND unix_timestamp(start_time) between $stime and $etime \
+					GROUP BY dst_port ORDER BY count DESC LIMIT $limit");
+			unshift(@table, [ "Dest UDP Port", "Session Count" ]);
+		}
+		case "top_destination_udp_by_volume" {
+			($error,@table)=getresults(
+				$dbname,
+				$dbuser,
+				$dbpass, 
+				"SELECT dst_port AS dpt, SUM(dst_bytes+src_bytes) as bytes from session \
+					WHERE ip_proto=17 \
+					AND unix_timestamp(start_time) between $stime and $etime \
+					GROUP BY dst_port ORDER BY bytes DESC limit 20");
+			unshift(@table, [ "Dest UDP Port", "Bytes" ]);
 
-                        my @row;
-                        while ( @row = $query->fetchrow_array ) {
-				printf '%20s | %20s', "$row[0]",$row[1];
+		}
+		case "top_source_udp_by_connection" {
+			($error,@table)=getresults(
+				$dbname,
+				$dbuser,
+				$dbpass, 
+        			"SELECT src_port AS spt, COUNT(spt_port) AS count FROM session \
+					WHERE ip_proto=17 \
+					AND unix_timestamp(start_time) between $stime and $etime \
+					GROUP BY src_port ORDER BY count DESC LIMIT $limit");
+			unshift(@table, [ "Source UDP Port", "Session Count" ]);
+
+		}
+		case "top_source_udp_by_volume" {
+			($error,@table)=getresults(
+				$dbname,
+				$dbuser,
+				$dbpass, 
+				"SELECT src_port AS spt, SUM(dst_bytes+src_bytes) as bytes from session \
+					WHERE ip_proto=17 \
+					AND unix_timestamp(start_time) between $stime and $etime \
+					GROUP BY src_port ORDER BY bytes DESC limit 20");
+			unshift(@table, [ "Source UDP Port", "Bytes" ]);
+
+		}
+		case "top_session_by_time" {
+
+		}
+		case "top_session_by_volume" {
+
+		}
+		else {
+			$error="Invalid summary table type $type\n";
+			print "ERROR: Invalid table type $type\n" if ($debug);
+		}	
+	}
+
+	unless ($error) {
+		if ($debug){
+			print "DEBUG: getctxsummary results\n";
+			foreach my $row (@table) {
+				foreach (@$row) {
+						printf '%20s', "$_";
+						print "|"
+				}
 				print "\n";
-                                $report{$table}{$row[0]}= $row[1];
-                        }    
-                }    
-                $dbh->disconnect or print "Unable to disconnect from DB $DBI::errstr";
-        } else {
- 		print "DEBUG: Unable to connect to DB";
-        }    
+			}
+			print "-----------------------------\n";
+		}
+		return(1,"Success",@table);
+	} else {
+		return(0,$error,0);
+	}
+}
+
+=head2 getresults
+	Get results from a query.
+	Takes $dbname, $dbuser, $dbpass, SQL qeery
+	Returns (@table, $error) 
+=cut
+
+sub getresults{
+	my $dbname = shift;
+	my $dbuser = shift;
+	my $dbpass = shift;
+	my $query = shift;
+	my $debug=0;
+	my @results=();
+	my $error=0;
+
+	if ($debug) {
+		print "DEBUG: DB Name = $dbname \n" .
+			"     : DB User = $dbuser \n" .
+			"     : DB Pass = $dbpass \n" .
+			"     : Query = $query\n";
+	}
+
+	if (my $dbh= DBI->connect("dbi:mysql:database=$dbname;host=localhost",$dbuser,$dbpass)) {
+		print "DEBUG: Connected to DB\n" if ($debug);
+		if (my $query=$dbh->prepare($query)) {
+                	if ($query->execute()) {
+           	     		my @row;
+             	  	 	while ( @row = $query->fetchrow_array ) {
+					if ($debug){
+						foreach (@row) {
+							printf '%20s', "$_";
+							print " | ";
+						}
+						print "\n";
+					}
+					push @results, [@row];		# Add this row to the Results AoA
+				}
+                	} else {
+				$error="Unable to exec query\n";
+			}
+	   	} else {
+			$error="Unable to prep query $DBI::errstr\n";
+		}
+		$dbh->disconnect or print "Unable to disconnect from DB $DBI::errstr";
+		return($error,@results);
+	} else {
+		print "DEBUG: Error: Unable to connect to DB - $dbname, $dbuser, $dbpass\n" if ($debug);	
+		return($error,@results);
+	}
 }
 
 1;

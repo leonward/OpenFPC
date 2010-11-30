@@ -1,3 +1,6 @@
+
+ * Fixed time range bug in GUI. Extract now based on flow start/end time.
+
 22 November 2010  Leon Ward  <leon@openfpc.org>
    
    All updates by Leon <leon@openfpc.org> and Edward <edwardfjellskaal@gmail.com>
