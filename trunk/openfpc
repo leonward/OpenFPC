@@ -752,6 +752,11 @@ if ($thing) {
 				print "[*] OpenFPC instance $instance\n";
 				print " -  NODENAME:              $configs{$instance}{'NODENAME'} \n" 	  if defined $configs{$instance}{'NODENAME'};
 				print " -  DESCRIPTION:           $configs{$instance}{'DESCRIPTION'} \n"  if defined $configs{$instance}{'DESCRIPTION'};
+				if ($configs{$instance}{'OFPC_ENABLED'} =~ /(y|1|yes)/i ) {
+					print " -  STATUS :               ENABLED\n"; 
+				} else {
+					print " -  STATUS :               DISABLED\n"; 
+				}
 				print " -  PORT:                  $configs{$instance}{'OFPC_PORT'}\n"     if defined $configs{$instance}{'OFPC_PORT'};
 				unless ( $configs{$instance}{'PROXY'} == 1 ) {
 					print " -  INTERFACE:             $configs{$instance}{'INTERFACE'}\n" 	  if defined $configs{$instance}{'INTERFACE'};
