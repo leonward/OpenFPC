@@ -1,4 +1,4 @@
-#!/usr/bin/perl -I .
+#!/usr/bin/perl 
 
 #########################################################################################
 # Copyright (C) 2010 Leon Ward 
@@ -36,9 +36,9 @@ use File::Temp(qw(tempdir));
 use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 use Filesys::Df;
 use Sys::Syslog;
-use OpenFPC::Parse;
-use OpenFPC::Request;
-use OpenFPC::CXDB;
+use OFPC::Parse;
+use OFPC::Request;
+use OFPC::CXDB;
 use DBI;
 
 =head1 NAME
@@ -172,7 +172,7 @@ sub decoderequest($){
 	if ($request{'action'} =~ /(fetch|store|summary)/) {
 
 		# Check logline is valid
-		my ($eventdata, $error)=OpenFPC::Parse::parselog($request{'logline'});
+		my ($eventdata, $error)=OFPC::Parse::parselog($request{'logline'});
 
 		unless ($eventdata) {
 			wlog("ERROR: Cannot parse logline-> $error");
@@ -742,7 +742,7 @@ sub comms{
 						} elsif ($request->{'action'} eq "summary") {
 							wlog("COMMS: $client_ip: RID: $request->{'rid'} getting summary data\n");
 							wlog("COMMS: $client_ip: RID: $request->{'rid'} Stime=$request->{'stime'} Etime=$request->{'etime'}");
-							(my $success, my $message, my @table)=OpenFPC::CXDB::getctxsummary($config{'SESSION_DB_NAME'}, 
+							(my $success, my $message, my @table)=OFPC::CXDB::getctxsummary($config{'SESSION_DB_NAME'}, 
 												$config{'SESSION_DB_USER'}, 
 												$config{'SESSION_DB_PASS'},
 												$request->{'sumtype'},
@@ -911,7 +911,7 @@ sub doproxy{
 	$request->{'user'} = $request->{'nodeuser'};
 	$request->{'password'} = $request->{'nodepass'};
 	$request->{'savedir'} = $config{'SAVEDIR'};
-	%result=OpenFPC::Request::request($nodesock,$request);
+	%result=OFPC::Request::request($nodesock,$request);
 	
 	# Return the name of the file that we have been passed by the node
 	if ($result{'success'} == 1) {
@@ -1330,7 +1330,7 @@ sub findBuffers {
 	Note, doExtract also expected a few globals to exist.
 		$tempdir
 		$config{'TCPDUMP'}
-		$confgi{'MERGECAP'}
+		$config{'MERGECAP'}
 		$debug
 =cut
 
@@ -1479,6 +1479,8 @@ if ($debug) {
 	wlog("CONF: Enabled : $config{'OFPC_ENABLED'}");
 	wlog("CONF: local savedir : $config{'SAVEDIR'}");
 	wlog("CONF: Buffer Path : $config{'BUFFER_PATH'}");
+	wlog("CONF: mergecap : $config{'MERGECAP'}");
+	wlog("CONF: tcpdump : $config{'TCPDUMP'}");
 }
 
 # Start listener

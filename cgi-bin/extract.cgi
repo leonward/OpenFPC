@@ -26,8 +26,8 @@
 use warnings;
 use strict;
 use Date::Parse;
-use OpenFPC::Request;
-use OpenFPC::Parse;
+use OFPC::Request;
+use OFPC::Parse;
 use CGI ':standard';
 use IO::Socket::INET;
 use Data::Dumper;
@@ -108,13 +108,13 @@ if (defined param('debug')){
 	$debug=1 if param('debug');
 }
 if (defined param('timestamp')) {
-	$req{'timestamp'} = OpenFPC::Parse::norm_time(param('timestamp'));
+	$req{'timestamp'} = OFPC::Parse::norm_time(param('timestamp'));
 }
 if (defined param('stime')) {
-	$req{'stime'} = OpenFPC::Parse::norm_time(param('stime'));
+	$req{'stime'} = OFPC::Parse::norm_time(param('stime'));
 }
 if (defined param('etime')){
-	$req{'etime'} = OpenFPC::Parse::norm_time(param('etime'));
+	$req{'etime'} = OFPC::Parse::norm_time(param('etime'));
 }
 
 # Timestamps are "special" because we want to support multiple date formats. Date::Parse to the rescue!
@@ -126,7 +126,7 @@ unless ($req{'filename'}) {
 }
 
 unless ($req{'logline'}) {
-	my $logline=OpenFPC::Parse::sessionToLogline(\%req);
+	my $logline=OFPC::Parse::sessionToLogline(\%req);
         $req{'logline'} = $logline;
 }
 
@@ -141,7 +141,7 @@ unless ($sock) {
 	print "Error $result{'message'} \n"; 
 }
  
-%result=OpenFPC::Request::request($sock,\%req);
+%result=OFPC::Request::request($sock,\%req);
 close($sock);
 
 if ($debug) {

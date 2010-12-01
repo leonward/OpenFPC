@@ -1,2 +1,3 @@
-OpenFPC/Parse.pm usr/share/perl5/OpenFPC
-OpenFPC/Request.pm usr/share/perl5/OpenFPC
+OFPC/Parse.pm usr/share/perl5/OFPC
+OFPC/Request.pm usr/share/perl5/OFPC
+OFPC/CXDB.pm usr/share/perl5/OFPC
