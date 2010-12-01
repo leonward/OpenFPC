@@ -1,5 +1,12 @@
 
  * Fixed time range bug in GUI. Extract now based on flow start/end time.
+ * Better reports created upon extract. 
+ * Config option to not cache extracted pcaps on queued 
+ * Show enable/disable status of queued on status check"
+ * Added top flow tables by connection and volume
+ * Added support for strange new Barnyard timestamp format
+ * Added log parser for prads logs
+ * Fixed status bug (with a blank fresh partition)
 
 22 November 2010  Leon Ward  <leon@openfpc.org>
    
