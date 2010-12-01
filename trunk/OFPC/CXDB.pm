@@ -1,4 +1,4 @@
-package OpenFPC::CXDB;
+package OFPC::CXDB;
 
 use strict;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);

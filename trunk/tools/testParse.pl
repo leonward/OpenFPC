@@ -6,7 +6,7 @@
 
 use strict;
 use warnings;
-use OpenFPC::Parse;
+use OFPC::Parse;
 use Switch;
 use Getopt::Long;
 use Data::Dumper;
@@ -79,13 +79,13 @@ sub checkParse{
 	);
 
 	while (1) {
-		%tmpdata=OpenFPC::Parse::ofpcv1BPF($logline); if ($tmpdata{'parsed'} ) { last; }
-		%tmpdata=OpenFPC::Parse::OFPC1Event($logline); if ($tmpdata{'parsed'} ) { last; }
-		%tmpdata=OpenFPC::Parse::SF49IPS($logline); if ($tmpdata{'parsed'} ) { last; }
-		%tmpdata=OpenFPC::Parse::Exim4($logline); if ($tmpdata{'parsed'} ) { last; }
-		%tmpdata=OpenFPC::Parse::SnortSyslog($logline); if ($tmpdata{'parsed'} ) { last; }
-		%tmpdata=OpenFPC::Parse::SnortFast($logline); if ($tmpdata{'parsed'} ) { last; }
-		%tmpdata=OpenFPC::Parse::pradslog($logline); if ($tmpdata{'parsed'} ) { last; }
+		%tmpdata=OFPC::Parse::ofpcv1BPF($logline); if ($tmpdata{'parsed'} ) { last; }
+		%tmpdata=OFPC::Parse::OFPC1Event($logline); if ($tmpdata{'parsed'} ) { last; }
+		%tmpdata=OFPC::Parse::SF49IPS($logline); if ($tmpdata{'parsed'} ) { last; }
+		%tmpdata=OFPC::Parse::Exim4($logline); if ($tmpdata{'parsed'} ) { last; }
+		%tmpdata=OFPC::Parse::SnortSyslog($logline); if ($tmpdata{'parsed'} ) { last; }
+		%tmpdata=OFPC::Parse::SnortFast($logline); if ($tmpdata{'parsed'} ) { last; }
+		%tmpdata=OFPC::Parse::pradslog($logline); if ($tmpdata{'parsed'} ) { last; }
 		last;
 	}
 	
@@ -148,7 +148,7 @@ if ($oneline)  {
 		displayEvent($result);
 	} else {
 		print "[*] Manual Tests...\n";
-		my %tmpdata=OpenFPC::Parse::SnortFast($logline);
+		my %tmpdata=OFPC::Parse::SnortFast($logline);
 		displayEvent(\%tmpdata);
 	}
 }

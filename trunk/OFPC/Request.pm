@@ -1,8 +1,8 @@
-package OpenFPC::Request;
+package OFPC::Request;
 
 #########################################################################################
 # Copyright (C) 2009 Leon Ward 
-# OpenFPC::Request - Part of the OpenFPC - (Full Packet Capture) project
+# OFPC::Request - Part of the OpenFPC - (Full Packet Capture) project
 #
 # Contact: leon@rm-rf.co.uk
 #
@@ -22,7 +22,7 @@ package OpenFPC::Request;
 #########################################################################################
 
 use strict;
-use OpenFPC::Parse;
+use OFPC::Parse;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
 require Exporter;
 use Switch;
@@ -158,7 +158,7 @@ sub request{
 		# Break out the "logline" part of the request into a hash via Parse::parselog.
 		# Event details can now be accessed via the hash regardless of event format.
 
-		($event, my $err)=OpenFPC::Parse::parselog($request->{'logline'});
+		($event, my $err)=OFPC::Parse::parselog($request->{'logline'});
 		unless ($event) {
 			$result{'success'} = 0;
 			unless ($err) {

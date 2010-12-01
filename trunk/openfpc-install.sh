@@ -41,7 +41,7 @@ INIT_DIR="/etc/init.d/"
 REQUIRED_BINS="tcpdump date mergecap perl tshark"
 LOCAL_CONFIG="/etc/openfpc/openfpc.conf"
 PERL_LIB_DIR="/usr/local/lib/site_perl"
-OFPC_LIB_DIR="$PERL_LIB_DIR/OpenFPC"
+OFPC_LIB_DIR="$PERL_LIB_DIR/OFPC"
 
 DEPSOK=0			# Track if obvious deps are met
 DISTRO="AUTO"		# Try to work out what distro we are installing on
@@ -216,7 +216,7 @@ function doinstall()
 	for file in $PERL_MODULES
 	do
 		echo -e " -  Installing PERL module $file"
-		cp OpenFPC/$file $OFPC_LIB_DIR/$file
+		cp OFPC/$file $OFPC_LIB_DIR/$file
 	done
 
 	###### Programs ######
@@ -231,8 +231,14 @@ function doinstall()
 
 	for file in $CONF_FILES
 	do
-		echo -e " -  Installing OpenFPC conf: $file"
-		cp $file $CONF_DIR
+		basefile=$(basename $file)
+		if [ -f $CONF_DIR/$basefile ] 
+		then
+			echo -e " -  Skipping Config file $CONF_DIR/$basefile already exists!"
+		else
+			echo -e " -  Installing OpenFPC conf: $file"
+			cp $file $CONF_DIR
+		fi
 	done
 
 	###### WWW files #####
@@ -316,10 +322,15 @@ function doinstall()
 
 	fi
 
-	echo -e "[-] -----------------------------------------------------"
-	echo "OpenFPC has a web UI. For now we use Basic Auth to secure it"
-	read -p "Username: " user
-	htpasswd -c /etc/openfpc/apache2.passwd $user
+	if [ -f /etc/openfpc/apache2.passwd ] 
+	then
+		echo " -   Skipping basic auth passwd. File exists"
+	else
+		echo -e "[-] -----------------------------------------------------"
+		echo "OpenFPC has a web UI. For now we use Basic Auth to secure it"
+		read -p "Username: " user
+		htpasswd -c /etc/openfpc/apache2.passwd $user
+	fi
 
 	echo -e "
 **************************************************************************
@@ -405,7 +416,7 @@ function remove()
 	done
 
 	# Remove the password file if it has been created
-	[ -f $CONF_DIR/apache2.passwd ] && rm $CONF_DIR/apache2.passwd
+	#[ -f $CONF_DIR/apache2.passwd ] && rm $CONF_DIR/apache2.passwd
 
 	echo -e "[*] Removing openfpc wwwroot"
 	if [ -d $WWW_DIR ] 
