@@ -18,7 +18,7 @@
 # --------------------------------------------------------------------------
 
 
-// Read in configuration from openfpc.conf
+// Read in configuration from openfpc.conf. Set this to the instance you want to use
 $configfile="/etc/openfpc/openfpc-default.conf";
 # --------------------------------------------------------------------------
 // Nothing to do below this line.
@@ -293,27 +293,41 @@ function extractPcapFromLog($action) {
 	return $out;
 }
 
+# Return unix timestamp including seconds.
+function stime2unix($stime){
+    if (preg_match("/^(\d\d\d\d)-(\d\d)-(\d\d)\s(\d+):(\d+):(\d+)/",$stime, $array)) {
+        return mktime ($array[4], $array[5], $array[6], $array[2], $array[3], $array[1]);
+    } else {
+	return(0);
+    }
+}
+
 # Calls ofpc-client.pl to extract the traffic when the user selects a session entry in the table
 
 function extractPcapFromSession() {
     global $ofpcuser, $ofpcpass, $ofpc_client, $debug;
+
 	$array=doSessionQuery();
-	$sddate = dirdate($array["start_time"]);
-	$eddate = dirdate($array["end_time"]);
-	$sudate = dd2unix($sddate);
-	$eudate = dd2unix($eddate);
+
+	$stime = stime2unix($array["start_time"]);
+	$etime = stime2unix($array["end_time"]);
+
+	if ($debug) {
+		print "Start time is " . $array["start_time"] . " $stime : End time is " . $array["end_time"] ." $etime<br>" ;
+	}
 
 	$exec = "$ofpc_client -u $ofpcuser -p $ofpcpass " . 
 		" --gui " .
-        # Leon - sanitise this.. we should have sddate and eddate
-		#" --timestamp " . $sudate .
+		" --stime " . $stime .
+		" --etime " . $etime .
 		" --src-addr "  . $array["src_ip"] .
 		" --dst-addr "  . $array["dst_ip"] .
 		" --src-port "  . $array["src_port"] .
 		" --dst-port "  . $array["dst_port"] .
 		" --proto "     . $array["ip_proto"];
 
-    if ($debug) { print "openfpc-client CMD: $exec<br>" ; }
+        if ($debug) { print "openfpc-client CMD: $exec<br>" ; }
+
 	$e = escapeshellcmd($exec);
 	$shellresult = shell_exec($e);
 
@@ -321,12 +335,16 @@ function extractPcapFromSession() {
 	$pathfile=explode("/",$filename);       # Break path and filename from filename 
 	$file=array_pop($pathfile);             # Pop last element of path/file array
 
-	if ($result) {
-		serv_pcap("$filename","$file");
-		exit(0);
+	if ($debug) {
+		print "Not extracting session: Debug enabled<br>";
 	} else {
-        if ($debug) { print "sessions-extract-error: $message<br>" ; }
-		$infobox ="Error: $message <br>";
+		if ($result) {
+			serv_pcap("$filename","$file");
+			exit(0);
+		} else {
+    		    if ($debug) { print "sessions-extract-error: $message<br>" ; }
+			$infobox ="Error: $message <br>";
+		}
 	}
 
 	$out .= infoBox($infobox);	
@@ -387,6 +405,8 @@ function dumpDisplay() {
     $eddate = dirdate($array["end_time"]);
     $sudate = dd2unix($sddate);
     $eudate = dd2unix($eddate);
+    $testdata = ses2epoch($array["start_time"]);
+
 
     while ( $sudate <= $eudate ) {
         // Should now find all pcaps in dir!
