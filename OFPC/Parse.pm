@@ -254,8 +254,7 @@ sub SF49IPS{
 
 	my $logline=shift;
         if ($logline =~ m/(.*)( *high| medium| low)/) {   # Timestamp comes before priority
-        	$event{'timestamp'}=`date --date='$1' +%s`;
-		chomp $event{'timestamp'};
+		$event{'timestamp'}=norm_time($1);
         }   
 	if ($logline =~ m/( high| medium| low)\s+(.*) \//) {
 		$event{'device'} = $2;
@@ -305,8 +304,7 @@ sub Exim4{
 	# Sample 2010-04-05 10:23:12 1NyiWV-0002IK-QJ <= lodgersau3@nattydreadtours.com H=(ABTS-AP-dynamic-117.149.169.122.airtelbroadband.in) [122.169.149.117] P=esmtp S=2056 id=000d01cad4a1$ab5a3780$6400a8c0@lodgersau3
 
 	if ($logline =~ m/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/) {
-		$event{'timestamp'}=`date --date='$1' +%s`;
-		chomp $event{'timestamp'};
+		$event{'timestamp'}=norm_time($1);
 	}
 
 	# Get direction of email, inbound is <= outbound is =>
@@ -371,8 +369,7 @@ sub SnortSyslog{
         }
 
 	if ($logline =~ m/(^.*\s\d\d:\d\d:\d\d\s)/) {
-		$event{'timestamp'}=`date --date='$1' +%s`;
-        	chomp $event{'timestamp'};
+		$event{'timestamp'}=norm_time($1);	
 	} 
 
 	if ($logline =~ m/([a-zA-Z]+ )snort:/ ) {

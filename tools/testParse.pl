@@ -20,7 +20,9 @@ my $quiet=0;
 
 my %logs=(
 	SnortSyslog => [ 
-			"May  3 15:16:30 rancid snort: [1:13923:3] SMTP MailEnable SMTP HELO command denial of service attempt [Classification: Attempted Denial of     Service] [Priority: 2]: {TCP} 213.138.226.169:2690 -> 80.68.89.43:25"
+			"May  3 15:16:30 rancid snort: [1:13923:3] SMTP MailEnable SMTP HELO command denial of service attempt [Classification: Attempted Denial of     Service] [Priority: 2]: {TCP} 213.138.226.169:2690 -> 80.68.89.43:25",
+			"Dec  2 13:02:49 zorro snort[25811]: [138:4:1] SENSITIVE-DATA U.S. Social Security Numbers w/out dashes [Classification: Senstive Data] [Priority: 2] {TCP} 192.168.42.107:60521 -> 209.85.229.102:80" ,
+			"Dec  2 13:03:18 zorro snort[25811]: [138:5:1] SENSITIVE-DATA Email Addresses [Classification: Senstive Data] [Priority: 2] {TCP} 192.168.42.107:60521 -> 209.85.229.102:80"
 			] ,
 
 	SF49IPS => 	[ 	
