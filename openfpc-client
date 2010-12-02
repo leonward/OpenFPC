@@ -52,6 +52,7 @@ my %cmdargs=( user => 0,
 		logline => 0,
 		quiet => 0,
 		gui => 0,
+		sumtype =>0,
 		);
 
 my %request=(	user => 0,
@@ -125,6 +126,56 @@ sub showhelp{
   --etime                               End timestamp
 
 EOF
+}
+
+
+=head2 readrcfile
+	Read in an optional rc file found in a couple of default locations.
+	This is to prevent a user from re-typing the same config options
+	like --user, --server etc
+
+	Takes, \%cmdargs,
+	Return \%cmdargs,
+
+	The return has some alternative values set. This way the command-line
+	options override those in the rc file.
+	-Leon
+=cut
+sub readrcfile{
+	my $config=shift;
+
+	my @rcfiles=("./openfpc-client.rc",			# CWD
+			"$ENV{HOME}/.openfpc-client.rc",			# Personal
+			"/etc/openfpc/openfpc-client.rc",	# System default
+		);	
+	my $rcfile=0;
+
+	foreach my $file (@rcfiles) {
+		if (-e $file) {
+			print "* Reading configuration from $file\n";
+			$rcfile=$file;
+			last;
+		}
+	}
+
+	unless (open(RC, '<', "$rcfile")){
+		print "* Error, unable to open rc file $rcfile";
+		return($config);
+	} else {
+		while(<RC>) {
+			chomp;
+	        	if ( $_ =~ m/^[a-zA-Z]/) {
+ 	 	               (my $key, my $value) = split /=/, $_;
+				# If config line looks valid, set it
+				if (defined $config->{$key}) {
+					$config->{$key} = $value;
+				} else {
+					print "* Invalid variable $key found in $rcfile \n";
+				}
+			}
+		}
+	}
+	return($config);
 }
 
 =head2 convbytes
@@ -217,6 +268,9 @@ sub displayResult{
 }
 
 
+# Read in defailts from openfpc-client.rc if discovered
+my $tempref=readrcfile(\%cmdargs);
+%cmdargs=%$tempref;
 
 GetOptions (    'u|user=s' => \$cmdargs{'user'},
 		's|server=s' => \$cmdargs{'server'},
@@ -247,6 +301,8 @@ GetOptions (    'u|user=s' => \$cmdargs{'user'},
 		'save' => \$cmdargs{'dbsave'},
 		'l|last=s' => \$cmdargs{'last'},
                 );
+
+
 
 # Need to tidy this up.
 $request{'user'} 	= $cmdargs{'user'}	if $cmdargs{'user'};

@@ -1,4 +1,6 @@
-
+ 
+ * Fixed CXDB.pm install oversight.
+ * Added simple ~/.openfpc-client.rc file support for openfpc-client
  * Fixed time range bug in GUI. Extract now based on flow start/end time.
  * Better reports created upon extract. 
  * Config option to not cache extracted pcaps on queued 
