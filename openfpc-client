@@ -159,19 +159,21 @@ sub readrcfile{
 		}
 	}
 
-	unless (open(RC, '<', "$rcfile")){
-		print "* Error, unable to open rc file $rcfile";
-		return($config);
-	} else {
-		while(<RC>) {
-			chomp;
-	        	if ( $_ =~ m/^[a-zA-Z]/) {
- 	 	               (my $key, my $value) = split /=/, $_;
-				# If config line looks valid, set it
-				if (defined $config->{$key}) {
-					$config->{$key} = $value;
-				} else {
-					print "* Invalid variable $key found in $rcfile \n";
+	if ($rcfile) {
+		unless (open(RC, '<', "$rcfile")){
+			return($config);
+			print "* Error, unable to open rc file $rcfile";
+		} else {
+			while(<RC>) {
+				chomp;
+		        	if ( $_ =~ m/^[a-zA-Z]/) {
+ 		 	               (my $key, my $value) = split /=/, $_;
+					# If config line looks valid, set it
+					if (defined $config->{$key}) {
+						$config->{$key} = $value;
+					} else {
+						print "* Invalid variable $key found in $rcfile \n";
+					}
 				}
 			}
 		}
