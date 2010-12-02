@@ -53,6 +53,7 @@ my %cmdargs=( user => 0,
 		quiet => 0,
 		gui => 0,
 		sumtype =>0,
+		last => 300,
 		);
 
 my %request=(	user => 0,

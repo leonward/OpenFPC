@@ -141,6 +141,7 @@ function create
 	mysql -u$DBUSER -p$DBPASS -e "use 'mysql'; CREATE USER '$SESSION_DB_USER'@'localhost' IDENTIFIED BY '$SESSION_DB_PASS';"
 	mysql -u$DBUSER -p$DBPASS -e "use $SESSION_DB_NAME; GRANT ALL PRIVILEGES ON *.* TO '$SESSION_DB_USER'@'localhost';"
 	echo Done.
+	echo -e "[*] Remember to set ENABLE_SESSION=1 in your openfpc config file to enable session capture!"
 }
 
 function drop
@@ -155,6 +156,7 @@ function drop
 	mysql -u$DBUSER -p$DBPASS -e "use 'mysql'; DROP USER '$SESSION_DB_USER'@'localhost';" || die "Unable to remove user $SESSION_DB_USER"
 
 	echo Done.
+	echo -e "[*] Remember to set ENABLE_SESSION=0 in your openfpc config file!"
 }
 
 ARGC=$#

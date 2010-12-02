@@ -129,7 +129,7 @@ sub getInstanceByDaemon{
 
 	foreach my $conf (keys(%configs)) {
 		if (defined $configs{$conf}{'OFPC_ENABLED'} ) {
-			if ($configs{$conf}{'OFPC_ENABLED'} eq "y") {
+			if ($configs{$conf}{'OFPC_ENABLED'} =~ /(y|yes|1)/i ) {
 				if ($configs{$conf}{'PROXY'} == 1) {
 					# Enabled Proxy
 					if ( grep $_ eq $daemon, @daemonsProxy ) {
@@ -160,16 +160,21 @@ sub getInstanceByDaemon{
 sub getDaemonsByInstance{
 	my $instance=shift;
 	my @daemons=();
-	if ($configs{$instance}{'PROXY'} == 1 ) {
-		return(@daemonsProxy);
-	} elsif ($configs{$instance}{'PROXY'} == 0  ) {
-		if ($configs{$instance}{'ENABLE_SESSION'} == 1) {
-			return(@daemonsNode);
+	
+	if ($configs{$instance}{'OFPC_ENABLED'} =~ /(y|yes|1)/i ) {
+		if ($configs{$instance}{'PROXY'} == 1 ) {
+			return(@daemonsProxy);
+		} elsif ($configs{$instance}{'PROXY'} == 0  ) {
+			if ($configs{$instance}{'ENABLE_SESSION'} == 1) {
+				return(@daemonsNode);
+			} else {
+				return(@daemonsNodeNoSession);
+			}
 		} else {
-			return(@daemonsNodeNoSession);
+			die("Unknown Proxy config for instance: $instance\n");
 		}
 	} else {
-		die("Unknown Proxy config for instance: $instance\n");
+		return(@daemons);
 	}
 }
 
