@@ -1,4 +1,4 @@
-#!/usr/bin/perl -I /home/lward/code/openfpc/
+#!/usr/bin/perl 
 
 #########################################################################################
 # Copyright (C) 2010 Leon Ward 
@@ -53,7 +53,7 @@ my %cmdargs=( user => 0,
 		quiet => 0,
 		gui => 0,
 		sumtype =>0,
-		last => 300,
+		last => 0,
 		);
 
 my %request=(	user => 0,
@@ -221,6 +221,7 @@ sub displayResult{
 					" OpenFPC Node Type   :  $result{'ofpctype'} \n".
 					" OpenFPC Version     :  $result{'version'} \n".
 					" Oldest Packet       :  $result{'firstpacket'} (" . localtime($result{'firstpacket'}) .")\n".
+					" Oldest Session      :  $result{'firstctx'} (" . localtime($result{'firstctx'}) .")\n".
 					" Packet utilization  :  $result{'packetspace'}\% \n" .
 					" Session utilization :  $result{'sessionspace'}\% \n" .
 					" Session DB Size     :  $result{'sessioncount'} rows \n" .

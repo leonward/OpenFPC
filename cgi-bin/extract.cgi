@@ -62,6 +62,7 @@ my %req=(   	user => $openfpcuser,
                 etime => 0,
                 comment => 0,
 		filename => 0,
+		sumtype =>0,
                 );  
 my %result=(
                 success => 0,
