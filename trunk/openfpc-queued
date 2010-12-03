@@ -149,7 +149,7 @@ sub decoderequest($){
 	$request{'rtime'} = gmtime();
 
         unless ($argnum == 9 ) {
-                wlog("-D  Bad request, only $argnum args. Expected 8\n") if $debug;
+                wlog("-D  Bad request, only $argnum args. Expected 9\n") if $debug;
 		$request{'msg'} = "Bad request. Only $argnum args. Expected 8\n";
                 return(\%request);
         }
@@ -456,6 +456,32 @@ sub getmd5{
 	return($md5);
 }
 
+=head2 trimsessiondb
+	The Session DB doesn't have a need to be larger than the oldest packet.
+=cut
+sub trimsessiondb(){
+
+	my $trimtime=0;		# New value of oldest ctx
+	my $status=getstatus();
+
+	wlog("TRIM: Trimming Session DB from: $status->{'firstctx'} to $status->{'firstpacket'}") if $debug;
+
+	my $dbh= DBI->connect("dbi:mysql:database=$config{'SESSION_DB_NAME'};host=localhost",$config{'SESSION_DB_USER'},$config{'SESSION_DB_PASS'}) 
+		or wlog("DEBUG: Unable to connect to DB");
+
+	my $sth= $dbh->prepare("DELETE FROM session WHERE unix_timestamp(start_time) < $status->{'firstpacket'}") 
+		or wlog("STATUS: ERROR: Unable to prep query $DBI::errstr");
+
+	if ($sth->execute()) {
+		$trimtime=$status->{'firstpacket'};
+	} else {
+		 wlog("STATUS: ERROR: Unable to trim session DB");
+	}
+
+	$dbh->disconnect or wlog("Unable to disconnect from DB $DBI::errstr");
+	return($trimtime);
+}
+
 =head2 getstatus
 	Get the status of a node, or bunch of nodes if this is a proxy device
 =cut
@@ -481,6 +507,7 @@ sub getstatus{
 		ld5 => 0,
 		ld15 => 0,
 		message => 0,			# Message for error text
+		firstctx => 0,			# First Session record
 	);
 
 	unless ($config{'PROXY'}) { 	# Process as a node. Don't check proxy specific stuff like comms
@@ -546,13 +573,24 @@ sub getstatus{
 			wlog("DEBUG: Session data enabled on this node. Checking DB status") if $debug;
 			my $dbh= DBI->connect("dbi:mysql:database=$config{'SESSION_DB_NAME'};host=localhost",$config{'SESSION_DB_USER'},$config{'SESSION_DB_PASS'}) 
 				or wlog("DEBUG: Unable to connect to DB for stats info");
+
+			# Get count of sessions in DB
 			my $sth= $dbh->prepare("SELECT COUNT(*) FROM session") or wlog("STATUS: ERROR: Unable to get session table size $DBI::errstr");
 			$sth->execute() or wlog("STATUS: ERROR: Unable to exec SQL command");
-			my @row;
-			while ( @row = $sth->fetchrow_array ) {
+			while ( my @row = $sth->fetchrow_array ) {
   				$stat{'sessioncount'} = $row[0];
 			}
 			wlog("DEBUG: Session DB count is $stat{'sessioncount'}\n") if $debug;
+
+			# Get Oldest session time
+			$sth= $dbh->prepare("SELECT unix_timestamp(start_time) FROM session ORDER BY start_time LIMIT 1") or wlog("STATUS: ERROR: Unable to get first conenction $DBI::errstr");
+			$sth->execute() or wlog("STATUS: ERROR: Unable to exec SQL command");
+			while ( my @row = $sth->fetchrow_array ) {
+  				$stat{'firstctx'} = $row[0];
+			}
+			wlog("DEBUG: Oldest connection in session DB is $stat{'firstctx'}\n") if $debug;
+
+
 			$dbh->disconnect or wlog("Unable to disconnect from DB $DBI::errstr");
                         if (opendir(SESSION_DIR,$config{'SESSION_DIR'}) ) { 
                         	while (my $filename=readdir(SESSION_DIR)) {
@@ -741,6 +779,7 @@ sub comms{
 									"$status->{'ofpctype'}||".
 									"$status->{'nodename'}||" .
 									"$status->{'firstpacket'}||" .
+									"$status->{'firstctx'}||" .
 									"$status->{'packetspace'}||" .
 									"$status->{'packetused'}||" .
 									"$status->{'sessionspace'}||" .
@@ -754,12 +793,17 @@ sub comms{
 									"$status->{'ld15'}||" .
 									"$status->{'comms'}||" .
 									"$status->{'message'}||" .
-									"$openfpcver" .
+									"$openfpcver" . 
 									"\n";
 							wlog("DEBUG: Status msg sent to client is $statmsg\n");	
 							print $client "STATUS: $statmsg";
 	                        			shutdown($client,2);
 						} elsif ($request->{'action'} eq "summary") {
+
+							print "HACK - Trimming\n";
+							my $trimtime=trimsessiondb;
+							print "HACK = Trimmed to $trimtime\n";
+
 							wlog("COMMS: $client_ip: RID: $request->{'rid'} getting summary data\n");
 							wlog("COMMS: $client_ip: RID: $request->{'rid'} Stime=$request->{'stime'} Etime=$request->{'etime'}");
 							(my $success, my $message, my @table)=OFPC::CXDB::getctxsummary($config{'SESSION_DB_NAME'}, 
@@ -1039,6 +1083,30 @@ sub donode{
 	# Return the name of the file that we have extracted
 	
         return(\%result);
+}
+
+=head2 backgroundtasks
+	Perform regular tasks every X seconds.
+	Includes - clean up CTX table. 
+	Takes $seconds,
+	Returns nothing (looks forever)
+=cut
+
+sub backgroundtasks{
+	my $time=600;
+	
+	unless ($time >=60) {# Check time is a reasonalble value
+		wlog("TASKS: Not starting perodic tasks, time value $time invalid");
+	} else {
+		wlog("TASKS: Starting perodic tasks, running every $time seconds");
+		while(1) {
+			sleep $time;
+			wlog("TASKS: Wake up! Running perodic tasks...");
+			# Trim sessein logs to the oldest packet in the PCAP buffer
+			my $trim=trimsessiondb;
+			wlog("TASKS: Session DB trimmed to $trim\n") if ($verbose);
+		}
+	}
 }
 
 =head2 runq
@@ -1414,6 +1482,7 @@ $config{'LOGFILE'}="/tmp/openfpc-queued.log"; 	# Log file
 $config{'TCPDUMP'} = "/usr/sbin/tcpdump";
 $config{'MERGECAP'} = "/usr/bin/mergecap";
 $config{'PIDPATH'} = "/tmp";
+$config{'KEEPFILES'} = 0;
 
 $SIG{"TERM"}  = sub { closedown("TERM") };
 $SIG{"KILL"}  = sub { closedown("KILL") };
@@ -1540,6 +1609,7 @@ if ($daemon) {
 }
 
 threads->create("runq");
+threads->create("backgroundtasks");
 
 while (my $sock = $listenSocket->accept) {
 	# set client socket to non blocking
