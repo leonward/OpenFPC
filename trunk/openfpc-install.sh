@@ -26,11 +26,11 @@
 # It's goal is to take a system from being OpenFPC-less to one that has OpenFPC operating in a semi-standard setup.
 # By semi-standard i refer to similar to how the .deb install leaves the system.
 
-openfpcver="0.3"
+openfpcver="0.4"
 PROG_DIR="/usr/local/bin"
 CONF_DIR="/etc/openfpc"
 CONF_FILES="etc/openfpc-default.conf etc/openfpc-example-proxy.conf etc/routes.ofpc"
-PROG_FILES="openfpc-client openfpc-queued openfpc-setup.pl openfpc-cx2db openfpc openfpc-dbmaint"
+PROG_FILES="openfpc-client openfpc-queued openfpc-cx2db openfpc openfpc-dbmaint"
 WWW_FILES="index.php bluegrade.png"
 WWW_DIR="/usr/share/openfpc/www"
 CGI_FILES="extract.cgi"
