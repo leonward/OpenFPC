@@ -1270,21 +1270,26 @@ sub bufferRange {
 	wlog("Starting serach in $startfile ($starttimestamp)\n") if ($vdebug);
 	wlog("Ending   search in $endfile ($endtimestamp)\n") if ($vdebug);
 
-	# Look for files between startfile and endfile
+	# Look for files between startfile and endfile if startfile is not the same as endfile
 	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-$config{'NODENAME'}.pcap.*`;	
-        foreach(@pcaptemp) {
-                chomp $_;
-		if ($_ =~ /$startfile/) {
-			$include=1;
-		} elsif ($_ =~ /$endfile/ ) {
-			$include=0;
+	unless ($startfile eq $endfile) {
+        	foreach(@pcaptemp) {
+	                chomp $_;
+			if ($_ =~ /$startfile/) {
+				$include=1;
+			} elsif ($_ =~ /$endfile/ ) {
+				$include=0;
+			}
+	       	        push(@pcaps,$_) if ($include);
+			if ($vdebug) {
+				wlog("VDBEUG: Including $_ \n") if ($include);
+				wlog("VDEBUG: NOT include $_ \n") unless ($include);
+			}
 		}
-                push(@pcaps,$_) if ($include);
-		if ($vdebug) {
-			wlog("VDBEUG: Including $_ \n") if ($include);
-			wlog("VDEBUG: NOT include $_ \n") unless ($include);
-		}
-        }
+        } else {
+		# Add this single file to the @pcaps array
+		push(@pcaps,$startfile);	
+	}
 
 	return(@pcaps);
 }
@@ -1364,10 +1369,9 @@ sub findBuffers {
         }
 
         if ($debug) {
-                if (my $expectedts = ((stat($timeHash{$timestampArray[$location]}))[9])) {
-                        my $lexpectedts = localtime($expectedts);
-                        print " - Target PCAP filename is $timeHash{$timestampArray[$location]} : $lexpectedts\n" if ($debug and $vdebug);
-                }
+		my @tmptarget=split(/\./, $timeHash{$timestampArray[$location]});
+		my $tts=pop(@tmptarget);
+                wlog(" - Target PCAP filename is $timeHash{$timestampArray[$location]} : $tts ( " . localtime($tts) . ")\n");
         }
 
         # Find what pcap files are eachway of target timestamp
