@@ -33,20 +33,33 @@ use IO::Socket::INET;
 use Data::Dumper;
 use File::Temp(qw(tempdir));
 
-# Enter your username and password for OpenFPC here
-# TODO: Decide if these should be configured here, or in a .conf somewhere.
-# For now, this works fine.
+# Filename to read in config from
+my $CONFIG_FILE="/etc/openfpc/openfpc-default.conf";
+my %userlist=();
+my %config=();
 
-my $openfpcuser="openfpc";	# Username to log into the openfpc-queued instance
-my $openfpcpass="openfpc";	# Password to log into the openfpc-queued instance
-my $openfpcserver="localhost";	# OpenFPC Queue address (hostname/ip)
-my $openfpcport="4242";		# OpenFPC port
 ############# Nothing to do below this line #################
-my $debug=0;	# If 1, we will display data about the extracted file rather than
+open my $config, '<', $CONFIG_FILE or die "Unable to open config file";
+while(<$config>) {
+        chomp;
+        if ( $_ =~ m/^[a-zA-Z]/) {
+                (my $key, my @value) = split /=/, $_;
+                unless ($key eq "USER") {
+                        $config{$key} = join '=', @value;
+                } else {
+                        $userlist{$value[0]} = $value[1] ;
+                }    
+        }    
+}
+close $config;
+
+my $openfpcserver="localhost";	# OpenFPC Queue address (hostname/ip)
+my $debug=0;	
+		# If debud is 1, we will display data about the extracted file rather than
 		# push the pcap file for download directly. Includes verbose data
 
-my %req=(   	user => $openfpcuser,
-                password => $openfpcpass,
+my %req=(   	user => $config{'GUIUSER'},
+                password => $config{'GUIPASS'},
                 action => "fetch", 
                 device => 0,
                 logtype => 0,
@@ -105,6 +118,12 @@ if (defined param('filename')) {
 if (defined param('logline')) {
 	$req{'logline'}	= param('logline')  	if param('logline');      # How can I validate this? 
 }
+if (defined param('user')) {
+	$req{'user'}= param('user') 		if param('user');
+}
+if (defined param('password')) {
+	$req{'password'}= param('password') 	if param('password');
+}
 if (defined param('debug')){ 
 	$debug=1 if param('debug');
 }
@@ -133,12 +152,12 @@ unless ($req{'logline'}) {
 
 my $sock = IO::Socket::INET->new(
 	PeerAddr => $openfpcserver,
-	PeerPort => $openfpcport,
+	PeerPort => $config{'OFPC_PORT'},
 	Proto => 'tcp',
 );
 unless ($sock) {
 	print "Content-type: text/html\n\n";
-        $result{'message'} = "Unable to create socket to server $openfpcserver on TCP:$openfpcport\n";
+        $result{'message'} = "Unable to create socket to server $openfpcserver on TCP:$config{'OFPC_PORT'}\n";
 	print "Error $result{'message'} \n"; 
 }
  
@@ -152,6 +171,8 @@ if ($debug) {
 		"Leon Ward 2010 - www.openfpc.org \n" .
 		"--------------------------------------------------\n" .
 		"<pre>Debug Mode: Args being used for extraction script \n" .
+		"User = $req{'user'} \n" .
+		#"Pass = $req{'password'} \n" .
 		"sip = $req{'sip'} \n" .
 		"dip = $req{'dip'} \n" .
 		"spt = $req{'spt'} \n" .
