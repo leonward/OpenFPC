@@ -7,7 +7,7 @@
 
 TARPATH=~
 SRCPATH=..
-PROG_FILES="openfpc-cx2db openfpc-client openfpc-install.sh openfpc openfpc.conf openfpc-queued openfpc-setup.pl openfpc-dbmaint"
+PROG_FILES="openfpc-cx2db openfpc-client openfpc-install.sh openfpc openfpc-queued openfpc-dbmaint"
 PERL_MODS="Parse.pm Request.pm"
 WWW_FILES="index.php bluegrade.png"
 CGI_FILES="extract.cgi"
