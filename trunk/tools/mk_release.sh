@@ -25,7 +25,7 @@ do
 	echo -e " $VER - $i"
 done	
 
-MINOR=$(svn up |awk '{print $3}')
+MINOR=$(svn info |grep Revision | awk '{print $2}' )
 VER=$(grep openfpcver $SRCPATH/openfpc |awk -F = '{print $2}' | awk -F \; '{print $1}')
 TARGET="$TARPATH/openfpc-$VER-$MINOR"
 FILENAME="openfpc-$VER-$MINOR.tgz"
