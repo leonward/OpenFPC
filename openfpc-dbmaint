@@ -106,22 +106,37 @@ function config
 		[ -n "$SESSION_DB_NAME" ] || die "SESSION_DB_NAME not set in $CONFIG"
 		[ -n "$SESSION_DB_USER" ] || die "SESSION_DB_USER not set in $CONFIG"
 		[ -n "$SESSION_DB_PASS" ] || die "SESSION_DB_PASS not set in $CONFIG"
+		[ -n "$NODENAME" ] || die "NODENAME not set in $CONFIG"
 
-		if [ "$ENABLE_SESSION" != "1" ] ; then
-			echo ---------------------------
-			echo -e "WARNING: Instance $CONFIG has session data disabled."
-			echo ---------------------------
+		echo ---------------------------------------------------------
+		echo -e "[!] WARNING: Instance $CONFIG has session data disabled."
+		read -p "    Would you like session capture ENABLED on $NODENAME? (y/n)"  SESSION_ON
+		if [ "$SESSION_ON" == "y" ] 
+		then
+			echo -e "[-] Enabling session capture in $NODENAME config"
+			sudo sed -e 's/^ENABLE_SESSION=0/ENABLE_SESSION=1/g' -i $CONFIG
+			echo -e "    Done."
+		else 
+			echo -e "[-] Disabling session capture in $NODENAME config"
+			sudo sed -e 's/^ENABLE_SESSION=1/ENABLE_SESSION=0/g' -i $CONFIG
+		fi
+
+		if which cxtracker >/dev/null ; then
+			echo -e "[-] Found cxtracker."	
+		else 
+			echo -e "[!] WARNING: cxtracker is NOT found on this host, and is required for session capture"
+			echo -e "    You can find it here -> http://www.openfpc.org/downloads"
+			echo -e "    Continuing, but don't expect session capture to work until cxtracker is installed"
 		fi	
 
-
-		echo Enter user/pass to connect to your local mysql server
-		read -p "DB root Username: " DBUSER
-		read -p "DB root Password: " DBPASS
-
+		echo -e "[*] Enter mysql \"root\" credentials to connect to your local mysql server in order to create $SESSION_DB_NAME database"
+		read -p "    DB root Username: " DBUSER
+		stty -echo
+		read -p "    DB root Password: " DBPASS
+		stty echo
 	else
 		die "Unable to read config file $CONFIG"
 	fi
-
 }
 
 function create
@@ -141,7 +156,6 @@ function create
 	mysql -u$DBUSER -p$DBPASS -e "use 'mysql'; CREATE USER '$SESSION_DB_USER'@'localhost' IDENTIFIED BY '$SESSION_DB_PASS';"
 	mysql -u$DBUSER -p$DBPASS -e "use $SESSION_DB_NAME; GRANT ALL PRIVILEGES ON *.* TO '$SESSION_DB_USER'@'localhost';"
 	echo Done.
-	echo -e "[*] Remember to set ENABLE_SESSION=1 in your openfpc config file to enable session capture!"
 }
 
 function drop
@@ -156,7 +170,6 @@ function drop
 	mysql -u$DBUSER -p$DBPASS -e "use 'mysql'; DROP USER '$SESSION_DB_USER'@'localhost';" || die "Unable to remove user $SESSION_DB_USER"
 
 	echo Done.
-	echo -e "[*] Remember to set ENABLE_SESSION=0 in your openfpc config file!"
 }
 
 ARGC=$#
