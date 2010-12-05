@@ -8,13 +8,15 @@
 TARPATH=~
 SRCPATH=..
 PROG_FILES="openfpc-cx2db openfpc-client openfpc-install.sh openfpc openfpc-queued openfpc-dbmaint"
-PERL_MODS="Parse.pm Request.pm"
+PERL_MODS="Parse.pm Request.pm CXDB.pm"
 WWW_FILES="index.php bluegrade.png"
 CGI_FILES="extract.cgi"
 DOC_FILES="README INSTALL TODO"
 ETC_FILES="openfpc.apache2.site openfpc-default.conf openfpc-example-proxy.conf routes.ofpc"
 INIT_SCRIPTS="openfpc-daemonlogger openfpc-cxtracker openfpc-cx2db openfpc-queued"
 VERFILES="openfpc-install.sh openfpc-client openfpc openfpc-queued"
+
+
 
 echo -e "Checking version numbers in code so I dont forget to ++ something..."
 for i in $VERFILES
@@ -23,11 +25,12 @@ do
 	echo -e " $VER - $i"
 done	
 
+MINOR=$(svn info |grep Revision |awk -F ": " '{print $2}')
 VER=$(grep openfpcver $SRCPATH/openfpc |awk -F = '{print $2}' | awk -F \; '{print $1}')
-TARGET="$TARPATH/openfpc-$VER"
-FILENAME="openfpc-$VER.tgz"
+TARGET="$TARPATH/openfpc-$VER-$MINOR"
+FILENAME="openfpc-$VER-$MINOR.tgz"
 
-echo -e "* Build Version $VER in $TARPATH ? (ENTER = yes)"
+echo -e "* Build Version $VER-$MINOR in $TARPATH ? (ENTER = yes)"
 read 
 
 if [ -d $TARGET ]
@@ -41,7 +44,7 @@ else
 	echo Creating Structure
 	mkdir $TARGET
 	mkdir $TARGET/www
-	mkdir $TARGET/OpenFPC
+	mkdir $TARGET/OFPC
 	mkdir $TARGET/cgi-bin
 	mkdir $TARGET/docs
 	mkdir $TARGET/etc
@@ -71,8 +74,8 @@ else
 	echo -e "* Perl Modules"	
 	for i in $PERL_MODS
 	do
-		echo -e "- Adding $i to $TARGET/OpenFPC"
-		cp $SRCPATH/OpenFPC/$i $TARGET/OpenFPC
+		echo -e "- Adding $i to $TARGET/OFPC"
+		cp $SRCPATH/OFPC/$i $TARGET/OFPC
 	done
 
 	echo -e "* Documentation"	
@@ -97,7 +100,7 @@ else
 
 
 	cd $TARPATH
-	tar -czf $FILENAME openfpc-$VER
+	tar -czf $FILENAME openfpc-$VER-$MINOR
  	cd -	
 fi
 

@@ -50,7 +50,7 @@ openfpc-queued.pl - Queue and process extract requests from local and remote PCA
 0.333
 
 =cut
-my $openfpcver="0.3";
+my $openfpcver="0.4";
 
 my ($queuelen,$debug,$verbose,$rid,%config,%userlist,$help);
 my $queue = Thread::Queue->new();	# Queue shared over all threads
