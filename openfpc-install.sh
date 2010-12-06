@@ -27,7 +27,7 @@
 # By semi-standard i refer to similar to how the .deb install leaves the system.
 
 openfpcver="0.4"
-PROG_DIR="/usr/local/bin"
+PROG_DIR="/usr/bin"
 CONF_DIR="/etc/openfpc"
 CONF_FILES="etc/openfpc-default.conf etc/openfpc-example-proxy.conf etc/routes.ofpc"
 PROG_FILES="openfpc-client openfpc-queued openfpc-cx2db openfpc openfpc-dbmaint"
