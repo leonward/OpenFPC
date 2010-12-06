@@ -34,6 +34,15 @@ function die
 	exit 1
 }
 
+function chkroot()
+{
+	IAM=$(whoami)
+        if [ "$IAM" != "root" ]
+        then
+                die " Must be root to run this script"
+        fi  
+}
+
 
 function addfuncs
 {
@@ -114,11 +123,11 @@ function config
 		if [ "$SESSION_ON" == "y" ] 
 		then
 			echo -e "[-] Enabling session capture in $NODENAME config"
-			sudo sed -e 's/^ENABLE_SESSION=0/ENABLE_SESSION=1/g' -i $CONFIG
+			sed -e 's/^ENABLE_SESSION=0/ENABLE_SESSION=1/g' -i $CONFIG
 			echo -e "    Done."
 		else 
 			echo -e "[-] Disabling session capture in $NODENAME config"
-			sudo sed -e 's/^ENABLE_SESSION=1/ENABLE_SESSION=0/g' -i $CONFIG
+			sed -e 's/^ENABLE_SESSION=1/ENABLE_SESSION=0/g' -i $CONFIG
 		fi
 
 		if which cxtracker >/dev/null ; then
@@ -180,12 +189,14 @@ fi
 
 case $1 in 
 	create)
+		chkroot	
 		config
 		create
 		addfuncs
 	;;
 
 	drop)
+		chkroot
 		config
 		drop
 	;;

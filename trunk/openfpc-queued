@@ -149,8 +149,8 @@ sub decoderequest($){
 	$request{'rtime'} = gmtime();
 
         unless ($argnum == 9 ) {
-                wlog("-D  Bad request, only $argnum args. Expected 9\n") if $debug;
-		$request{'msg'} = "Bad request. Only $argnum args. Expected 8\n";
+                wlog("DECODE:  Bad request, only $argnum args. Expected 9\n") if $debug;
+		$request{'msg'} = "Bad request. Only $argnum args. Expected 9\n";
                 return(\%request);
         }
 
@@ -167,7 +167,7 @@ sub decoderequest($){
 		) = split(/\|\|/, $rawrequest);
 
 	$request{'action'} = lc $request{'action'};
-	wlog("DECODE: Recieved action $request{'action'}");
+	wlog("DECODE: Recieved action $request{'action'}") if ($debug);
 
 	if ($request{'action'} =~ /(fetch|store|summary)/) {
 
@@ -398,7 +398,7 @@ sub prepfile{
 			my $mergecmd="$config{'MERGECAP'} -w $config{'SAVEDIR'}/$request->{'tempfile'}.pcap @mergefiles";
 			wlog("DEBUG: Merge cmd is $mergecmd\n") if $debug;
         		unless (system($mergecmd)) {
-				wlog("PREP: Created $config{'SAVEDIR'}/$request->{'tempfile'}.pcap created");	
+				wlog("PREP: Created $config{'SAVEDIR'}/$request->{'tempfile'}.pcap");	
 				$prep{'filename'}="$request->{'tempfile'}.pcap";
 				$prep{'success'} = 1;
 				$prep{'md5'} = getmd5("$config{'SAVEDIR'}/$prep{'filename'}");
@@ -419,7 +419,7 @@ sub prepfile{
 			if ($zip->writeToFileNamed("$config{'SAVEDIR'}/$request->{'tempfile'}.zip") !=AZ_OK ) {
 				wlog("PREP: ERROR: Problem creating $config{'SAVEDIR'}/$request->{'tempfile'}.zip");
 			} else {
-				wlog("PREP: Created $config{'SAVEDIR'}/$request->{'tempfile'}.zip");
+				wlog("PREP: Created $config{'SAVEDIR'}/$request->{'tempfile'}.zip") if ($verbose);
 				$prep{'filename'}="$request->{'tempfile'}.zip";
 				$prep{'success'} = 1;
 				$prep{'md5'} = getmd5("$config{'SAVEDIR'}/$prep{'filename'}");
@@ -643,7 +643,7 @@ sub comms{
 			case /USER/ {	# Start authentication provess
 				if ($buf =~ /USER:\s+([a-zA-Z1-9]+)/) {
 					$state{'user'}=$1;	
-					wlog("COMMS: $client_ip: GOT USER $state{'user'}");
+					wlog("COMMS: $client_ip: GOT USER $state{'user'}") if ($verbose);
 					if ($userlist{$state{'user'}}) {	# If we have a user account for this user
 						my $clen=20; #Length of challenge to send
                         			my $challenge="";
@@ -673,7 +673,7 @@ sub comms{
                         		}
                         		# Check response hash
                         		if ( $response eq $state{'response'} ) {	
-						wlog("COMMS: $client_ip: Pass Okay");
+						wlog("COMMS: $client_ip: Pass Okay") if ($debug);
 						$state{'response'}=0;		# Reset the response hash. Don't know why I need to, but it sounds like a good idea. 
 						$state{'auth'}=1;		# Mark as authed
 						print $client "AUTH OK\n";
@@ -711,14 +711,14 @@ sub comms{
 
 							$queue->enqueue($request);
 							#Say thanks and disconnect
-							wlog("DEBUG: $client_ip: RID: $request->{'rid'}: Queue action requested. Position $position. Disconnecting\n") if $debug;
+							wlog("DEBUG: $client_ip: RID: $request->{'rid'}: Queue action requested. Position $position. Disconnecting\n");
 							print $client "QUEUED: $position\n";
 							shutdown($client,2);
 
 						} elsif ($request->{'action'} eq "fetch") {
 							# Create a tempfilename for this store request
 							$request->{'tempfile'}=time() . "-" . $request->{'rid'} . ".pcap";
-							wlog("COMMS: $client_ip: RID: $request->{'rid'} Request OK -> WAIT!\n");
+							wlog("COMMS: $client_ip: RID: $request->{'rid'} Fetch Request OK -> WAIT!\n");
 
 							# Prep result of the request for delivery (route/extract/compress etc etc)
 							my $prep = prepfile($request);
@@ -732,7 +732,6 @@ sub comms{
 								} elsif ($prep->{'filetype'} eq "PCAP") {
 									print $client "PCAP: $prep->{'md5'}\n";
 								} else {
-									print "SENT OTHER $prep->{'filetype'}\n";
 									print $client "ERROR: Bad filetype extracted : $prep->{'filetype'}\n";
 	                        					shutdown($client,2);	
 								}
@@ -1101,7 +1100,7 @@ sub backgroundtasks{
 		wlog("TASKS: Starting perodic tasks, running every $time seconds");
 		while(1) {
 			sleep $time;
-			wlog("TASKS: Wake up! Running perodic tasks...");
+			wlog("TASKS: Wake up! Running perodic tasks...") if ($verbose);
 			# Trim sessein logs to the oldest packet in the PCAP buffer
 			my $trim=trimsessiondb;
 			wlog("TASKS: Session DB trimmed to $trim\n") if ($verbose);
