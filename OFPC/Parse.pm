@@ -53,7 +53,10 @@ sub sessionToLogline{
 	} else {
 		$logline = "ofpc-v1 ";
 	}
-	
+
+	# Event  = single timestamp -> Give me packets from around this timetstamp
+	# Search = Start/End time   -> Look for traffic between these two timestamps
+
 	if ($req->{'stime'} or $req->{'etime'}) {
 		$logline .= "type:search ";
 	} else {
@@ -376,22 +379,21 @@ sub SnortSyslog{
 		$event{'device'} = $1;
 	}
 
-	
-  	if ($event{'proto'} eq "ICMP") {
-                if ($logline =~ m/(\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b) -> (\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b)/) {
-                        $event{'sip'} = $1;
-                        $event{'dip'} = $2;
-               }
-        } elsif (($event{'proto'} eq "TCP") | ($event{'proto'} eq "UDP")) {
+        if (($event{'proto'} eq "TCP") | ($event{'proto'} eq "UDP")) {
                 if ($logline =~ /((\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b):(\d+)) -> ((\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b):(\d+))/) {
                         $event{'sip'} = $2;
                         $event{'dip'} = $5;
                         $event{'spt'} = $3;
                         $event{'dpt'} = $6;
                 }
+	} else {
+                if ($logline =~ m/(\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b) -> (\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b)/) {
+                        $event{'sip'} = $1;
+                        $event{'dip'} = $2;
+               }
 	}
 
-	if ( ($event{'sip'} or $event{'dip'}) and $event{'proto'} and $event{'timestamp'} ) {
+	if ( ($event{'sip'} or $event{'dip'}) and $event{'timestamp'} ) {
 		$event{'parsed'}=1;
 	}
 	
@@ -603,26 +605,22 @@ sub ofpcv1BPF{
 
 	my $logline=shift;
 
-	if ($logline =~ m/^(ofpc-v1-bpf)\s+.*bpf:\s+(.*)(timestamp|stime|etime)/i) {
+	if ($logline =~ m/^(ofpc-v1-bpf)\s+.*bpf:\s+(.*?)(timestamp|stime|etime)/i) {
                 $event{'msg'} = "User requested BPF: $logline"; 
 		$event{'bpf'} = $2;
         }
 
 	if ($logline =~ m/timestamp:\s*(\d{1,20})/) { 
-		#m/timestamp:\s*(\d*)\s/ ) { 
         	$event{'timestamp'}=$1;
 	} 
 	
 	if ($logline =~ m/stime:\s*(\d{1,20})/) { 
-		#m/timestamp:\s*(\d*)\s/ ) { 
         	$event{'stime'}=$1;
 	} 
 	
 	if ($logline =~ m/etime:\s*(\d{1,20})/) { 
-		#m/timestamp:\s*(\d*)\s/ ) { 
         	$event{'etime'}=$1;
 	} 
-
 
 	if (( $event{'bpf'} and $event{'timestamp'}) or ( $event{'bpf'} and ($event{'stime'} and $event{'etime'}))) {
 		$event{'parsed'}=1;

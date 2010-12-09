@@ -225,8 +225,14 @@ sub mkreport{
 	my $filename=shift;	# Filename to create
 	my $request=shift;	# HashRef to request data.	
 	my $extract=shift;	# Details about the extract process
+	my $bpf=0;
 
-	my $bpf=mkBPF($request);
+	unless ($request->{'bpf'}) {
+		$bpf=mkBPF($request);
+	} else {
+
+		$bpf=$request->{'bpf'};
+	}
 
 	$filename="$config{'SAVEDIR'}/$request->{'tempfile'}.txt" unless ($filename);
 
@@ -241,8 +247,8 @@ sub mkreport{
 			"Request time  : $request->{'rtime'}\n" .
 			"Comment       : $request->{'comment'}\n" .
 			"---------------------------\n" ;
-		print  REPORT "Timestamp     : $request->{'timestamp'} (" . localtime($request->{'timestamp'}) . ")\n" if $request->{'timestamp'};  
-		print REPORT  "Start Time    : $request->{'stime'} (" . localtime($request->{'stime'}) . ")\n" if $request->{'stime'};  
+		print REPORT "Timestamp     : $request->{'timestamp'} (" . localtime($request->{'timestamp'}) . ")\n" if $request->{'timestamp'};  
+		print REPORT "Start Time    : $request->{'stime'} (" . localtime($request->{'stime'}) . ")\n" if $request->{'stime'};  
 		print REPORT "End Time      : $request->{'etime'} (" . localtime($request->{'etime'}) . ")\n" if $request->{'etime'};  
 		print REPORT "BPF Used      : $bpf\n";
 	
@@ -756,7 +762,7 @@ sub comms{
 								close(XFER);		# Close file
 	                        				shutdown($client,2);	# CLose client
 								
-								wlog("COMMS: $client_ip Request: $request->{'rid'} Transfer complete");
+								wlog("COMMS: $client_ip Request: $request->{'rid'} : Transfer complete");
 								# unless configured to keep, delete the pcap file from
 								# this queue instance
 
@@ -1465,8 +1471,6 @@ sub doExtract{
 	my $md5=Digest::MD5->new->addfile(*PCAPMD5)->hexdigest;
 	close(PCAPMD5);
 
-
-	wlog("NODE: Extracted to $mergefile, $filesize, $md5\n");
 
         # Clean up temp files that have been merged...
 	File::Temp::cleanup() unless ($vdebug);
