@@ -194,7 +194,7 @@ sub request{
                 "   Tempfile:   $request->{'tempfile'}\n" .
 		"   SaveDir:    $request->{'savedir'}\n" .
                 "   Filetype:   $request->{'filetype'}\n" . 
-                "   Type:       $request->{'type'}\n" .	    # Log type - Need to update theis var name to logtype
+                "   Type:       $request->{'type'}\n" .	    # Log type - Need to update this var name to logtype
 		"   Comment:	$request->{'comment'}" .
                 "   LogLine:    $request->{'logline'}\n" .
                 "   SIP:        $request->{'sip'}\n" .
@@ -213,13 +213,15 @@ sub request{
         }   
 
 	# Check that a request contains all of the data we require
-	# It is expected that any request will have already been sanity checked, but we do it again incase
+	# It is expected that any request will have already been sanity checked, but we do it again just incase.
+
 	# The following are required to make any type of request:
 	unless ($request->{'user'}) { 
 		$result{'success'} = 0;
 		$result{'message'} = "No user specified";
 		return %result; 
 	}
+
 	unless ($request->{'action'} =~ m/(store|fetch|status|summary)/) { 
 		$result{'success'} = 0;
 		$result{'message'} = "Invalid action $request->{'action'}";
@@ -231,7 +233,8 @@ sub request{
 			$result{'message'} = "No filename or savedir specified";
 		}
 	}
-	# If we don't have a table requested, send the deafult
+
+	# If we don't have a summary table requested, send the deafult
 	if ($request->{'action'} =~ m/(summary)/ ) {
 		unless ($request->{'sumtype'}) {
 			$request->{'sumtype'} = "top_source_ip_by_volume";
