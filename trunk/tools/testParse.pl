@@ -59,7 +59,12 @@ my %logs=(
 			"192.168.42.107,0,443,6,CLIENT,[unknown:\@https],0,1290816603",
 			"173.194.36.83,0,443,6,SERVER,[unknown:\@https],10,1290816603",
 			],
-	
+	nftracker => 	[
+			"1291893772,6,85.19.221.54,42696,217.147.81.2,80,exe",
+			"1292119164,6,217.69.134.176,51630,85.19.221.54,80,pdf",
+			"1292142613,6,85.19.221.54,59406,78.46.89.231,80,png" ,
+			"1292144009,6,85.19.221.54,34695,78.46.89.231,80,png" 
+			],
 );
 
 sub checkParse{
@@ -89,6 +94,7 @@ sub checkParse{
 		%tmpdata=OFPC::Parse::SnortSyslog($logline); if ($tmpdata{'parsed'} ) { last; }
 		%tmpdata=OFPC::Parse::SnortFast($logline); if ($tmpdata{'parsed'} ) { last; }
 		%tmpdata=OFPC::Parse::pradslog($logline); if ($tmpdata{'parsed'} ) { last; }
+		%tmpdata=OFPC::Parse::nftracker($logline); if ($tmpdata{'parsed'} ) { last; }
 		last;
 	}
 	

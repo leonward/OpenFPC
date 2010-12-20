@@ -121,6 +121,7 @@ sub parselog{
                 %eventdata=OFPC::Parse::SnortFast($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=OFPC::Parse::ofpcv1BPF($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=OFPC::Parse::pradslog($logline); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OFPC::Parse::nftracker($logline); if ($eventdata{'parsed'} ) { last; }
                 return(0, "Unable to parse log message");
         }   
  
@@ -579,6 +580,35 @@ sub pradslog{
 
 
 	
+	return(%event);
+}
+
+=head2 nftracker
+	nftracker finds files as they move over the network.
+ 	# Example logs
+	# timestamp,proto,src_ip,src_port,dst_ip,dst_port,FILE_TYPE
+	# 1291893772,6,85.19.221.54,42696,217.147.81.2,80,exe
+	# 1292119164,6,217.69.134.176,51630,85.19.221.54,80,pdf
+=cut
+sub nftracker{
+	my $logline=shift;
+	my %event=initevent();
+	$event{'type'} = "nftracker log";
+	my $debug=0;
+
+	($event{'timestamp'},
+		my $proto,
+		$event{'sip'},
+		$event{'spt'},
+		$event{'dip'},
+		$event{'dpt'},
+		my $filetype) = split (/,/, $logline); 
+
+	if ($event{'sip'} and $event{'dip'} and $event{'spt'} and $event{'dpt'} ) {
+		$event{'msg'} = "Found filetype: $filetype";
+		$event{'parsed'} = 1;
+	}
+
 	return(%event);
 }
 
