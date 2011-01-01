@@ -4,6 +4,8 @@ use strict;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
 use Date::Simple ('date', 'today');
 use Getopt::Long qw/:config auto_version auto_help/;
+use OFPC::Config;
+use OFPC::Common;
 use DBI;
 use Switch;
 require Exporter;
@@ -142,6 +144,7 @@ sub tftoa {
 	Update connection summary data in DB
 	Takes ($dbname, $dbuser, $dbpass, $summarytype, $starttime, $endtime, $limit)
 	Returns ($success,$error_message, @AoA_of_results);
+        -Leon Ward - 2010
 =cut
 
 sub getctxsummary{
@@ -154,7 +157,6 @@ sub getctxsummary{
 	my $limit = shift;		# Return top $limit results
 	my $debug=0;			# Print debug data
 	my @table=();			# Data returned to caller
-
 	my $error="None";		# Error text
 
 	if ($debug) {
@@ -386,5 +388,8 @@ sub getresults{
 		return($error,@results);
 	}
 }
+
+
+
 
 1;
