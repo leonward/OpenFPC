@@ -30,6 +30,7 @@ our @ISA = qw(Exporter);
 @EXPORT = qw(%config
     %userlist
     %route
+    %pcaps
     $verbose
     $debug
     $vdebug
@@ -37,7 +38,7 @@ our @ISA = qw(Exporter);
     $mrid
     $queue);		
 @EXPORT_OK = qw(ALL);
-$VERSION = '0.3';
+$VERSION = '0.5';
 
 our $debug=0;
 our $vdebug=0;
@@ -60,6 +61,9 @@ our %userlist=();  			# Global cache of users
 our %route=();				# Hash to contain OFPC routing data for nodes
 our $mrid : shared =1; $mrid=1;		# Master request counter. Quick way to identify  request
 our $queue = Thread::Queue->new();	# Queue shared over all threads
+our %pcaps: shared =();
+
+
 =head readconfig
     Read in the config file, store it in the %config global variable.
     - Leon Ward 2011
@@ -102,33 +106,6 @@ sub readconfig{
     }
     
     return(%config);    
-}
-
-=head2 readroutes
-    Open up an OpenFPC route file, and read in the values to a hash called %route.
-=cut
-
-sub readroutes{
-    if ($config{'NODEROUTE'}) {
-	
-	open NODEROUTE, '<', $config{'NODEROUTE'} or die "Unable to open node route file $config{'NODEROUTE'} \n";
-	wlog("CONF: Reading route file $config{'NODEROUTE'}");
-	
-	while(<NODEROUTE>) {
-	    chomp $_;
-	    unless ($_ =~ /^[# \$\n]/) {
-	    	if ( (my $key, my $value) = split /=/, $_ ) {
-	    		$route{$key} = $value;	
-			wlog("CONF: Adding route for $key as $value") if $debug;
-	    	}
-	    }
-	}
-	
-    	close NODEROUTE;
-	
-    } else {
-	die("No route file defined\n");
-    }
 }
 
 

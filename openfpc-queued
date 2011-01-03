@@ -1,7 +1,7 @@
 #!/usr/bin/perl -I .
 
 #########################################################################################
-# Copyright (C) 2010 Leon Ward 
+# Copyright (C) 2011 Leon Ward 
 # openfpc-queued.pl - Part of the OpenFPC - (Full Packet Capture) project
 #
 # Contact: leon@rm-rf.co.uk
@@ -27,13 +27,10 @@ use threads;
 use threads::shared;
 use Thread::Queue;
 use IO::Socket;
-#use Digest::MD5(qw(md5_hex));
 use Getopt::Long;
 use POSIX qw(setsid);		# Required for daemon mode
 use Data::Dumper;
 use File::Temp(qw(tempdir));
-#use DBI;
-
 use OFPC::Config;
 use OFPC::Common;
 use OFPC::Parse;
@@ -41,24 +38,31 @@ use OFPC::Request;
 use OFPC::CXDB;
 
 =head1 NAME
-	openfpc-queued - Queue and process extract requests from local and remote PCAP storage devices
+	openfpc-queued - Queue and process extract requests from local and remote PCAP storage devices.
+	Leon Ward - 2010
 =head1 VERSION 
 
-0.333
-
+0.5
 =cut
-my ($queuelen,$rid,$help);
 
-my %pcaps: shared =();
+my $help;
 my %route: shared =();
 my $configfile=0;
 my $daemon=0;		# NOT DONE YET
 $verbose=0;
+
+
+=head 2 showhelp
+	Show a simple help message.
+=cut
+
 sub showhelp{
 	print <<EOF
 
-   * openfpc-queued *
-   Part of the OpenFPC project.
+  * openfpc-queued version $openfpcver *
+    Part of the OpenFPC project.
+     
+    Leon Ward 2010
 
    --daemon  or -d		Daemon mode
    --config  or -c <file>	Config file  
@@ -78,84 +82,8 @@ sub pipeHandler{
     print "SIGPIPE -> Bad client went away! $sig \n\n" if ($verbose);
 }
 
-
-
-
-
-=head frageq
-	Take a single request, and re-insert it in the queue but for every known device.
-	This isn't used right now, I was testing some concepts out.
-
-sub fragreq{
-	print "Fraging request\n";
-
-	my $request=shift;
-	foreach my $device (keys %route){
-		$request->{'rid'} = OFPC::Common::getrequestid;
-		$request->{'device'} = $device;
-        	my $qlen=$queue->pending();     # Length of extract queue
-		print "Qlen is $qlen\n";
-		# Inject a a sub-request to node that exists
-		print "Adding sub-request RID $request->{'rid'} to $request->{'device'} \n";
-		$queue->enqueue($request);
-        	$qlen=$queue->pending();     # Length of extract queue
-		print "Qlen is $qlen\n";
-	}
-	# If original req is WAITING, report back it's fraged so it can move on.
-}
-# That was disabled for now
-=cut
-
-=head2 runq
-	Runq waits for an entry to appear in the extraction queue, and then takes action on it.
-=cut
-
-sub runq {
-	while (1) {
-        	sleep(1);                       # Pause between polls of queue
-        	my $qlen=$queue->pending();     # Length of extract queue
-        	if ($qlen >= 1) {
-			my $request=$queue->dequeue();
-                	wlog("RUNQ : Found request: $request->{'rid'} Queue length: $qlen");
-                	wlog("RUNQ : Request: $request->{'rid'} User: $request->{'user'} Found in queue:");
-			if ($config{'PROXY'}) {
-
-				(my $nodehost,my $nodeport,my $nodeuser,my $nodepass)=routereq($request->{'device'});
-
-				if ($nodehost) { 		# If this request is routable....
-					$request->{'nodehost'} = $nodehost;
-					$request->{'nodeuser'} = $nodeuser;
-					$request->{'nodeport'} = $nodeport;
-					$request->{'nodepass'} = $nodepass;
-
-                			wlog("RUNQ : PROXY: Request: $request->{'rid'} Routable");    
-					my $result=doproxy($request);
-                			wlog("RUNQ : PROXY: Request: $request->{'rid'} Result: $result->{'success'} Message: $result->{'message'}");    
-					if ($result->{'success'} ) {
-						$pcaps{$request->{'rid'}}=$request->{'filename'} ; # Report done
-					} else {
-						$pcaps{$request->{'rid'}}="ERROR" ; # Report FAIL 
-					}
-				} else {
-					wlog("RUNQ : No openfpc-route to $request->{'device'}. Cant extract.");
-					$pcaps{$request->{'rid'}}="NOROUTE"; # Report FAIL 
-				}
-			} else {
-				my $result = donode($request,$rid);
-				if ($result->{'success'}) {
-                			wlog("RUNQ : NODE: Request: $request->{'rid'} Success. File: $result->{'filename'} $result->{'size'} now cached on NODE in $config{'SAVEDIR'}"); 
-					$pcaps{$request->{'rid'}}=$result->{'filename'};
-				} else {
-                			wlog("RUNQ: NODE: Request: $request->{'rid'} Result: Failed, $result->{'message'}.");    
-				}
-			}
-        	}
-	}
-}
-
 ########### Start Here  ############
 $SIG{PIPE} = \&pipeHandler;
-
 $SIG{"TERM"}  = sub { closedown("TERM") };
 $SIG{"KILL"}  = sub { closedown("KILL") };
 
@@ -187,29 +115,29 @@ if ($help) {
 OFPC::Common::initlog or die("Problem initilizating log subsystem");
 OFPC::Config::readconfig("$configfile") or die("Problem processing config file $configfile");
 
-wlog("*********** OpenFPC $openfpcver **********");
-wlog("**    http://www.openfpc.org    **");
+wlog("START: *********** OpenFPC $openfpcver **********");
+wlog("START: **    http://www.openfpc.org    **");
 
 if ($config{'PROXY'}) {
-        wlog("CONF: Starting OFPC Node \"$config{'NODENAME'}\" as an OpenFPC Proxy");
-	
+        wlog("START: Starting OFPC Node \"$config{'NODENAME'}\" as an OpenFPC Proxy");
+	OFPC::Common::readroutes;
 } else {
-        wlog("CONF: Starting OFPC Node \"$config{'NODENAME'}\" as an OpenFPC Node");
+        wlog("START: Starting OFPC Node \"$config{'NODENAME'}\" as an OpenFPC Node");
 }
 
 # Print verbose config info if debug is enabled
 if ($debug) {
-	wlog("CONF: Node Description: $config{'DESCRIPTION'}");
-	wlog("CONF: Enabled : $config{'OFPC_ENABLED'}");
-	wlog("CONF: local savedir : $config{'SAVEDIR'}");
-	wlog("CONF: Buffer Path : $config{'BUFFER_PATH'}");
-	wlog("CONF: mergecap : $config{'MERGECAP'}");
-	wlog("CONF: tcpdump : $config{'TCPDUMP'}");
-	wlog("CONF: Keep files : $config{'KEEPFILES'}");
+	wlog("DEBUG: Node Description: $config{'DESCRIPTION'}");
+	wlog("DEBUG: Enabled : $config{'OFPC_ENABLED'}");
+	wlog("DEBUG: local savedir : $config{'SAVEDIR'}");
+	wlog("DEBUG: Buffer Path : $config{'BUFFER_PATH'}");
+	wlog("DEBUG: mergecap : $config{'MERGECAP'}");
+	wlog("DEBUG: tcpdump : $config{'TCPDUMP'}");
+	wlog("DEBUG: Keep files : $config{'KEEPFILES'}");
 }
 
 # Start listener
-wlog("MAIN: Starting listener on TCP:$config{'OFPC_PORT'}\n") if ($debug);
+wlog("START: Starting listener on TCP:$config{'OFPC_PORT'}\n");
 my $listenSocket = IO::Socket::INET->new(
                                 LocalPort => $config{'OFPC_PORT'},
                                 Proto => 'tcp',
@@ -218,7 +146,7 @@ my $listenSocket = IO::Socket::INET->new(
                                 );
 
 unless ($listenSocket) { 
-	wlog("Problem creating socke on $config{'OFPC_PORT'}"); 
+	wlog("ERROR: Problem creating socke on $config{'OFPC_PORT'}"); 
 	exit 1;
 }
 $listenSocket->autoflush(1);
@@ -240,7 +168,9 @@ if ($daemon) {
 	setsid or die "Can't start a new session: $!";
 }
 
-threads->create("runq");
+
+# Create a couple of separate threads.
+threads->create("OFPC::Common::runq");
 threads->create("OFPC::Common::backgroundtasks");
 
 while (my $sock = $listenSocket->accept) {
@@ -251,6 +181,6 @@ while (my $sock = $listenSocket->accept) {
 	my $client_ip=$sock->peerhost;
 	wlog("COMMS: Accepted new connection from $client_ip") ;
 
-	# start new thread and listen on the socket
+	# start new thread to process the request from this socket
 	threads->create("OFPC::Common::comms", $sock);
 }
