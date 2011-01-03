@@ -36,11 +36,13 @@ our @ISA = qw(Exporter);
     $vdebug
     $openfpcver
     $mrid
+    $daemon
     $queue);		
 @EXPORT_OK = qw(ALL);
 $VERSION = '0.5';
 
 our $debug=0;
+our $daemon=0;		# Daemon mode
 our $vdebug=0;
 our $openfpcver=0.5;
 our $rid=0;		#ÊMaster request ID. Unique for each instance.

@@ -97,7 +97,9 @@ sub wlog{
         chomp $msg;
         my $gmtime=gmtime();
 	my $logdata = "$config{'NODENAME'} " .  $msg;
-        print "$gmtime GMT: $logdata\n";
+        if ($daemon == 0) {
+            print "$gmtime GMT: $logdata\n" ;
+        }
 	syslog("info",$logdata);
 }
 
