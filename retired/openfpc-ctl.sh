@@ -21,6 +21,10 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #########################################################################################
 
+echo This script is now retired
+echo - Leon Ward 2011
+exit
+
 # ---------------- Nothing to do below here -------------
 # List of config files to try in order
 

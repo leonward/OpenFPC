@@ -27,6 +27,9 @@ use Data::Dumper;
 use File::Copy;
 use File::Path qw(mkpath);
 
+print "This setup script is retired and should not be used. -Leon 2011\n";
+exit 0;
+
 # Confguration Defaults
 my $debug=0;
 my $file="/etc/openfpc/openfpc-default.conf";		# The name of the output config file
