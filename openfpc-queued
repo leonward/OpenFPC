@@ -48,9 +48,6 @@ use OFPC::CXDB;
 my $help;
 my %route: shared =();
 my $configfile=0;
-my $daemon=0;		# NOT DONE YET
-$verbose=0;
-
 
 =head 2 showhelp
 	Show a simple help message.
@@ -97,12 +94,10 @@ GetOptions (
         );
 
 if ($debug) { 
-	$verbose=1;
 	wlog("DEBUG Enabled\n");
 }
 
 if ($vdebug) {
-	$verbose=1;
 	$debug=1;
 	wlog("VDEBUG Enabled\n");
 }
