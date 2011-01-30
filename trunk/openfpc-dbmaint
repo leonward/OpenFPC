@@ -118,7 +118,7 @@ function config
 		[ -n "$NODENAME" ] || die "NODENAME not set in $CONFIG"
 
 		echo ---------------------------------------------------------
-		echo -e "[!] WARNING: Instance $CONFIG has session data disabled."
+		echo -e "[*] Working on Instance $CONFIG ."
 		read -p "    Would you like session capture ENABLED on $NODENAME? (y/n)"  SESSION_ON
 		if [ "$SESSION_ON" == "y" ] 
 		then
