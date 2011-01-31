@@ -29,7 +29,7 @@ use Switch;
 use Data::Dumper;
 use File::Path qw(mkpath);
 
-my $openfpcver=0.4;
+my $openfpcver=0.5;
 my $conf_dir="/etc/openfpc";
 
 my ($quiet,$usertype,$verbose,$help);
