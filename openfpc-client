@@ -33,7 +33,7 @@ use Digest::MD5(qw(md5_hex));
 use Term::ReadKey;
 
 my $now=time();
-my $openfpcver="0.4";
+my $openfpcver="0.5";
 my $timeoffset=0;		# Default time offset if a --timstamp isn't specified 
 my $debug;
 my (%config,$verbose);
