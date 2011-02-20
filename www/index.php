@@ -24,6 +24,7 @@ $configfile="/etc/openfpc/openfpc-default.conf";
 // Nothing to do below this line.
 $debug = 0;
 $file = fopen($configfile, "r");
+$openfpcver=0.5;
 
 // Save config and users into an array
 while ( $line = fgets($file, 200) ) {
@@ -89,7 +90,8 @@ if ($notdstport)  $dstport = strip_not($dstport);
 
 // Dump some debug output
 if ($debug) {
-	print "PCAPS will be b0rked in debug mode!<br>";
+	print "DEBUG ENABLED: PCAPS will be b0rked in debug mode!<br>";
+	print "Version is $openfpcver<br>";
 	print "dbuser is $dbuser<br>" ;
 	print "db is $dbname<br>";
 	print "dbpass is $dbpass<br>";
@@ -306,6 +308,9 @@ function stime2unix($stime){
 
 function extractPcapFromSession() {
     global $ofpcuser, $ofpcpass, $ofpc_client, $debug;
+	if ($debug) {
+		print "Function: extractPcapFromSession\n";
+	}
 
 	$array=doSessionQuery();
 
@@ -359,9 +364,22 @@ function extractPcapFromSession() {
 // -Leon 
 
 function extractPcapFromSearch() {
-	global $ofpcuser, $ofpcpass,$ofpc_client, $start_date, $srcip, $dstip, $srcport, $dstport, $protocol;
-	$exec = "$ofpc_client -u $ofpcuser -p $ofpcpass --gui ";
+	global $ofpcuser, $ofpcpass,$ofpc_client, $start_date, $end_date, $srcip, $dstip, $srcport, $dstport, $protocol, $debug;
 
+	if ($debug) {
+		print "Function: extractPcapFromSearch<br>";
+	}
+
+	$exec = "$ofpc_client -u $ofpcuser -p $ofpcpass --gui ";
+	$stime = stime2unix($start_date);
+	$etime = stime2unix($end_date);
+
+	if ($debug) {
+		print "Start date is " . $start_date . " $stime <br> End time is " . $end_date ." $etime<br>" ;
+	}
+
+        if ($start_date) { $exec .= " --stime " . $stime; }
+	if ($end_date) { $exec .= " --etime " . $etime; }
 	if ($srcip) { $exec .= " --src-addr " . $srcip ; }
 	if ($dstip) { $exec .= " --dst-addr " . $dstip ; }
 	if ($srcport) { $exec .= " --src-port " . $srcport ; }
@@ -376,19 +394,27 @@ function extractPcapFromSearch() {
 	$file=array_pop($pathfile);             # Pop last element of path/file array
 
 	if ($result == 1 ) {
-		#$infobox .= "Exec: $exec <br>";
+		# Success
+		$infobox .= "Success! <br>";
+		$infobox .= "Exec: $exec <br>";
 		$infobox .= "MD5: $md5 <br>";
 		$infobox .= "Size: $size <br>";
-		serv_pcap("$filename","$file");
-		exit(0);
 	} else {
+		# Fail on extract
+		$infobox .= "Fail! <br>";
 		$infobox .= "Result: $result <br>";
 		$infobox .= "Error: $message <br>";
 		$infobox .= "Size: $size <br>";
-		#$infobox .= "Error: $exec <br>";
+		$infobox .= "Error: $exec <br>";
 	}
 
-	$out .= infoBox($infobox);	
+	if ($debug) {
+		$out .= infoBox($infobox);	
+	} else {
+		serv_pcap("$filename","$file");
+		exit(0);
+	}
+
 	return $out;
 }
 
