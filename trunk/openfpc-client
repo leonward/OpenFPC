@@ -207,6 +207,7 @@ sub displayResult{
 		unless ($cmdargs{'gui'}) {  		# Command line output
 			if ($request{'action'} eq "fetch") {	
 				print 	"#####################################\n" .
+					"Date    : " . localtime($now) . "\n" .
 					"Filename: $result{'filename'} \n" .
 					"Size    : $result{'size'}\n" .
 					"MD5     : $result{'md5'}\n";
