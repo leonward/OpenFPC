@@ -54,7 +54,7 @@ our %config=(
     LOGFILE     => "/tmp/openfpc-untitled.log",
     TCPDUMP     => "/usr/sbin/tcpdump",
     MERGECAP    => "/usr/bin/mergecap",
-    PIDPATH     => "/tmp",
+    PIDPATH     => "/var/run",
     KEEPFILES   => "0",
     TASK_INTERVAL => 600,
     );
