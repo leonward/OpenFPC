@@ -163,7 +163,7 @@ function create
 
 	# Create new DB user
 	mysql -u$DBUSER -p$DBPASS -e "use 'mysql'; CREATE USER '$SESSION_DB_USER'@'localhost' IDENTIFIED BY '$SESSION_DB_PASS';"
-	mysql -u$DBUSER -p$DBPASS -e "use $SESSION_DB_NAME; GRANT ALL PRIVILEGES ON *.* TO '$SESSION_DB_USER'@'localhost';"
+	mysql -u$DBUSER -p$DBPASS -e "use $SESSION_DB_NAME; GRANT ALL PRIVILEGES ON $SESSION_DB_NAME.* TO '$SESSION_DB_USER'@'localhost';"
 	echo Done.
 }
 
