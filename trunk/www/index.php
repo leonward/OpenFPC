@@ -43,18 +43,17 @@ fclose($file);
 
 // openfpc Database Settings
 $dbhost = "127.0.0.1";
-$dbuser = "openfpc";
-$dbname = "openfpc";
-$dbpass = "openfpc";
+$dbuser = 0;
+$dbname = 0;
+$dbpass = 0;
+//OFPC Queue Daemon Settings
+$ofpcuser = 0;
+$ofpcpass = 0;
 
 if ($config["SESSION_DB_NAME"]) $dbname = $config["SESSION_DB_NAME"];
 if ($config["SESSION_DB_USER"]) $dbuser =  $config["SESSION_DB_USER"] ;
 if ($config["SESSION_DB_PASS"]) $dbpass =  $config["SESSION_DB_PASS"] ;
-
-//OFPC Queue Daemon Settings
-$ofpcuser = "openfpc";
-$ofpcpass = "openfpc";
- 
+if ($config["SESSION_DB_HOST"]) $dbhost =  $config["SESSION_DB_HOST"] ;
 if ($config["GUIUSER"])  $ofpcuser=$config["GUIUSER"]  ;
 if ($config["GUIPASS"])  $ofpcpass=$config["GUIPASS"]  ;
 
@@ -93,6 +92,7 @@ if ($debug) {
 	print "DEBUG ENABLED: PCAPS will be b0rked in debug mode!<br>";
 	print "Version is $openfpcver<br>";
 	print "dbuser is $dbuser<br>" ;
+	print "dbhost is $dbhost<br>" ;
 	print "db is $dbname<br>";
 	print "dbpass is $dbpass<br>";
 	print "openfpcuser is $ofpcuser<br>";
