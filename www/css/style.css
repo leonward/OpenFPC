@@ -1,0 +1,123 @@
+/***************************************************
+				      GLOBAL
+***************************************************/
+
+
+#spotlight {
+	width: 990px;
+	background-image: url(../images/pattern/wrapper.png);
+	background-repeat: no-repeat;
+	background-position: center top;
+	margin-right: auto;
+	margin-left: auto;
+	overflow: hidden;
+}
+
+#logo {
+	width: 990px;
+	height: 65px;
+	float: left;
+	background-image: url(../images/logo.png);
+	background-repeat: no-repeat;
+	background-position: center top;
+	margin-right: auto;
+	margin-left: auto;
+	padding-top:0px;
+}
+/***************************************************
+			JQUERYSLIDEMENU
+***************************************************/
+.jqueryslidemenu{
+	margin: 0px;
+	font-size: 14px;
+	text-transform: uppercase;
+	padding: 0px;
+	width: 725px;
+	position:relative;
+	height: 85px;
+	display: block;
+	float: left;
+	z-index: 10;
+}
+.jqueryslidemenu ul{
+	margin: 0;
+	padding:0;
+	list-style-type: none;
+}
+.jqueryslidemenu ul li{
+	position: relative;
+	display: inline;
+	margin: 0px;
+	padding-top: 33px;
+	padding-right: 24px;
+	padding-bottom: 0px;
+	padding-left: 0px;
+	float: left;
+	overflow: visible;
+}
+.jqueryslidemenu ul li a{
+	color: #9A9A9A;
+	text-decoration: none;
+	text-transform:uppercase;
+	padding-top: 2px;
+	padding-right: 0px;
+	padding-bottom: 0px;
+	padding-left: 0px;
+	display: block;
+}
+.jqueryslidemenu ul li a.current{
+	color:#FFFFFF;
+	text-decoration: none;
+}
+.jqueryslidemenu ul li a:hover{
+	color: #FFFFFF;
+	text-decoration: none;
+}
+.jqueryslidemenu ul li ul{
+	display: block;
+	z-index:100;
+	width: 178px;
+	left: 55px;
+	float: none;
+	background-repeat: no-repeat;
+	background-position: left top;
+	padding-top: 12px;
+	position: absolute;
+	visibility: visible;
+	background-image: url(../images/dropdown-top.png);
+}
+.jqueryslidemenu ul li ul li{
+	display: block;
+	list-style:none;
+	margin: 0px;
+	float: left;
+	background-repeat: repeat-y;
+	background-position: left top;
+	padding: 0px;
+}
+.jqueryslidemenu ul li ul li a{
+	margin: 0px;
+	font-size: 11px;
+	display: block;
+	width: 130px;
+	text-align: left;
+	color: #FFFFFF;
+	background-image: url(../images/dropdown-bg.png);
+	background-repeat: repeat;
+	padding-top: 4px;
+	padding-right: 7px;
+	padding-bottom: 4px;
+	padding-left: 7px;
+	float: left;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+	border-bottom-color: #333333;
+}
+.jqueryslidemenu ul li ul li a:hover{ 
+	text-decoration: none;
+	background-image: url(../images/dropdown-bg-hover.png);
+	background-repeat: repeat;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+	border-bottom-color: #F4AF8E;
+}
