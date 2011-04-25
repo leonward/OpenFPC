@@ -669,7 +669,7 @@ while(my $file=readdir $dh) {
 	open FILE, '<', "$conf_dir/$file" or die "Unable to open config file $conf_dir/$file $!";
 	while(<FILE>) {
 		chomp $_;
-		$goodfile=1 if ( $_ =~ /^OFPC_ENABLED=/) ;
+		$goodfile=1 if ( $_ =~ /^OFPC_ENABLED=/);
 	}
 	close(FILE);
 	# Open file to read config if it is a valid OpenFPC config file
@@ -689,6 +689,18 @@ while(my $file=readdir $dh) {
 	        	}
 		}
 		close(FILE);
+		
+		# Perform some sanity checks on the instance config, if something strange is found, disable it and warn the user.
+		my $badconfig=0;
+		if ($configs{$file}{NODENAME} =~ /[-\?\\\/]/ ) {
+			print "ERROR: Invalid characters found in NODENAME in file $file \"$configs{$file}{NODENAME}\"\n";
+			$badconfig=1;
+		}
+		if ($badconfig) {
+			print "###############################################################################\n";
+			$configs{$file}{OFPC_ENABLED}=0;
+			print "WARNING: Bad configuration file $file. Disabling instance \"$configs{$file}{NODENAME}\"\n";
+		}
 	}
 }
 closedir($dh);
