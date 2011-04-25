@@ -54,7 +54,7 @@ my %defaults=(  PIDPATH => "/var/run",
 		SESSION_DIR => "/var/tmp/openfpc/session",
 		BUFFER_DIR => "/var/tmp/openfpc/pcap",
 		CX2DB_CMD => "/usr/bin/openfpc-cx2db",
-		BPF_FILE => "/etc/openfpc/dl-bpf-filter.bpf",
+		BPF_FILE => 0,
 		);
 
 ############################################
@@ -346,15 +346,25 @@ sub openfpcqueued{
 sub openfpcdaemonlogger{
 	my $action=shift;
 	my $instance=shift;
+	my $daemonargs="-d";
+	
 	my $daemoncmd=findcmd("openfpc-daemonlogger",$instance);
 
 	my $pidpath=$defaults{'PIDPATH'};
 	$pidpath=$configs{$instance}{'PIDPATH'} if defined $configs{$instance}{'PIDPATH'};
 
 	my $pidfile="openfpc-daemonlogger-" . $configs{$instance}{'NODENAME'} . ".pid";
-	my $daemonargs=" -d ".
-			"-i $configs{$instance}{'INTERFACE'} " .
-			"-f $configs{$instance}{'BPF_FILE'} " .
+	# Check we have a BPF file before rtying to use it
+	if ($configs{$instance}{'BPF_FILE'}) {
+		print "Using BPF\n" if $verbose;
+		if ( -f $configs{$instance}{'BPF_FILE'} ) {
+			$daemonargs .= " -f $configs{$instance}{'BPF_FILE'} ";
+			print "DEBUG: Found BPF file $configs{$instance}{'BPF_FILE'}" if $verbose;
+		} else {
+			print "WARNING: BPF file specified but does not exist! Starting without a BPF\n";
+		}
+	}
+	$daemonargs .= 	"-i $configs{$instance}{'INTERFACE'} " .
 			"-l $configs{$instance}{'BUFFER_PATH'} ".
 			"-M $configs{$instance}{'PCAP_SPACE'} ".
 			"-s $configs{$instance}{'FILE_SIZE'} ".
@@ -664,6 +674,10 @@ while(my $file=readdir $dh) {
 	close(FILE);
 	# Open file to read config if it is a valid OpenFPC config file
 	if ($goodfile) {
+		# Apply defaults to this instance file in case it's missing some of the required configuration lines.
+		foreach (keys %defaults) {
+			$configs{$file}{$_} = $defaults{$_};	
+		}
 		open FILE, '<', "$conf_dir/$file" or die "Unable to open config file $conf_dir/$file $!";
 		while(my $line=<FILE>) {
         		chomp $line;
