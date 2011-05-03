@@ -1,6 +1,7 @@
 <?php
 # --------------------------------------------------------------------------
-# Copyright (C) 2010 Edward Fjellskål <edward.fjellskaal@gmail.com>
+# Copyright (C) 2011 Edward Fjellskål <edward.fjellskaal@gmail.com> and
+# Leon Ward <leon@rm-rf.co.uk>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +22,10 @@
 $configfile="/etc/openfpc/openfpc-default.conf";
 # --------------------------------------------------------------------------
 // Nothing to do below this line.
-$debug = 0;
+$debug = 1;
+$utc_offset=0;
+$timezone="UTC";
+
 $file = fopen($configfile, "r");
 $openfpcver=0.5;
 
@@ -49,6 +53,13 @@ $dbpass = "openfpc";
 if ($config["SESSION_DB_NAME"]) $dbname = $config["SESSION_DB_NAME"];
 if ($config["SESSION_DB_USER"]) $dbuser =  $config["SESSION_DB_USER"] ;
 if ($config["SESSION_DB_PASS"]) $dbpass =  $config["SESSION_DB_PASS"] ;
+if ( preg_match("/^[+-]\d+/", $config["UTC_OFFSET"])) {
+	$utc_offset =  $config["UTC_OFFSET"];
+}
+if ( preg_match("/^[A-Z]../", $config["TIMEZONE"])) {
+	$timezone =  $config["TIMEZONE"];
+}
+
 
 //OFPC Queue Daemon Settings
 $ofpcuser = "openfpc";

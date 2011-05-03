@@ -62,7 +62,7 @@ $head .= "          <li><a href=\"gui2.php\" class=\"current\">OpenFPC</a></li>\
 $head .= "          <li><a href=\"#\">Packets</a>\n";
 $head .= "                           <ul style=\"display: none; visibility: visible;\">\n";
 $head .= "                             <li><a href=\"gui2.php?op=DisplayLogLine\">From Event</a></li>\n";
-$head .= "                             <li><a href=\"gui2.php\">From Criteria</a></li>\n";
+$head .= "                             <li><a href=\"gui2.php?op=Extract pcap\">From Criteria</a></li>\n";
 $head .= "                           </ul><!--END submenu packets-->\n";
 $head .= "          </li>\n";
 $head .= "          <li><a href=\"#\">Sessions</a>\n";
@@ -71,7 +71,12 @@ $head .= "                             <li><a href=\"gui2.php\">Search</a></li>\
 $head .= "                             <li><a href=\"gui2.php\">Most Recent</a></li>\n";
 $head .= "                           </ul><!--END submenu sessions-->\n";
 $head .= "           </li>\n";
-$head .= "             <li><a href=\"gui2.php?op=about\">About</a></li>\n";
+$head .= "          <li><a href=\"#\">Help</a>\n";
+$head .= "                           <ul style=\"display: none; visibility: visible;\">\n";
+$head .= "                             <li><a href=\"gui2.php?op=about\">About</a></li>\n";
+$head .= "                             <li><a href=\"gui2.php?op=guide\">User Guide</a></li>\n";
+$head .= "                           </ul><!--END submenu sessions-->\n";
+$head .= "           </li>\n";
 $head .= "        </ul>\n";
 $head .= "</div><!--END jqueryslidemenu-->\n";
 
