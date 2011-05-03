@@ -167,7 +167,7 @@ function eventRowFormat($data) {
     $out .= ">";
     // Sensor
     //$out .= "<td onmouseover=\"this.style.cursor=&#39;hand&#39;\" onclick=\"SessionWindow('" . $data["sessionid"] . "','" . $data["ip_version"] . "');\">" . $data["sessionid"] . "</td>";
-    $out .= "<td>" . $data["sessionid"] . "</td>";
+    //$out .= "<td>" . $data["sessionid"] . "</td>";
 
     // Source IP
     $out .= "<td>" . $data["src_ip"] . "</td>";

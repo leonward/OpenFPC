@@ -57,6 +57,8 @@ if ($debug) {
 	print "dbpass is $dbpass<br>";
 	print "openfpcuser is $ofpcuser<br>";
 	print "openfpcpass is $ofpcpass<br>";
+	print "Timezone is $timezone<br>";
+	print "utc_offset is $utc_offset";
 }
 
 // OP Director
@@ -72,8 +74,7 @@ switch ($op) {
         break;
 
     case "Extract pcap":
-        #$out = searchDisplay();
-        //$data = doSessionQuery();
+	include "includes/extractDisplay.php";
         $out .= extractPcapFromSearch();	
         //pollParse($data);
         break;
@@ -84,12 +85,12 @@ switch ($op) {
         #$out = dumpDisplay();   
         break;
         
-    case "Store pcap form event":
+    case "Store pcap from event":
         include "includes/logLine.php";
         $out = extractPcapFromLog("store");
         break;
 
-    // Display form to grab pcaps from event/log line
+    // Display from to grab pcaps from event/log line
     case "DisplayLogLine":
         include "includes/logLine.php";
 	break;
@@ -122,7 +123,7 @@ function showResults() {
     $out .= "  </caption>\n";
     $out .= "  <thead>\n";
     $out .= "    <tr>\n";
-    $out .= "      <th class=\"span-4\">cxtID</th>\n";
+    //$out .= "      <th class=\"span-4\">cxtID</th>\n";
     $out .= "      <th class=\"span-4\">Src IP</th>\n";
     $out .= "      <th class=\"span-4\">Src Port</th>\n";
     $out .= "      <th class=\"span-4\">Dst IP</th>\n";
@@ -219,11 +220,11 @@ function extractPcapFromSession() {
 	$etimeGMT = stime2unix($array["end_time"]);
 
 	# Add 10 hours to start time
-        $stime = strtotime($stimeGMT . ' + 10 hours'); 
+        //$stime = strtotime($stimeGMT . ' + 10 hours'); 
         $stime = date("m/d/y - h:i a", $stime);
 
 	# Add 10 hours to end time
-        $etime = strtotime($etimeGMT . ' + 10 hours'); 
+        //$etime = strtotime($etimeGMT . ' + 10 hours'); 
         $etime = date("m/d/y - h:i a", $etime);
 
 
@@ -274,10 +275,10 @@ function extractPcapFromSession() {
 // -Leon 
 
 function extractPcapFromSearch() {
-	global $ofpcuser, $ofpcpass,$ofpc_client, $start_date, $srcip, $dstip, $srcport, $dstport, $protocol, $debug;
+	global $ofpcuser, $ofpcpass,$ofpc_client, $start_date, $srcip, $dstip, $srcport, $dstport, $protocol, $debug, $end_date;
 	
 	if ($debug) {
-		print "Function: extractPcapFromSearch<br>";
+		print "<br>Function: extractPcapFromSearch<br>";
 	}
 
 	$exec = "$ofpc_client -u $ofpcuser -p $ofpcpass --gui ";
