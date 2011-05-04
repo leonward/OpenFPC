@@ -209,7 +209,7 @@ function extractPcapFromLog($action) {
 # Calls ofpc-client.pl to extract the traffic when the user selects a session entry in the table
 
 function extractPcapFromSession() {
-    global $ofpcuser, $ofpcpass, $ofpc_client, $debug;
+    global $ofpcuser, $ofpcpass, $ofpc_client, $debug, $tzonelocal;
 	if ($debug) {
 		print "Function: extractPcapFromSession\n";
 	}
