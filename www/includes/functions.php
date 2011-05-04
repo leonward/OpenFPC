@@ -77,7 +77,7 @@ function doSessionQuery() {
 
 function doSearchQuery() {
     global $maxRows, $srcip, $dstip, $srcport, $dstport, $start_date, $end_date, $debug;
-    global $protocol, $ipv, $notsrcip, $notdstip, $notsrcport, $notdstport;
+    global $protocol, $ipv, $notsrcip, $notdstip, $notsrcport, $notdstport, $tzonelocal;
     $out="";
     $siteDB = new siteDB();
     $orderBy = "start_time";
