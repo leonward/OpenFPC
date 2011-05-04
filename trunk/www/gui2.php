@@ -217,8 +217,8 @@ function extractPcapFromSession() {
 	$array=doSessionQuery();
 
         # Change timezones from GMT to Local
-        $stime = convertDateTime($start_date, 'GMT', $tzonelocal);
-        $etime = convertDateTime($end_date, 'GMT', $tzonelocal);
+        $stime = convertDateTime($array["start_time"], 'GMT', $tzonelocal);
+        $etime = convertDateTime($array["end_time"], 'GMT', $tzonelocal);
 
 	if ($debug) {
 		print "Start time is " . $array["start_time"] . " $stime : End time is " . $array["end_time"] ." $etime<br>" ;
