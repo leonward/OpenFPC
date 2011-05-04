@@ -26,6 +26,9 @@ $debug = 1;
 $utc_offset=0;
 $timezone="UTC";
 
+# Set the local timezone
+$tzonelocal = 'Australia/Sydney';
+
 $file = fopen($configfile, "r");
 $openfpcver=0.5;
 

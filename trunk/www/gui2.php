@@ -216,17 +216,9 @@ function extractPcapFromSession() {
 
 	$array=doSessionQuery();
 
-	$stimeGMT = stime2unix($array["start_time"]);
-	$etimeGMT = stime2unix($array["end_time"]);
-
-	# Add 10 hours to start time
-        //$stime = strtotime($stimeGMT . ' + 10 hours'); 
-        $stime = date("m/d/y - h:i a", $stime);
-
-	# Add 10 hours to end time
-        //$etime = strtotime($etimeGMT . ' + 10 hours'); 
-        $etime = date("m/d/y - h:i a", $etime);
-
+        # Change timezones from GMT to Local
+        $stime = convertDateTime($start_date, 'GMT', $tzonelocal);
+        $etime = convertDateTime($end_date, 'GMT', $tzonelocal);
 
 	if ($debug) {
 		print "Start time is " . $array["start_time"] . " $stime : End time is " . $array["end_time"] ." $etime<br>" ;
