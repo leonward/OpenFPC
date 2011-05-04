@@ -19,6 +19,23 @@
 
 // Functions
 
+function convertDateTime($dateTime, $oldDateTimeZone, $newDateTimeZone ){
+    global $tzonelocal;
+    # Create the timezone objects
+    $tzoneOld = new DateTimeZone($oldDateTimeZone);
+    $tzoneNew = new DateTimeZone($newDateTimeZone);
+
+    # Create the DateTime object
+    $dateTime = new DateTime($dateTime, $tzoneOld);
+
+    # Change the timezone
+    $dateTime->setTimezone($tzoneNew);
+    
+    # Set the format, and ret
+    return $dateTime->format('Y-m-d H:i:s');
+}
+
+
 function doSessionQuery() {
     global $cxtid, $ipv, $sessp, $debug;
     if ($debug) {print "doSessionQuery got: $cxtid, $ipv, $sessp <br>" ; };
@@ -64,6 +81,10 @@ function doSearchQuery() {
     $out="";
     $siteDB = new siteDB();
     $orderBy = "start_time";
+
+    # Change user supplied DateTime's to GMT before querying cxtracker DB
+    $start_date = convertDateTime($start_date, $tzonelocal, 'GMT');
+    $end_date = convertDateTime($end_date, $tzonelocal, 'GMT'); 
 
     //if ( preg_match("/^(\d){1,2}$/",$ipv) ) {
     //  if ( $ipv != 2 || $ipv != 10 || $ipv !=12 ) $ipv = 12; 
@@ -143,14 +164,20 @@ function doSearchQuery() {
 
 	if ($debug) { print "Query is $query<br>" ; }
         $siteQ = $siteDB->query($query);
-	
+
+
         for ($i = 0; $row = mysql_fetch_row($siteQ); $i++) {
             for ($p = 0; $p < count($row); $p++) {
-                $array[mysql_field_name($siteQ, $p)] = $row[$p];
+			if (mysql_field_name($siteQ, $p) == "start_time" || mysql_field_name($siteQ, $p) == "end_time")
+			{
+                                # Change the DB records datetime from GMT to local
+                                $dateTime = convertDateTime($row[$p], 'GMT', $tzonelocal);
+				$array[mysql_field_name($siteQ, $p)] = $dateTime;
+			} else {
+                                $array[mysql_field_name($siteQ, $p)] = $row[$p];
+			}
             }
-
             $out .= eventRowFormat($array);
-
             unset($array);
         }
 
