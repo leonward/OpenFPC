@@ -24,14 +24,14 @@ require "includes/config.inc.php";
 
 session_start();
 
-if (isset($_SESSION['user']))
+if ($_SESSION['auth'] == 1)
     {
         $user = $_SESSION['user'];
     }
 else
     {
-        // Redirect to login
-      //  header ("Location: login.php");
+        // Redirect to login 
+//       header ("Location: login.php");
     }
 
 
@@ -72,6 +72,7 @@ if ($debug) {
 	print "openfpcpass is $ofpcpass<br>";
 	print "Timezone is $timezone<br>";
 	print "Enable Session is $enable_session<br>";
+	print "Username is $user<br>";
 }
 
 // OP Director

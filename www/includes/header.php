@@ -77,12 +77,19 @@ if ($enable_session) {
     $head .= "           </li>\n";
 }
 
+    
 $head .= "          <li><a href=\"#\">Help</a>\n";
 $head .= "                           <ul style=\"display: none; visibility: visible;\">\n";
 $head .= "                             <li><a href=\"gui2.php?op=about\">About</a></li>\n";
 $head .= "                             <li><a href=\"gui2.php?op=guide\">User Guide</a></li>\n";
-$head .= "                           </ul><!--END submenu sessions-->\n";
+$head .= "                           </ul><!--END submenu Help-->\n";
 $head .= "           </li>\n";
+
+$head .= "          <li><a href=\"login.php?op=dologout\">Logout</a>\n";
+$head .= "                           <ul style=\"display: none; visibility: visible;\">\n";
+$head .= "                           </ul><!--END submenu Logout-->\n";
+$head .= "           </li>\n";
+
 $head .= "        </ul>\n";
 $head .= "</div><!--END jqueryslidemenu-->\n";
 
