@@ -19,7 +19,7 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 # --------------------------------------------------------------------------
 
-$head = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n";
+
 $head .= "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n";
 $head .= "<head>\n";
 $head .= "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" />\n";
@@ -65,12 +65,18 @@ $head .= "                             <li><a href=\"gui2.php?op=DisplayLogLine\
 $head .= "                             <li><a href=\"gui2.php?op=Extract pcap\">From Criteria</a></li>\n";
 $head .= "                           </ul><!--END submenu packets-->\n";
 $head .= "          </li>\n";
-$head .= "          <li><a href=\"#\">Sessions</a>\n";
-$head .= "                           <ul style=\"display: none; visibility: visible;\">\n";
-$head .= "                             <li><a href=\"gui2.php\">Search</a></li>\n";
-$head .= "                             <li><a href=\"gui2.php\">Most Recent</a></li>\n";
-$head .= "                           </ul><!--END submenu sessions-->\n";
-$head .= "           </li>\n";
+
+// Only display session menu if session search is enabled.
+
+if ($enable_session) {
+    $head .= "          <li><a href=\"#\">Sessions</a>\n";
+    $head .= "                           <ul style=\"display: none; visibility: visible;\">\n";
+    $head .= "                             <li><a href=\"gui2.php\">Search</a></li>\n";
+    $head .= "                             <li><a href=\"gui2.php\">Most Recent</a></li>\n";
+    $head .= "                           </ul><!--END submenu sessions-->\n";
+    $head .= "           </li>\n";
+}
+
 $head .= "          <li><a href=\"#\">Help</a>\n";
 $head .= "                           <ul style=\"display: none; visibility: visible;\">\n";
 $head .= "                             <li><a href=\"gui2.php?op=about\">About</a></li>\n";

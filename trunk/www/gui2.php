@@ -22,6 +22,19 @@
 require "includes/functions.php";
 require "includes/config.inc.php";
 
+session_start();
+
+if (isset($_SESSION['user']))
+    {
+        $user = $_SESSION['user'];
+    }
+else
+    {
+        // Redirect to login
+      //  header ("Location: login.php");
+    }
+
+
 // Variable Initialization
 $op         = sanitize("op");         if (empty($op))         $op = "search";
 $ipv        = sanitize("ipv");        if (empty($ipv))        $ipv = "2";
@@ -58,7 +71,7 @@ if ($debug) {
 	print "openfpcuser is $ofpcuser<br>";
 	print "openfpcpass is $ofpcpass<br>";
 	print "Timezone is $timezone<br>";
-	print "utc_offset is $utc_offset";
+	print "Enable Session is $enable_session<br>";
 }
 
 // OP Director
