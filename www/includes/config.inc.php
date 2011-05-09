@@ -25,6 +25,7 @@ $configfile="/etc/openfpc/openfpc-default.conf";
 $debug = 1;
 $utc_offset=0;
 $timezone="UTC";
+$enable_session=0;
 
 # Set the local timezone
 $tzonelocal = 'Australia/Sydney';
@@ -38,7 +39,7 @@ while ( $line = fgets($file, 200) ) {
 		list ($tmp,$user,$pass) = (explode("=",$line));
 		$users["$user"] = $pass;
 	}
-
+	
 	if (preg_match("/^[A-Z]/", $line)) {
 		list ($configkey,$configval) = (explode("=",$line));
 		chop($configval);
@@ -56,6 +57,8 @@ $dbpass = "openfpc";
 if ($config["SESSION_DB_NAME"]) $dbname = $config["SESSION_DB_NAME"];
 if ($config["SESSION_DB_USER"]) $dbuser =  $config["SESSION_DB_USER"] ;
 if ($config["SESSION_DB_PASS"]) $dbpass =  $config["SESSION_DB_PASS"] ;
+if ($config["ENABLE_SESSION"] == 1) $enable_session =  1 ;
+
 if ( preg_match("/^[+-]\d+/", $config["UTC_OFFSET"])) {
 	$utc_offset =  $config["UTC_OFFSET"];
 }
