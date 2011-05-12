@@ -25,7 +25,12 @@
 #########################################################################################
 
 ACTION=$1
-CONFIG=$2
+TYPE=$2
+CONFIG=$3
+
+GUI_DB_NAME=openfpc_gui
+GUI_DB_USER=openfpc_gui
+GUI_DB_PASS=openfpc_gui
 
 
 function die
@@ -105,10 +110,9 @@ DELIMITER ;
 	mysql -u$DBUSER -p$DBPASS -e "$SQL"
 }
 
-function config
+function readconfig
 {
-
-	if [ -f $CONFIG ] ; then
+    if [ -f $CONFIG ] ; then
 		source $CONFIG || die "Unable to read config file \"$CONFIG\""
 		# Check all vars required are set in $CONFIG
 		[ -n "$ENABLE_SESSION" ] || die "ENABLE_SESSION not set in $CONFIG"
@@ -116,6 +120,20 @@ function config
 		[ -n "$SESSION_DB_USER" ] || die "SESSION_DB_USER not set in $CONFIG"
 		[ -n "$SESSION_DB_PASS" ] || die "SESSION_DB_PASS not set in $CONFIG"
 		[ -n "$NODENAME" ] || die "NODENAME not set in $CONFIG"
+                
+		echo -e "[*] Enter mysql \"root\" credentials to connect to your local mysql server in order to create $SESSION_DB_NAME database"
+		read -p "    DB root Username: " DBUSER
+		stty -echo
+		read -p "    DB root Password: " DBPASS
+		stty echo
+    else
+        die "Cant find config file $CONFIG"
+    fi
+
+}
+
+function configure_session
+{
 
 		echo ---------------------------------------------------------
 		echo -e "[*] Working on Instance $CONFIG ."
@@ -138,17 +156,78 @@ function config
 			echo -e "    Continuing, but don't expect session capture to work until cxtracker is installed"
 		fi	
 
-		echo -e "[*] Enter mysql \"root\" credentials to connect to your local mysql server in order to create $SESSION_DB_NAME database"
-		read -p "    DB root Username: " DBUSER
-		stty -echo
-		read -p "    DB root Password: " DBPASS
-		stty echo
-	else
-		die "Unable to read config file $CONFIG"
-	fi
 }
 
-function create
+function configure_gui
+{
+    echo -e "\n[*] Enter an initial username for the first OpenFPC GUI user"
+    read -p "    GUI Username: " ADMIN_USER
+    stty -echo
+    read -p "    GUI Password: " ADMIN_PASS
+    stty echo
+
+}
+
+function create_gui
+{
+
+    echo CREATING GUI DATABASE
+    echo ---------------------------
+    # Test we have access
+    mysql -u$DBUSER -p$DBPASS -e 'SHOW DATABASES;' > /dev/null || die "Unable to connect to database"
+
+    # Check if DB already exists
+    mysql -u$DBUSER -p$DBPASS -e "USE $GUI_DB_NAME;" > /dev/null 2>&1 && die "Database $GUI_DB_NAME already exists"
+
+    # Create new DB
+    mysql -u$DBUSER -p$DBPASS -e "CREATE DATABASE $GUI_DB_NAME;" > /dev/null 2>&1 || die "Unable to create DB $GUI_DB_NAME"
+
+    # Create new DB user
+    mysql -u$DBUSER -p$DBPASS -e "use 'mysql'; CREATE USER '$GUI_DB_USER'@'localhost' IDENTIFIED BY '$GUI_DB_PASS';"
+    mysql -u$DBUSER -p$DBPASS -e "use $GUI_DB_NAME; GRANT ALL PRIVILEGES ON $GUI_DB_NAME.* TO '$GUI_DB_USER'@'localhost';"
+
+
+    echo GUI DB Created.
+    
+    # Create tables
+    SQL="CREATE TABLE users (
+         id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+         username VARCHAR(20),
+         password VARCHAR(20),
+         timezone VARCHAR(30)
+       );"
+    mysql -u$DBUSER -p$DBPASS $GUI_DB_NAME -e "$SQL"
+    echo $SQL
+    
+    SQL="INSERT INTO users (username,password)
+        VALUES (
+            '$ADMIN_USER', '$ADMIN_PASS'
+        );"
+    mysql -u$DBUSER -p$DBPASS $GUI_DB_NAME -e "$SQL"
+    echo $SQL
+
+    echo "New user $ADMIN_USER added."        
+    
+
+}
+
+function drop_gui
+{
+    echo REMOVING DATABASE
+    echo ---------------------------
+    # Test we have access
+    mysql -u$DBUSER -p$DBPASS -e 'SHOW DATABASES;' > /dev/null 2>&1 || die "Unable to connect to database"
+    # Check if DB already exists
+    mysql -u$DBUSER -p$DBPASS -e "USE $GUI_DB_NAME;" > /dev/null 2>&1 || die "Database $GUI_DB_NAME Not found!"
+    
+    mysql -u$DBUSER -p$DBPASS -e "DROP DATABASE $GUI_DB_NAME;" > /dev/null 2>&1 || die "Database $GUI_DB_NAME Not found!"
+    mysql -u$DBUSER -p$DBPASS -e "use 'mysql'; DROP USER '$GUI_DB_USER'@'localhost';" || die "Unable to remove user $GUI_DB_USER"
+
+    echo GUI DB Dropped.
+
+}
+
+function create_session
 {
 	echo CREATING DATABASE
 	echo ---------------------------
@@ -164,10 +243,10 @@ function create
 	# Create new DB user
 	mysql -u$DBUSER -p$DBPASS -e "use 'mysql'; CREATE USER '$SESSION_DB_USER'@'localhost' IDENTIFIED BY '$SESSION_DB_PASS';"
 	mysql -u$DBUSER -p$DBPASS -e "use $SESSION_DB_NAME; GRANT ALL PRIVILEGES ON $SESSION_DB_NAME.* TO '$SESSION_DB_USER'@'localhost';"
-	echo Done.
+	echo Session DB Created.
 }
 
-function drop
+function drop_session
 {
 	echo REMOVING DATABASE
 	echo ---------------------------
@@ -178,40 +257,75 @@ function drop
 	mysql -u$DBUSER -p$DBPASS -e "DROP DATABASE $SESSION_DB_NAME;" > /dev/null 2>&1 || die "Database $SESSION_DB_NAME Not found!"
 	mysql -u$DBUSER -p$DBPASS -e "use 'mysql'; DROP USER '$SESSION_DB_USER'@'localhost';" || die "Unable to remove user $SESSION_DB_USER"
 
-	echo Done.
+	echo Session DB Dropped.
+}
+
+function showhelp
+{
+    echo -e ""
+    echo -e "* openfpc-dbmaint.sh "
+    echo -e "  Create and maintain an OpenFPC databases"
+    echo -e ""
+    echo -e "  Usage:"
+    echo -e "  openfpc-dbmaint.sh <action> <db_type> <config_file>\n"
+    echo -e "      action          create / drop"
+    echo -e "      db_type         session / gui"
+    echo -e "      config_file     /path/to/openfpc-config.conf"
+    echo -e ""
+    echo -e "  Example 1: Creating a session database"
+    echo -e "  ./openfpc-dbmaint.sh create session /etc/openfpc/openfpc-example-node.conf"
+    echo -e ""
+    echo -e "  Example 2: Dropping the gui database"
+    echo -e "  ./openfpc-dbmaint.sh drop gui /etc/openfpc/openfpc-example-node.conf"
+    echo -e ""
+
 }
 
 ARGC=$#
-if [ "$ARGC" == "1" ] ; then 
+if [ "$ARGC" == "2" ] ; then 
 	echo -e "Error: incorrect arguements"
+        showhelp
 	exit 1
 fi
 
 case $1 in 
 	create)
-		chkroot	
-		config
-		create
+       	    chkroot	
+            readconfig
+            
+            if [ "$TYPE" == "session" ]
+            then
+		configure_session
+                create_session
 		addfuncs
+            elif [ "$TYPE" == "gui" ]
+            then
+                configure_gui
+                create_gui
+            else
+                die "ERROR: Invalid type $TYPE. See usage"
+            fi
 	;;
 
 	drop)
-		chkroot
-		config
-		drop
+            chkroot
+            readconfig
+            
+            if [ "$TYPE" == "session" ]
+            then
+		drop_session
+            elif [ "$TYPE" == "gui" ]
+            then
+                drop_gui
+            else
+                die "ERROR: Invalid type $TYPE. See usage"
+            fi
 	;;
 	clean)
 	;;
 	*)
-		echo -e ""
-		echo -e "* openfpc-dbmaint.sh "
-		echo -e "  Create and maintain an OpenFPC session database"
-		echo -e "  Usage:"
-		echo -e "      openfpc-dbmaint.sh create <openfpc-node.conf>"
-		echo -e "      openfpc-dbmaint.sh drop <openfpc-node.conf>"
-		echo -e "  Example:"
-		echo -e "      ./openfpc-dbmaint.sh create /etc/openfpc/openfpc-example-node.conf"
-
+            echo -e "\nERROR: Invalid args."
+            showhelp
 	;;
 
 esac
