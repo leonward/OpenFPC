@@ -24,7 +24,7 @@ global $srcip, $dstip, $srcport, $dstport, $ipv, $protocol;
 global $notdstip, $notsrcip, $notsrcport, $notdstport;
 
 $out = "";
-$out .= "  <form method=\"get\" name=\"search\" action=\"\">\n";
+$out .= "  <form method=\"post\" name=\"search\" action=\"\">\n";
     $out .= "    <div class=\"span-6 \">\n";
     $out .= "      <fieldset>\n";
     $out .= "        <legend>Source Address</legend>\n";

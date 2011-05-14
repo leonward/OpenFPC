@@ -22,7 +22,7 @@
 $configfile="/etc/openfpc/openfpc-default.conf";
 # --------------------------------------------------------------------------
 // Nothing to do below this line.
-$debug = 1;
+$debug = 0;
 $utc_offset=0;
 $timezone="UTC";
 $enable_session=0;
@@ -59,17 +59,19 @@ if ($config["SESSION_DB_USER"]) $dbuser =  $config["SESSION_DB_USER"] ;
 if ($config["SESSION_DB_PASS"]) $dbpass =  $config["SESSION_DB_PASS"] ;
 if ($config["ENABLE_SESSION"] == 1) $enable_session =  1 ;
 
-if ( preg_match("/^[+-]\d+/", $config["UTC_OFFSET"])) {
-	$utc_offset =  $config["UTC_OFFSET"];
-}
+if ($config["GUI_DB_NAME"]) $guidbname = trim($config["GUI_DB_NAME"]);
+if ($config["GUI_DB_USER"]) $guidbuser = trim($config["GUI_DB_USER"]);
+if ($config["GUI_DB_PASS"]) $guidbpass = trim($config["GUI_DB_PASS"]);
+if ($config["GUI_DB_HOST"]) $guidbhost = trim($config["GUI_DB_HOST"]);
+
+
 if ( preg_match("/^[A-Z]../", $config["TIMEZONE"])) {
 	$timezone =  $config["TIMEZONE"];
 }
 
-
 //OFPC Queue Daemon Settings
-$ofpcuser = "openfpc";
-$ofpcpass = "openfpc";
+$ofpcuser = "";
+$ofpcpass = "";
  
 if ($config["GUIUSER"])  $ofpcuser=$config["GUIUSER"]  ;
 if ($config["GUIPASS"])  $ofpcpass=$config["GUIPASS"]  ;
@@ -77,3 +79,5 @@ if ($config["GUIPASS"])  $ofpcpass=$config["GUIPASS"]  ;
 // Settings
 $maxRows = 100;
 $ofpc_client = "openfpc-client";
+
+

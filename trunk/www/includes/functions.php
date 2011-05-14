@@ -83,8 +83,13 @@ function doSearchQuery() {
     $orderBy = "start_time";
 
     # Change user supplied DateTime's to GMT before querying cxtracker DB
-    $start_date = convertDateTime($start_date, $tzonelocal, 'GMT');
-    $end_date = convertDateTime($end_date, $tzonelocal, 'GMT'); 
+    //$start_date = convertDateTime($start_date, $tzonelocal, 'GMT');
+    //$end_date = convertDateTime($end_date, $tzonelocal, 'GMT'); 
+
+    # USer specific TZ set in user record 
+    # Change user supplied DateTime's to GMT before querying cxtracker DB
+    $start_date = convertDateTime($start_date, $_SESSION['timezone'], 'GMT');
+    $end_date = convertDateTime($end_date, $_SESSION['timezone'], 'GMT'); 
 
     //if ( preg_match("/^(\d){1,2}$/",$ipv) ) {
     //  if ( $ipv != 2 || $ipv != 10 || $ipv !=12 ) $ipv = 12; 
@@ -171,7 +176,8 @@ function doSearchQuery() {
 			if (mysql_field_name($siteQ, $p) == "start_time" || mysql_field_name($siteQ, $p) == "end_time")
 			{
                                 # Change the DB records datetime from GMT to local
-                                $dateTime = convertDateTime($row[$p], 'GMT', $tzonelocal);
+#                                $dateTime = convertDateTime($row[$p], 'GMT', $tzonelocal);
+                                $dateTime = convertDateTime($row[$p], 'GMT', $_SESSION['timezone']);
 				$array[mysql_field_name($siteQ, $p)] = $dateTime;
 			} else {
                                 $array[mysql_field_name($siteQ, $p)] = $row[$p];
@@ -498,6 +504,32 @@ function stime2unix($stime){
     }
 }
 
+function guiDB(){
+    global $guidbhost, $guidbuser, $guidbpass, $guidbname, $debug;
+
+    if ($debug){
+        print "GUIDB PASS is \"$guidbpass\"<br>\n";
+        print "GUIDB USER is \"$guidbuser\"<br>\n";
+        print "GUIDB name is \"$guidbname\"<br>\n";
+        print "GUIDB host is \"$guidbhost\"<br>\n";
+    }
+    
+    ($guilink = mysql_pconnect("$guidbhost", "$guidbuser", "$guidbpass")) || die("Can't connect to GUIDB Host: $guidbhost Pass: $guidbpass DB: $guidbname User $guidbuser foo" . mysql_error());
+    mysql_select_db("$guidbname", $guilink) || die("Cant open $guidbname.".mysql_error() );
+    return($guilink);
+}
+
+function infoBox($infomsg) {
+	$out = "<!-- infoBox -->\n";
+	$out .= "</p><div class=infoDisplay><table align=center border=1 width=300 cellpadding=0 cellspacing=0>\n";
+	#$out .= "</p><div class=infoDisplay><table align=center border=0 width=500 cellpadding=0 cellspacing=0>\n";
+	$out .= "<td width=100 valign=middle align=center> <div style=\"font-size: 10px; color: #DEDEDE\">\n";
+	$out .= "<center>$infomsg</center>";
+	$out .= "</td></table>\n";
+	$out .= "<!-- /infoBox -->\n";
+	return $out;
+}
+
 class siteDB {
     function siteDB() {
         global $dbhost, $dbuser, $dbpass, $dbname, $debug;
@@ -526,6 +558,14 @@ class siteDB {
         
         @mysql_close($this->link);
     }
+}
+
+function checkauth(){
+    session_start();
+    // Only allow new users to be added if we have auth...
+    if ($_SESSION['auth'] != 1) {
+	header ("Location: login.php");
+    } 
 }
 
 ?>

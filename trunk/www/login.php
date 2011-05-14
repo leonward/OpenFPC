@@ -25,8 +25,8 @@ require "includes/config.inc.php";
 
 
 $op    = sanitize("op");        if (empty($op))        $op = "entry";
-$user  = sanitize("username");      if (empty($user))      $user = "";
-$pass  = sanitize("password");      if (empty($pass))      $pass = "";
+$username  = sanitize("username");      if (empty($username))      $username = "";
+$password  = sanitize("password");      if (empty($password))      $password = "";
 
 switch ($op) {
     // process login input
@@ -97,15 +97,20 @@ function showlogout(){
 }
 
 function dologin() {
-    global $user, $pass, $guilink;
+    global $username, $password, $guilink;
     $guilink=guiDB();
-    $query="SELECT username, password FROM users WHERE username='$user' and password='$pass'";
+    $query="SELECT username, password, timezone FROM users WHERE username='$username' and password='$password'";
     
     $result=mysql_query($query, $guilink) or die("GUI DB Eror: ".mysql_error());
     
     if(mysql_num_rows($result)==1) {
         session_start();
-        $_SESSION['user'] = $user;
+        while ( $row = mysql_fetch_assoc($result)) {
+            $_SESSION['timezone'] = $row['timezone'];
+        }
+        
+        $_SESSION['username'] = $username;
+        $_SESSION['password'] = $password;
         $_SESSION['auth'] = 1;
         header ("Location: gui2.php");
     } else {
@@ -114,9 +119,9 @@ function dologin() {
 }
 
 function dologout() {
-    global $user, $pass;
+    global $username, $password;
     session_start();
-    $_SESSION['user'] = 0;
+    $_SESSION['username'] = 0;
     $_SESSION['auth'] = 0;
     header ("Location: login.php");
 }

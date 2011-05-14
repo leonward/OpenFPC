@@ -19,6 +19,7 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 # --------------------------------------------------------------------------
 
+require "includes/config.inc.php";
 
 $head .= "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n";
 $head .= "<head>\n";
@@ -49,6 +50,11 @@ window.open( '?op=dump&cxtid='+cid+'&sessp='+p+'&' );
 }
 ";
 
+$head .= "
+function EditUser(username,realname,email,description,timezone,defaultnode) {
+window.open( '?op=newuser&username='+username+'&realname='+realname+'&email='+email+'&description='+description+'&timezone='+timezone+'&defaultnode='+defaultnode+'&' );
+}
+";
 $head .= "</script>";
 
 $head .= "</head>\n";
@@ -63,6 +69,7 @@ $head .= "          <li><a href=\"#\">Packets</a>\n";
 $head .= "                           <ul style=\"display: none; visibility: visible;\">\n";
 $head .= "                             <li><a href=\"gui2.php?op=DisplayLogLine\">From Event</a></li>\n";
 $head .= "                             <li><a href=\"gui2.php?op=Extract pcap\">From Criteria</a></li>\n";
+$head .= "                             <li><a href=\"gui2.php?op=DisplayBPF\">From BPF</a></li>\n";
 $head .= "                           </ul><!--END submenu packets-->\n";
 $head .= "          </li>\n";
 
@@ -77,6 +84,12 @@ if ($enable_session) {
     $head .= "           </li>\n";
 }
 
+$head .= "          <li><a href=\"#\">Users</a>\n";
+$head .= "                           <ul style=\"display: none; visibility: visible;\">\n";
+$head .= "                             <li><a href=\"useradd.php?op=list\">List / Edit users</a></li>\n";
+$head .= "                             <li><a href=\"useradd.php\">New User</a></li>\n";
+$head .= "                           </ul><!--END submenu Help-->\n";
+$head .= "           </li>\n";
     
 $head .= "          <li><a href=\"#\">Help</a>\n";
 $head .= "                           <ul style=\"display: none; visibility: visible;\">\n";
