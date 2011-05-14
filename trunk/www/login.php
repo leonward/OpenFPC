@@ -63,11 +63,11 @@ function showentry(){
     $out .= "        <legend>Login</legend>\n";
     $out .= "        <p>\n";
     $out .= "          <label for=\"username\">Username</label>\n";
-    $out .= "          <input name=\"username\" type=\"text\" class=\"text\" id=\"srcip\" maxlength=\"39\" value=\"f\">\n";
+    $out .= "          <input name=\"username\" type=\"text\" class=\"text\" id=\"srcip\" maxlength=\"39\" value=\"\">\n";
     $out .= "        </p>\n";
     $out .= "        <p>\n";
     $out .= "          <label for=\"password\">Password</label>\n";
-    $out .= "          <input name=\"password\" type=\"password\" class=\"text\" id=\"srcip\" maxlength=\"39\" value=\"g\">\n";
+    $out .= "          <input name=\"password\" type=\"password\" class=\"text\" id=\"srcip\" maxlength=\"39\" value=\"\">\n";
     $out .= "      <input TYPE=\"submit\" NAME=\"op\" VALUE=\"Login\">";
     $out .= "      </fieldset>\n";
     $out .= "    </div>\n";
@@ -96,14 +96,14 @@ function showlogout(){
     echo $out;
 }
 
-
 function dologin() {
-    global $user, $pass;
-    $testuser="bob";
-    $testpass="pass";
-
+    global $user, $pass, $guilink;
+    $guilink=guiDB();
+    $query="SELECT username, password FROM users WHERE username='$user' and password='$pass'";
     
-    if ($user == $testuser && $pass == $testpass) {
+    $result=mysql_query($query, $guilink) or die("GUI DB Eror: ".mysql_error());
+    
+    if(mysql_num_rows($result)==1) {
         session_start();
         $_SESSION['user'] = $user;
         $_SESSION['auth'] = 1;
