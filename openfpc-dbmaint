@@ -165,7 +165,14 @@ function configure_gui
     stty -echo
     read -p "    GUI Password: " ADMIN_PASS
     stty echo
-
+    echo ""
+    read -p "    Email address: " EMAIL
+    read -p "    Real Name: " REAL_NAME
+    
+    DESCRIPTION="Administrator"
+    TIMEZONE="UTC"
+    DEFAULTNODE="None"
+     
 }
 
 function create_gui
@@ -193,18 +200,20 @@ function create_gui
     SQL="CREATE TABLE users (
          id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
          username VARCHAR(20),
+         realname VARCHAR(20),
+         email VARCHAR(20),
+         description VARCHAR(20),
          password VARCHAR(20),
-         timezone VARCHAR(30)
+         timezone VARCHAR(30),
+         defaultnode VARCHAR(30)
        );"
     mysql -u$DBUSER -p$DBPASS $GUI_DB_NAME -e "$SQL"
-    echo $SQL
     
-    SQL="INSERT INTO users (username,password)
+    SQL="INSERT INTO users (username,password,realname,email,description,defaultnode,timezone)
         VALUES (
-            '$ADMIN_USER', '$ADMIN_PASS'
+            '$ADMIN_USER', '$ADMIN_PASS', '$REAL_NAME', '$EMAIL', '$DESCRIPTION', '$DEFAULTNODE', '$TIMEZONE'
         );"
     mysql -u$DBUSER -p$DBPASS $GUI_DB_NAME -e "$SQL"
-    echo $SQL
 
     echo "New user $ADMIN_USER added."        
     
