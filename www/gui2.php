@@ -23,17 +23,7 @@ require "includes/functions.php";
 require "includes/config.inc.php";
 
 session_start();
-
-if ($_SESSION['auth'] == 1)
-    {
-        $user = $_SESSION['user'];
-    }
-else
-    {
-        // Redirect to login 
-//       header ("Location: login.php");
-    }
-
+checkauth();
 
 // Variable Initialization
 $op         = sanitize("op");         if (empty($op))         $op = "search";
@@ -47,8 +37,9 @@ $dstport    = sanitize("dstport");    if (empty($dstport))    $dstport = "";
 $start_date = sanitize("start_date"); if (!valdate($start_date)) $start_date = date("Y-m-d 00:00:00");
 $end_date   = sanitize("end_date");   if (!valdate($end_date))   $end_date   = date("Y-m-d H:i:s");
 $protocol   = sanitize("protocol");   if (empty($protocol))   $protocol = "any";
-$logline    = sanitize("logline");    if (empty($logline))    $logline = "NoneSet";
+$logline    = sanitize("logline");    if (empty($logline))    $logline = "";
 $comment    = sanitize("comment");    if (empty($comment))    $comment = "No Comment";
+$bpf        = sanitize("bpf");        if (empty($bpf))        $logline = "bpf";
 
 $out="";
 
@@ -71,8 +62,11 @@ if ($debug) {
 	print "openfpcuser is $ofpcuser<br>";
 	print "openfpcpass is $ofpcpass<br>";
 	print "Timezone is $timezone<br>";
+	print "User tz is " . $_SESSION['timezone'] . "<br>";
+	print "BPF is $bpf<br>";
 	print "Enable Session is $enable_session<br>";
-	print "Username is $user<br>";
+	print "Username is " . $_SESSION['username'] ." <br>";
+	//print "Password is ". $_SESSION['password'] . "<br>";
 }
 
 // OP Director
@@ -104,9 +98,18 @@ switch ($op) {
         $out = extractPcapFromLog("store");
         break;
 
+    case "Fetch pcap from BPF":
+	include "includes/bpf.php";
+	$out .= extractPcapFromBPF("fetch");
+	break;
+
     // Display from to grab pcaps from event/log line
     case "DisplayLogLine":
         include "includes/logLine.php";
+	break;
+
+    case "DisplayBPF":
+        include "includes/bpf.php";
 	break;
 
     case "Fetch pcap from event":
@@ -167,14 +170,44 @@ function showResults() {
     return $out;
 }
 
-function infoBox($infomsg) {
-	$out = "<!-- infoBox -->\n";
-	$out .= "</p><div class=infoDisplay><table align=center border=1 width=300 cellpadding=0 cellspacing=0>\n";
-	#$out .= "</p><div class=infoDisplay><table align=center border=0 width=500 cellpadding=0 cellspacing=0>\n";
-	$out .= "<td width=100 valign=middle align=center> <div style=\"font-size: 10px; color: #DEDEDE\">\n";
-	$out .= "<center>$infomsg</center>";
-	$out .= "</td></table>\n";
-	$out .= "<!-- /infoBox -->\n";
+# Calls ofpc-client.pl to extract the data if the user enters a "log" line.
+function extractPcapFromBPF($action) {
+	global $bpf, $comment, $ofpc_client, $debug;
+
+	$out = "<!-- extractPcapFromLog -->\n";
+
+	# Shell out to ofpc-client here. Note the --gui option.
+	$exec = "$ofpc_client -u " . $_SESSION[username] . " -p " . $_SESSION[password] . " --gui ";
+	$exec .= "-a $action ";
+	$exec .= "--bpf \"$bpf\" ";
+	$exec .= "--comment \"$comment\" ";
+
+	# Clean up command before we exec it.
+	$e = escapeshellcmd($exec);
+
+	# These are defined in ofpc-client.pl
+	if ($debug) { print "Exec is $e<br>"; }
+	$cmdresult = shell_exec($e);
+	list($result,$action,$filename,$size,$md5,$expected_md5,$position,$message) = explode(",",$cmdresult);
+
+	$pathfile=explode("/",$filename);	# Break path and filename from filename
+	$file=array_pop($pathfile);		# Pop last element of path/file array
+
+	if ($result) {
+		if ($action == "store" ) {
+			$infomsg .= "Extract in queue position $position.<br>\n";
+			$infomsg .= "Expected filename: $file.<br>\n";
+			$out .= infoBox($infomsg);	
+		} elseif ( $action == "fetch") {
+			serv_pcap("$filename","$file");
+			exit(0);
+		}
+	} else {
+		$infomsg = "Error: $message<br>";
+		#$infomsg .= "$e";
+		$out .= infoBox($infomsg);
+	}
+	$out .= "<!-- /extractPcapFromLog -->\n";
 	return $out;
 }
 
@@ -185,8 +218,7 @@ function extractPcapFromLog($action) {
 	$out = "<!-- extractPcapFromLog -->\n";
 
 	# Shell out to ofpc-client here. Note the --gui option.
-	$exec = "$ofpc_client ";
-	$exec .= "--gui -u $ofpcuser -p $ofpcpass "; 
+	$exec = "$ofpc_client -u " . $_SESSION[username] . " -p " . $_SESSION[password] . " --gui ";
 	$exec .= "-a $action ";
 	$exec .= "--logline \"$logline\" ";
 	$exec .= "--comment \"$comment\" ";
@@ -237,8 +269,7 @@ function extractPcapFromSession() {
 	if ($debug) {
 		print "Start time is " . $array["start_time"] . " $stime : End time is " . $array["end_time"] ." $etime<br>" ;
 	}
-
-	$exec = "$ofpc_client -u $ofpcuser -p $ofpcpass " . 
+	$exec = "$ofpc_client -u " . $_SESSION[username] . " -p " . $_SESSION[password] .
 		" --gui " .
 		" --stime " . $stime .
 		" --etime " . $etime .
@@ -287,7 +318,8 @@ function extractPcapFromSearch() {
 		print "<br>Function: extractPcapFromSearch<br>";
 	}
 
-	$exec = "$ofpc_client -u $ofpcuser -p $ofpcpass --gui ";
+
+	$exec = "$ofpc_client -u " . $_SESSION[username] . " -p " . $_SESSION[password] . " --gui ";
 	$stime = stime2unix($start_date);
 	$etime = stime2unix($end_date);
 
@@ -322,71 +354,71 @@ function extractPcapFromSearch() {
 		$infobox .= "Result: $result <br>";
 		$infobox .= "Error: $message <br>";
 		$infobox .= "Size: $size <br>";
-		#$infobox .= "Error: $exec <br>";
+		$infobox .= "Error: $exec <br>";
 	}
 
 	$out .= infoBox($infobox);	
 	return $out;
 }
 
-function dumpDisplay() {
-    global $openfpcdir, $tcpdump, $ipv, $mergecap, $mrgtmpdir;
-    $dump = "";
-   
-    $array = doSessionQuery();
-    $sddate = dirdate($array["start_time"]);
-    $eddate = dirdate($array["end_time"]);
-    $sudate = dd2unix($sddate);
-    $eudate = dd2unix($eddate);
-    $testdata = ses2epoch($array["start_time"]);
-
-
-    while ( $sudate <= $eudate ) {
-        // Should now find all pcaps in dir!
-        $tmpdir = "$openfpcdir/" . date("Y-m-d", $sudate) . "/";
-        $pcap = list_pcaps_in_dir("$tmpdir");
-        if ($pcap) {
-            // make the dir to dump pcap carvings
-            $mkdircmd = "sudo mkdir -p $mrgtmpdir/" . $array["sessionid"];
-            shell_exec("$mkdircmd &");
-            for ($i = 0; $i < count($pcap); $i++) {
-                // carve out the session from the pcap files
-                $dump = "sudo $tcpdump -r $openfpcdir/" . date("Y-m-d", $sudate) . "/" . $pcap[$i] . " ";
-                $dump .= "-w $mrgtmpdir/" . $array["sessionid"] . "/" . $array["sessionid"] . "-$i" . ".pcap ";
-                if ($ipv == 2)  $dump .= "ip and ";
-                if ($ipv == 10) $dump .= "ip6 and ";
-                $dump .= "host " . $array["src_ip"] . " and host " . $array["dst_ip"] . " ";
-                if ($array["ip_proto"] == 6 || $array["ip_proto"] == 17) {
-                    $dump .= "and port " . $array["src_port"] . " and port " . $array["dst_port"] . " ";
-                }
-                $dump .= "and proto " . $array["ip_proto"];
-                $cmd = escapeshellcmd($dump);
-                $r1 = shell_exec("$cmd");
-            }
-        }
-    $sudate += 86400;
-    }
-    // mergecap -w $outfile file1 file2...
-    // for files in merged-pcap do...
-    $tmpdir2 = $mrgtmpdir . "/" . $array["sessionid"] . "/";
-    $mpcap = list_pcaps_in_dir("$tmpdir2");
-    if ($mpcap) {
-        $flist = "";
-        for ($i = 0; $i < count($mpcap); $i++) {
-            $flist .= "$tmpdir2/$mpcap[$i] ";
-        }
-        $mergedfile = $tmpdir2 . $array["sessionid"] . ".pcap";
-        $merge  = "sudo $mergecap -w " . $mergedfile . " ";
-        $merge .= "$flist";
-        $cmd = escapeshellcmd($merge);
-        $r2 = shell_exec("$cmd");
-    }
-
-    if ($mergedfile && is_file("$mergedfile")) {
-        serv_pcap($mergedfile,$array["sessionid"]);
-    }
-
-    unset ($array);
-    exit(0);
-}
+#function dumpDisplay() {
+#    global $openfpcdir, $tcpdump, $ipv, $mergecap, $mrgtmpdir;
+#    $dump = "";
+#   
+#   $array = doSessionQuery();
+#    $sddate = dirdate($array["start_time"]);
+#    $eddate = dirdate($array["end_time"]);
+#    $sudate = dd2unix($sddate);
+#    $eudate = dd2unix($eddate);
+#    $testdata = ses2epoch($array["start_time"]);
+#
+#
+#    while ( $sudate <= $eudate ) {
+#        // Should now find all pcaps in dir!
+#        $tmpdir = "$openfpcdir/" . date("Y-m-d", $sudate) . "/";
+#        $pcap = list_pcaps_in_dir("$tmpdir");
+#        if ($pcap) {
+#            // make the dir to dump pcap carvings
+#            $mkdircmd = "sudo mkdir -p $mrgtmpdir/" . $array["sessionid"];
+#            shell_exec("$mkdircmd &");
+#            for ($i = 0; $i < count($pcap); $i++) {
+#                // carve out the session from the pcap files
+#                $dump = "sudo $tcpdump -r $openfpcdir/" . date("Y-m-d", $sudate) . "/" . $pcap[$i] . " ";
+#                $dump .= "-w $mrgtmpdir/" . $array["sessionid"] . "/" . $array["sessionid"] . "-$i" . ".pcap ";
+#                if ($ipv == 2)  $dump .= "ip and ";
+#                if ($ipv == 10) $dump .= "ip6 and ";
+#                $dump .= "host " . $array["src_ip"] . " and host " . $array["dst_ip"] . " ";
+#                if ($array["ip_proto"] == 6 || $array["ip_proto"] == 17) {
+#                    $dump .= "and port " . $array["src_port"] . " and port " . $array["dst_port"] . " ";
+#                }
+#                $dump .= "and proto " . $array["ip_proto"];
+#                $cmd = escapeshellcmd($dump);
+#               $r1 = shell_exec("$cmd");
+#          }
+#        }
+#    $sudate += 86400;
+#    }
+#    // mergecap -w $outfile file1 file2...
+#    // for files in merged-pcap do...
+#    $tmpdir2 = $mrgtmpdir . "/" . $array["sessionid"] . "/";
+#    $mpcap = list_pcaps_in_dir("$tmpdir2");
+#    if ($mpcap) {
+#        $flist = "";
+#        for ($i = 0; $i < count($mpcap); $i++) {
+#            $flist .= "$tmpdir2/$mpcap[$i] ";
+#        }
+#        $mergedfile = $tmpdir2 . $array["sessionid"] . ".pcap";
+#        $merge  = "sudo $mergecap -w " . $mergedfile . " ";
+#        $merge .= "$flist";
+#        $cmd = escapeshellcmd($merge);
+#        $r2 = shell_exec("$cmd");
+#    }
+#
+#    if ($mergedfile && is_file("$mergedfile")) {
+#        serv_pcap($mergedfile,$array["sessionid"]);
+#    }
+#
+#    unset ($array);
+#    exit(0);
+#}
 

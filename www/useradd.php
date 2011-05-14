@@ -25,7 +25,7 @@ require "includes/config.inc.php";
 
 
 $op    = sanitize("op");                  	if (empty($op))        $op = "entry";
-$user  = sanitize("username");            	if (empty($user))      $user = "";
+$username  = sanitize("username");            	if (empty($username))      $username = "";
 $password1  = sanitize("password1");      	if (empty($password1))      $password1 = "";
 $password2  = sanitize("password2");      	if (empty($password2))      $password2 = "";
 $timezone  = sanitize("timezone");        	if (empty($timezone))      $timezone = "UTC";
@@ -70,16 +70,7 @@ switch ($op) {
         break;
 }
 
-function checkauth(){
-    session_start();
-    // Only allow new users to be added if we have auth...
-    if ($_SESSION['auth'] == 1) {
-        $user = $_SESSION['user'];
-    } else {
-        // Redirect to login 
-	header ("Location: login.php");
-    } 
-}
+
 
 function showsuccess($message){
     $out .= infobox("Success: $message");
@@ -97,14 +88,14 @@ function showhead(){
 }
 
 function newuser(){
-    global $user,$timezone, $defaultnode,$realname,$email,$description;
+    global $username,$timezone, $defaultnode,$realname,$email,$description;
     $out = "  <form method=\"post\" name=\"login\" action=\"\">\n";
     $out .= "    <div class=\"span-10 \" align=\"right\">\n";
     $out .= "      <fieldset>\n";
     $out .= "        <legend>Add / Update Users</legend>\n";
     $out .= "        <p>\n";
     $out .= "          <label for=\"username\">Username</label>\n";
-    $out .= "          <input name=\"username\" type=\"text\" class=\"text\" id=\"username\" maxlength=\"39\" value=\"$user\">\n";
+    $out .= "          <input name=\"username\" type=\"text\" class=\"text\" id=\"username\" maxlength=\"39\" value=\"$username\">\n";
     $out .= "        </p>\n";
     $out .= "        <p>\n";
     $out .= "          <label for=\"password1\">Password</label>\n";
@@ -166,10 +157,10 @@ function countusers(){
 }
 
 function deluser() {
-    global $user, $password1, $password2, $timezone, $deafultnode, $realname, $description, $email, $guilink;
+    global $username, $password1, $password2, $timezone, $deafultnode, $realname, $description, $email, $guilink;
     checkauth();
 
-    if ( ! iscurrentuser($user) ) {
+    if ( ! iscurrentuser($username) ) {
         showhead();
         showerror("User Doesn't exist! How can I delete them");
         newuser();
@@ -182,7 +173,7 @@ function deluser() {
         showhead();
         $guilink=guiDB();
         $query="DELETE FROM users WHERE
-	    username = '$user'";
+	    username = '$username'";
         $result=mysql_query($query, $guilink) or die("GUI DB Eror: ".mysql_error());
         showsuccess("User $username deleted");
         showusertable();
@@ -191,10 +182,10 @@ function deluser() {
 
 
 function adduser() {
-    global $user, $password1, $password2, $timezone, $deafultnode, $realname, $description, $email, $guilink;
+    global $username, $password1, $password2, $timezone, $deafultnode, $realname, $description, $email, $guilink;
     checkauth();
 
-    if ( iscurrentuser($user) ) {
+    if ( iscurrentuser($username) ) {
         showhead();
         showerror("User already exists");
         newuser();
@@ -206,7 +197,7 @@ function adduser() {
         showhead();
         $guilink=guiDB();
         $query="INSERT INTO users (username,password,realname,email,description,timezone,defaultnode)
-            VALUES ('$user', '$password1','$realname','$email','$description','$timezone','$deafultnode')";
+            VALUES ('$username', '$password1','$realname','$email','$description','$timezone','$deafultnode')";
         $result=mysql_query($query, $guilink) or die("GUI DB Eror: ".mysql_error());
         showsuccess("User Added");
         showusertable();
@@ -219,10 +210,10 @@ function adduser() {
 }
 
 function updateuser() {
-    global $user, $password1, $password2, $timezone, $deafultnode, $realname, $description, $email, $guilink;
+    global $username, $password1, $password2, $timezone, $deafultnode, $realname, $description, $email, $guilink;
     checkauth();
 
-    if ( ! iscurrentuser($user) ) {
+    if ( ! iscurrentuser($username) ) {
         showhead();
         showerror("User Doesn't exist! Are you trying to create a new user?");
         newuser();
@@ -239,7 +230,7 @@ function updateuser() {
 				description = '$description',
 				timezone = '$timezone',
 				defaultnode = '$deafultnode'
-	    WHERE username = '$user'";
+	    WHERE username = '$username'";
         $result=mysql_query($query, $guilink) or die("GUI DB Eror: ".mysql_error());
         showsuccess("User Updated");
         showusertable();
