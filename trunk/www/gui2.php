@@ -257,28 +257,39 @@ function extractPcapFromLog($action) {
 function extractPcapFromSession() {
     global $ofpcuser, $ofpcpass, $ofpc_client, $debug, $tzonelocal;
 	if ($debug) {
-		print "Function: extractPcapFromSession\n";
+		echo "Function: extractPcapFromSession\n";
 	}
 
 	$array=doSessionQuery();
 
         # Change timezones from GMT to Local
-        $stime = convertDateTime($array["start_time"], 'GMT', $tzonelocal);
-        $etime = convertDateTime($array["end_time"], 'GMT', $tzonelocal);
+//        $stime = convertDateTime($array["start_time"], 'GMT', $tzonelocal);
+//        $etime = convertDateTime($array["end_time"], 'GMT', $tzonelocal);
 
+        $stime = convertDateTime($array["start_time"], 'GMT', $_SESSION['timezone']);
+        $etime = convertDateTime($array["end_time"], 'GMT', $_SESSION['timezone']);
+	
 	if ($debug) {
-		print "Start time is " . $array["start_time"] . " $stime : End time is " . $array["end_time"] ." $etime<br>" ;
+		print "Start time of oiginal timestamp is " . $array["start_time"] . "<br>";
+		print "Start time converted to local is  $stime <br>";
+		print "Converted local in epoch  is " . stime2unix($stime) . "<br>" ;
+		print "Start time original in epoch is " . stime2unix($array["start_time"]) . "<br>";
 	}
+	
 	$exec = "$ofpc_client -u " . $_SESSION[username] . " -p " . $_SESSION[password] .
 		" --gui " .
-		" --stime " . $stime .
-		" --etime " . $etime .
+		" --stime " . stime2unix($stime) .
+		" --etime " . stime2unix($etime) .
 		" --src-addr "  . $array["src_ip"] .
 		" --dst-addr "  . $array["dst_ip"] .
-		" --src-port "  . $array["src_port"] .
-		" --dst-port "  . $array["dst_port"] .
 		" --proto "     . $array["ip_proto"];
-
+		
+	# Only add ports if this is tcp / udp
+	if ( $array["ip_proto"] == 17 or $array["ip_proto"] == 6 ) { 		
+		$exec .= " --src-port "  . $array["src_port"] .
+			" --dst-port "  . $array["dst_port"];
+	}
+	
         if ($debug) { print "openfpc-client CMD: $exec<br>" ; }
 
 	$e = escapeshellcmd($exec);
@@ -295,7 +306,7 @@ function extractPcapFromSession() {
 			serv_pcap("$filename","$file");
 			exit(0);
 		} else {
-    		    if ($debug) { print "sessions-extract-error: $message<br>" ; }
+   		    if ($debug) { print "sessions-extract-error: $message<br>" ; }
 			$infobox ="Error: $message <br>";
 		}
 	}
