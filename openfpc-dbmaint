@@ -170,7 +170,7 @@ function configure_gui
     read -p "    Real Name: " REAL_NAME
     
     DESCRIPTION="Administrator"
-    TIMEZONE="UTC"
+    TIMEZONE="Europe/London"
     DEFAULTNODE="None"
      
 }
