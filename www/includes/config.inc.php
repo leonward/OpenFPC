@@ -19,16 +19,18 @@
 # --------------------------------------------------------------------------
 
 // Read in configuration from openfpc.conf. Set this to the instance you want to use
+
 $configfile="/etc/openfpc/openfpc-default.conf";
-# --------------------------------------------------------------------------
+
 // Nothing to do below this line.
-$debug = 0;
+# --------------------------------------------------------------------------
+
+$debug=0;
 $utc_offset=0;
-$timezone="UTC";
+$timezone="Europe/London"; 	# Default TZ - This is imported via the config file. But in case it's not set lets use something sane
+
 $enable_session=0;
 
-# Set the local timezone
-$tzonelocal = 'Australia/Sydney';
 
 $file = fopen($configfile, "r");
 $openfpcver=0.5;

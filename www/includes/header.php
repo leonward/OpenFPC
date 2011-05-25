@@ -64,25 +64,27 @@ $head .= "<div id=\"logo\"></div><!--END logo-->\n";
 $head .= "<div class=\"container\">\n";
 $head .= "<div id=\"myslidemenu\" class=\"jqueryslidemenu\">\n";
 $head .= "        <ul>\n";
-$head .= "          <li><a href=\"gui2.php\" class=\"current\">OpenFPC</a></li>\n";
+$head .= "          <li><a href=\"index.php\" class=\"current\">OpenFPC</a></li>\n";
 $head .= "          <li><a href=\"#\">Packets</a>\n";
 $head .= "                           <ul style=\"display: none; visibility: visible;\">\n";
-$head .= "                             <li><a href=\"gui2.php?op=DisplayLogLine\">From Event</a></li>\n";
-$head .= "                             <li><a href=\"gui2.php?op=Extract pcap\">From Criteria</a></li>\n";
-$head .= "                             <li><a href=\"gui2.php?op=DisplayBPF\">From BPF</a></li>\n";
+$head .= "                             <li><a href=\"index.php?op=DisplayLogLine\">From Event</a></li>\n";
+$head .= "                             <li><a href=\"index.php?op=Extract pcap\">From Criteria</a></li>\n";
+$head .= "                             <li><a href=\"index.php?op=DisplayBPF\">From BPF</a></li>\n";
 $head .= "                           </ul><!--END submenu packets-->\n";
 $head .= "          </li>\n";
 
-// Only display session menu if session search is enabled.
-
-if ($enable_session) {
     $head .= "          <li><a href=\"#\">Sessions</a>\n";
+if ($enable_session) {
     $head .= "                           <ul style=\"display: none; visibility: visible;\">\n";
-    $head .= "                             <li><a href=\"gui2.php\">Search</a></li>\n";
-    $head .= "                             <li><a href=\"gui2.php\">Most Recent</a></li>\n";
+    $head .= "                             <li><a href=\"index.php?op=Search Sessions\">Search</a></li>\n";
+    //$head .= "                             <li><a href=\"index.php\">Most Recent</a></li>\n";
     $head .= "                           </ul><!--END submenu sessions-->\n";
-    $head .= "           </li>\n";
+} else {
+    $head .= "                           <ul style=\"display: none; visibility: visible;\">\n";
+    $head .= "                             <li><a href=\"index.php\">Session Disabled</a></li>\n";
+    $head .= "                           </ul><!--END submenu sessions-->\n";
 }
+    $head .= "           </li>\n";
 
 $head .= "          <li><a href=\"#\">Users</a>\n";
 $head .= "                           <ul style=\"display: none; visibility: visible;\">\n";
@@ -93,8 +95,8 @@ $head .= "           </li>\n";
     
 $head .= "          <li><a href=\"#\">Help</a>\n";
 $head .= "                           <ul style=\"display: none; visibility: visible;\">\n";
-$head .= "                             <li><a href=\"gui2.php?op=about\">About</a></li>\n";
-$head .= "                             <li><a href=\"gui2.php?op=guide\">User Guide</a></li>\n";
+$head .= "                             <li><a href=\"index.php?op=about\">About</a></li>\n";
+$head .= "                             <li><a href=\"index.php?op=guide\">User Guide</a></li>\n";
 $head .= "                           </ul><!--END submenu Help-->\n";
 $head .= "           </li>\n";
 

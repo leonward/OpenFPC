@@ -20,17 +20,12 @@
 # --------------------------------------------------------------------------
 
     $out .= "  <div class=\"span-16 \">\n";
-    $out .= "About";
+    $out .= "User Guide";
     $out .= "
-    OpenFPC aims to provide an framework for deploying scalable network traffic forensics capture and extraction. </p>
 
-<b>Development Team:</b> <br>
-
-- Leon Ward <i>leon@openfpc.org </i><br>
-- Edward Fjellskål <i> edward.fjellskaal@gmail.com</i><br>
-- Dave Lowe <i>seclistinbox@gmail.com</i><br>
-
-</p>
+<p>
+Sorry - Not done yet - Leon
+<br> Take a look at http://www.openfpc.org for documentation</br>
 
 Project Home <a href=\"http://www.openfpc.org\"> http://www.openfpc.org</a><br>
 Code Home <a href=\"http://openfpc.googlecode.com\"> http://openfpc.googlecode.com</a><br>
