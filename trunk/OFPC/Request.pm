@@ -76,8 +76,6 @@ sub receivefile{
 
 	# Open file and set socket/file to BIN
         open (FILE,'>',$savefile);
-        #open (FILE,'>',"$request->{'filename'}");
-        #open (FILE,'>',"$request->{'savedir'}/$request->{'filename'}");
 	FILE->autoflush(1);	
         binmode(FILE);
 	binmode($socket);
@@ -97,9 +95,7 @@ sub receivefile{
 	close(FILE);
 
 	unless (open(FILEMD5, '<', $savefile)) {
-	#unless (open(FILEMD5, '<', "$request->{'filename'}")) {
 		$result{'message'} = "Cant open recieved file $savefile";
-		#$result{'message'} = "Cant open recieved file $request->{'filename'}";
 		$result{'success'} = 0;
 		return %result;
 	} else {
@@ -108,13 +104,10 @@ sub receivefile{
 	}
 
 	$result{'size'}=`ls -lh $savefile |awk '{print \$5}'`;
-	#$result{'size'}=`ls -lh $request->{'filename'} |awk '{print \$5}'`;
 	chomp $result{'size'};
 	print "DEBUG $savefile size:$result{'size'}\n" if ($debug);
-	#print "DEBUG $request->{'filename'} size:$result{'size'}\n" if ($debug);
 
 	print "DEBUG File: $savefile on disk is has md5 $result{'md5'}\n" if ($debug);
-	#print "DEBUG File: $request->{'savedir'}/$request->{'filename'} on disk is has md5 $result{'md5'}\n" if ($debug);
 	print "DEBUG Expected: $svrmd5\n".
 	      "DEBUG Got     : $result{'md5'}\n" if ($debug);
 
@@ -281,7 +274,6 @@ sub request{
                         } case /WAIT/ {
                                         if ($data =~ /^WAIT:*\s*(\d+)/) {
 						$result{'position'} = $1;
-                                                #my $position=$1;
 						if ( $request->{'showposition'} ){
 							print "Queue position $result{'position'}. Wait...\n";
 						}
@@ -413,7 +405,6 @@ sub request{
 						return %result;
                                         } else {
                                                 print "DEBUG: Request accepted. Queue position unknown. Disconnecting\n" if ($debug);
-						#return(1,"Request Queued. Position: unknown");
 						$result{'success'} = 1;
 						$result{'postion'} = "unknown";
                                                 shutdown($socket,2);
@@ -437,8 +428,6 @@ sub request{
 				$result{'success'} = 0;
 				$result{'message'} = "Authentication Failed";
 				return %result;
-                        #} else {
-                        #        die("Unknown server response $data") ;
                         }
                 }
 	}

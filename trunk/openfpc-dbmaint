@@ -28,11 +28,6 @@ ACTION=$1
 TYPE=$2
 CONFIG=$3
 
-GUI_DB_NAME=openfpc_gui
-GUI_DB_USER=openfpc_gui
-GUI_DB_PASS=openfpc_gui
-
-
 function die
 {
 	echo ERROR: $1
@@ -120,6 +115,9 @@ function readconfig
 		[ -n "$SESSION_DB_USER" ] || die "SESSION_DB_USER not set in $CONFIG"
 		[ -n "$SESSION_DB_PASS" ] || die "SESSION_DB_PASS not set in $CONFIG"
 		[ -n "$NODENAME" ] || die "NODENAME not set in $CONFIG"
+                [ -n "$GUI_DB_NAME" ] || die "GUI_DB_NAME not set in $CONFIG"
+                [ -n "$GUI_DB_USER" ] || die "GUI_DB_USER not set in $CONFIG"
+                [ -n "$GUI_DB_PASS" ] || die "GUI_DB_PASS not set in $CONFIG"
                 
 		echo -e "[*] Enter mysql \"root\" credentials to connect to your local mysql server in order to create $SESSION_DB_NAME database"
 		read -p "    DB root Username: " DBUSER

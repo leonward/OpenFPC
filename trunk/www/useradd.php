@@ -28,7 +28,6 @@ $op    = sanitize("op");                  	if (empty($op))        $op = "entry";
 $username  = sanitize("username");            	if (empty($username))      $username = "";
 $password1  = sanitize("password1");      	if (empty($password1))      $password1 = "";
 $password2  = sanitize("password2");      	if (empty($password2))      $password2 = "";
-$timezone  = sanitize("timezone");        	if (empty($timezone))      $timezone = "UTC";
 $defaultnode  = sanitize("defaultnode");  	if (empty($defaultnode))      $defaultnode = "";
 $description  = sanitize("description");  	if (empty($description))      $description = "";
 $email  = sanitize("email");  			if (empty($email))      $email = "";

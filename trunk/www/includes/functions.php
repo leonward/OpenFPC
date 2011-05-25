@@ -514,8 +514,8 @@ function guiDB(){
         print "GUIDB host is \"$guidbhost\"<br>\n";
     }
     
-    ($guilink = mysql_pconnect("$guidbhost", "$guidbuser", "$guidbpass")) || die("Can't connect to GUIDB Host: $guidbhost Pass: $guidbpass DB: $guidbname User $guidbuser foo" . mysql_error());
-    mysql_select_db("$guidbname", $guilink) || die("Cant open $guidbname.".mysql_error() );
+    ($guilink = mysql_pconnect("$guidbhost", "$guidbuser", "$guidbpass")) || errorpage("Can't connect to GUIDB Host: $guidbhost Pass: $guidbpass DB: $guidbname User $guidbuser foo" . mysql_error() . "Have you run openfpc-dbmaint to create and set up your GUI database?");
+    mysql_select_db("$guidbname", $guilink) || die("Cant open $guidbname.".mysql_error()."<br>Have you created a GUI db using openfpc-dbmaint and set the GUI_DB_USER/GUI_DB_PASS in your openfpc config file?" );
     return($guilink);
 }
 
@@ -568,4 +568,9 @@ function checkauth(){
     } 
 }
 
+function errorpage($message){
+    include "includes/header.php";
+    $out .= infobox("Error: $error");
+    echo $out;
+}
 ?>

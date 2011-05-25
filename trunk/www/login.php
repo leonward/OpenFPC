@@ -101,7 +101,7 @@ function dologin() {
     $guilink=guiDB();
     $query="SELECT username, password, timezone FROM users WHERE username='$username' and password='$password'";
     
-    $result=mysql_query($query, $guilink) or die("GUI DB Eror: ".mysql_error());
+    $result=mysql_query($query, $guilink) or errorpage("GUI DB Eror: ".mysql_error());
     
     if(mysql_num_rows($result)==1) {
         session_start();
@@ -112,7 +112,7 @@ function dologin() {
         $_SESSION['username'] = $username;
         $_SESSION['password'] = $password;
         $_SESSION['auth'] = 1;
-        header ("Location: gui2.php");
+        header ("Location: index.php");
     } else {
         header ("Location: login.php");
     }

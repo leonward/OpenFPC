@@ -31,7 +31,7 @@ PROG_DIR="/usr/bin"
 CONF_DIR="/etc/openfpc"
 CONF_FILES="etc/openfpc-default.conf etc/openfpc-example-proxy.conf etc/routes.ofpc"
 PROG_FILES="openfpc-client openfpc-queued openfpc-cx2db openfpc openfpc-dbmaint"
-WWW_FILES="index.php bluegrade.png"
+GUI_FILES="css images includes index.php javascript login.php useradd.php"
 WWW_DIR="/usr/share/openfpc/www"
 CGI_FILES="extract.cgi"
 CGI_DIR="/usr/share/openfpc/cgi-bin"
@@ -244,10 +244,10 @@ function doinstall()
 	###### WWW files #####
 
 
-	for file in $WWW_FILES
+	for file in $GUI_FILES
 	do
 		echo -e " -  Installing $file"
-		cp www/$file $WWW_DIR/$file
+		cp -r www/$file $WWW_DIR/$file
 	done
 
 	###### CGI files #####
