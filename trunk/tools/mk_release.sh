@@ -14,10 +14,11 @@ CGI_FILES="extract.cgi"
 DOC_FILES="README INSTALL TODO"
 ETC_FILES="openfpc.apache2.site openfpc-default.conf openfpc-example-proxy.conf routes.ofpc"
 INIT_SCRIPTS="openfpc-daemonlogger openfpc-cxtracker openfpc-cx2db openfpc-queued"
-VERFILES="openfpc-install.sh openfpc-client openfpc openfpc-queued"
+VERFILES="openfpc-install.sh openfpc-client openfpc OFPC/Config.pm"
 
 
-
+echo -e "**** Have you run svn up?"
+read foo
 echo -e "Checking version numbers in code so I dont forget to ++ something..."
 for i in $VERFILES
 do

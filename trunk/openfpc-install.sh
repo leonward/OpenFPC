@@ -26,7 +26,7 @@
 # It's goal is to take a system from being OpenFPC-less to one that has OpenFPC operating in a semi-standard setup.
 # By semi-standard i refer to similar to how the .deb install leaves the system.
 
-openfpcver="0.5"
+openfpcver="0.6"
 PROG_DIR="/usr/bin"
 CONF_DIR="/etc/openfpc"
 CONF_FILES="etc/openfpc-default.conf etc/openfpc-example-proxy.conf etc/routes.ofpc"
