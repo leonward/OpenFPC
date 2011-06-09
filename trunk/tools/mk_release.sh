@@ -9,7 +9,7 @@ TARPATH=~
 SRCPATH=..
 PROG_FILES="openfpc-cx2db openfpc-client openfpc-install.sh openfpc openfpc-queued openfpc-dbmaint"
 PERL_MODS="Parse.pm Request.pm CXDB.pm Common.pm Config.pm"
-WWW_FILES="index.php bluegrade.png"
+WWW_DIR="www"
 CGI_FILES="extract.cgi"
 DOC_FILES="README INSTALL TODO"
 ETC_FILES="openfpc.apache2.site openfpc-default.conf openfpc-example-proxy.conf routes.ofpc"
@@ -44,7 +44,6 @@ then
 else
 	echo Creating Structure
 	mkdir $TARGET
-	mkdir $TARGET/www
 	mkdir $TARGET/OFPC
 	mkdir $TARGET/cgi-bin
 	mkdir $TARGET/docs
@@ -58,11 +57,7 @@ else
 		cp $SRCPATH/$i $TARGET
 	done
 	echo -e "* WWW Files"	
-	for i in $WWW_FILES
-	do
-		echo -e "- Adding $i to $TARGET/www"
-		cp $SRCPATH/www/$i $TARGET/www
-	done
+	cp -r $SRCPATH/$WWW_DIR $TARGET
 
 
 	echo -e "* CGI Files"	
