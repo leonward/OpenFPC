@@ -37,6 +37,7 @@ my $init=0;						# init script friendly output (i.e not much!)
 my $type=0;
 my $thing=0;
 my %configs=();						# Hash of all configs in $CONF_DIR;
+my @nodes=();						# List if all nodes configured
 my $action=0;
 my @daemonsNode=("openfpc-daemonlogger", 		# Daemons we want to start in OpenFPC Node mode
 		"openfpc-queued",
@@ -701,10 +702,19 @@ while(my $file=readdir $dh) {
 			$configs{$file}{OFPC_ENABLED}=0;
 			print "WARNING: Bad configuration file $file. Disabling instance \"$configs{$file}{NODENAME}\"\n";
 		}
+		# Add this node if enabled to a list of all nodes on this system
+		push(@nodes, $configs{$file}{NODENAME}) if ($configs{$file}{OFPC_ENABLED} =~ /[Yy]/ );
 	}
 }
 closedir($dh);
 # Make sure we have the minimum input to do something of use.
+
+# Check we don't have any dupe nodes active.
+while (my $node = shift(@nodes)){
+	if (grep {$_ eq $node} @nodes) {
+		die("ERROR: Duplicate node found enabled - $node. A Node name MUST be unique!\n");
+	}
+}
 
 # Check if we need to act in the context of a daemon type, or an instance.
 # Get the type of the thing the user wants to start/stop
