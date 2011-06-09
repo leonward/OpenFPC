@@ -336,13 +336,18 @@ function doinstall()
 **************************************************************************
 [*] Installation Complete 
 
-    OpenFPC should now be installed and ready for configuration.
+    OpenFPC should now be installed and ready for *configuration*.
    
-    1) Go configure /etc/openfpc/<OpenFPC instance>.conf
-       (Make sure you change the default username/password!)
+    1) Go configure /etc/openfpc/openfpc-default.conf
+       (Make sure you change the usernames and passwords!)
     2) Start OpenFPC
        $ sudo openfpc --action start
-     
+    3) If you want to use the OpenFPC GUI, you MUST create the GUI database
+       - Install Mysql
+       - Create the DB with the command...
+         sudo ./openfpc-dbmaint create gui /etc/openfpc/openfpc-default.conf
+    4) Decide if you want to enable session searching
+       See -> http://www.openfpc.org/documentation/enabling-session-capture
 "
 }
 
