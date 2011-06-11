@@ -322,15 +322,16 @@ function doinstall()
 
 	fi
 
-	if [ -f /etc/openfpc/apache2.passwd ] 
-	then
-		echo " -   Skipping basic auth passwd. File exists"
-	else
-		echo -e "[-] -----------------------------------------------------"
-		echo "OpenFPC has a web UI. For now we use Basic Auth to secure it"
-		read -p "Username: " user
-		htpasswd -c /etc/openfpc/apache2.passwd $user
-	fi
+        # Disable basic auth now that we have GUI based acl
+	#if [ -f /etc/openfpc/apache2.passwd ] 
+	#then
+	#	echo " -   Skipping basic auth passwd. File exists"
+	#else
+	#	echo -e "[-] -----------------------------------------------------"
+	#	echo "OpenFPC has a web UI. For now we use Basic Auth to secure it"
+	#	read -p "Username: " user
+	#	htpasswd -c /etc/openfpc/apache2.passwd $user
+	#fi
 
 	echo -e "
 **************************************************************************
