@@ -4,7 +4,7 @@
 # Copyright (C) 2010 Leon Ward 
 # install-openfpc.sh - Part of the OpenFPC - (Full Packet Capture) project
 #
-# Contact: leon@rm-rf.co.uk
+# Contact: leon@openfpc.org
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -25,6 +25,7 @@
 # This installer is for users that cannot or will not use the .debs for installation.
 # It's goal is to take a system from being OpenFPC-less to one that has OpenFPC operating in a semi-standard setup.
 # By semi-standard i refer to similar to how the .deb install leaves the system.
+# It should be noted that the .debs have not been updated for 0.6 - 11/06/2011
 
 openfpcver="0.6"
 PROG_DIR="/usr/bin"
@@ -43,7 +44,7 @@ LOCAL_CONFIG="/etc/openfpc/openfpc.conf"
 PERL_LIB_DIR="/usr/local/lib/site_perl"
 OFPC_LIB_DIR="$PERL_LIB_DIR/OFPC"
 
-DEPSOK=0			# Track if obvious deps are met
+DEPSOK=0		# Track if obvious deps are met
 DISTRO="AUTO"		# Try to work out what distro we are installing on
 # DISTRO="RH"		# force to RedHat
 # DISTRO="Debian" 	# Force to Debian / Ubuntu
@@ -51,7 +52,6 @@ DISTRO="AUTO"		# Try to work out what distro we are installing on
 IAM=$(whoami)
 DATE=$(date)
 PATH=$PATH:/usr/sbin
-
 
 function die()
 {
