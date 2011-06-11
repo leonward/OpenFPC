@@ -360,7 +360,7 @@ function extractPcapFromSearch() {
 	if ($result == 1 ) {
 		# Success
 		$infobox .= "Success! <br>";
-		$infobox .= "Exec: $exec <br>";
+		#$infobox .= "Exec: $exec <br>";
 		$infobox .= "MD5: $md5 <br>";
 		$infobox .= "Size: $size <br>";
 		serv_pcap("$filename","$file");
@@ -370,7 +370,7 @@ function extractPcapFromSearch() {
 		$infobox .= "Result: $result <br>";
 		$infobox .= "Error: $message <br>";
 		$infobox .= "Size: $size <br>";
-		$infobox .= "Exec: $exec <br>";
+		#$infobox .= "Exec: $exec <br>";
 		$infobox .= "Shell result: $shellresult <br>";
 	}
 

@@ -283,7 +283,7 @@ function drop_session
 function showhelp
 {
     echo -e ""
-    echo -e "* openfpc-dbmaint.sh "
+    echo -e "* openfpc-dbmaint "
     echo -e "  Create and maintain an OpenFPC databases"
     echo -e ""
     echo -e "  Usage:"
@@ -293,10 +293,10 @@ function showhelp
     echo -e "      config_file     /path/to/openfpc-config.conf"
     echo -e ""
     echo -e "  Example 1: Creating a session database"
-    echo -e "  ./openfpc-dbmaint.sh create session /etc/openfpc/openfpc-example-node.conf"
+    echo -e "  openfpc-dbmaint create session /etc/openfpc/openfpc-default.conf"
     echo -e ""
     echo -e "  Example 2: Dropping the gui database"
-    echo -e "  ./openfpc-dbmaint.sh drop gui /etc/openfpc/openfpc-example-node.conf"
+    echo -e "  openfpc-dbmaint drop gui /etc/openfpc/openfpc-default.conf"
     echo -e ""
 
 }
