@@ -257,31 +257,35 @@ sub getstatus{
 		# If session data is enabled, connect to the DB and get some data back
 		if ($config{'ENABLE_SESSION'}) {
 			wlog("DEBUG: Session data enabled on this node. Checking DB status") if $debug;
-			my $dbh= DBI->connect("dbi:mysql:database=$config{'SESSION_DB_NAME'};host=localhost",$config{'SESSION_DB_USER'},$config{'SESSION_DB_PASS'}) 
-				or wlog("DEBUG: Unable to connect to DB for stats info");
+			if ( my $dbh= DBI->connect("dbi:mysql:database=$config{'SESSION_DB_NAME'};host=localhost",$config{'SESSION_DB_USER'},$config{'SESSION_DB_PASS'}) ) {
+			    
+			    # Get count of sessions in DB
+			    my $sth= $dbh->prepare("SELECT COUNT(*) FROM session") or wlog("STATUS: ERROR: Unable to get session table size $DBI::errstr");
+			    if ( $sth->execute() ) {
+			        while ( my @row = $sth->fetchrow_array ) {
+			        	$stat{'sessioncount'} = $row[0];
+				}
+			    } else {
+				    wlog("STATUS: ERROR: Unable to exec SQL command");
+			    }
+			    wlog("DEBUG: Session DB count is $stat{'sessioncount'}\n") if $debug;
 
-			# Get count of sessions in DB
-			my $sth= $dbh->prepare("SELECT COUNT(*) FROM session") or wlog("STATUS: ERROR: Unable to get session table size $DBI::errstr");
-			$sth->execute() or wlog("STATUS: ERROR: Unable to exec SQL command");
-			while ( my @row = $sth->fetchrow_array ) {
-  				$stat{'sessioncount'} = $row[0];
-			}
-			wlog("DEBUG: Session DB count is $stat{'sessioncount'}\n") if $debug;
-
-			# Get Oldest session time
-			$sth= $dbh->prepare("SELECT unix_timestamp(start_time) FROM session ORDER BY start_time LIMIT 1") or wlog("STATUS: ERROR: Unable to get first conenction $DBI::errstr");
-			$sth->execute() or wlog("STATUS: ERROR: Unable to exec SQL command");
-			while ( my @row = $sth->fetchrow_array ) {
+			    # Get Oldest session time
+			    $sth= $dbh->prepare("SELECT unix_timestamp(start_time) FROM session ORDER BY start_time LIMIT 1") or wlog("STATUS: ERROR: Unable to get first conenction $DBI::errstr");
+			    $sth->execute() or wlog("STATUS: ERROR: Unable to exec SQL command");
+			    while ( my @row = $sth->fetchrow_array ) {
   				$stat{'firstctx'} = $row[0];
-			}
-			wlog("DEBUG: Oldest connection in session DB is $stat{'firstctx'}\n") if $debug;
+			    }
+			    wlog("DEBUG: Oldest connection in session DB is $stat{'firstctx'}\n") if $debug;
 
-
-			$dbh->disconnect or wlog("Unable to disconnect from DB $DBI::errstr");
-                        if (opendir(SESSION_DIR,$config{'SESSION_DIR'}) ) { 
-                        	while (my $filename=readdir(SESSION_DIR)) {
-                                	$stat{'sessionlag'}++ unless $filename =~ /^(\.|failed)/;
-                                }
+			    $dbh->disconnect or wlog("Unable to disconnect from DB $DBI::errstr");
+			    if (opendir(SESSION_DIR,$config{'SESSION_DIR'}) ) { 
+				while (my $filename=readdir(SESSION_DIR)) {
+				      	$stat{'sessionlag'}++ unless $filename =~ /^(\.|failed)/;
+			        }
+			    }
+			} else {
+				wlog("DEBUG: Unable to connect to DB for stats info");
 			}
 		} else {
 			wlog("DEBUG: Session data disabled on this node");

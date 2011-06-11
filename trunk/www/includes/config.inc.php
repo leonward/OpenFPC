@@ -68,7 +68,7 @@ if ($config["GUI_DB_HOST"]) $guidbhost = trim($config["GUI_DB_HOST"]);
 
 
 if ( preg_match("/^[A-Z]../", $config["TIMEZONE"])) {
-	$timezone =  $config["TIMEZONE"];
+	$timezone =  trim($config["TIMEZONE"]);
 }
 
 //OFPC Queue Daemon Settings

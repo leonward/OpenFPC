@@ -32,6 +32,7 @@ $defaultnode  = sanitize("defaultnode");  	if (empty($defaultnode))      $defaul
 $description  = sanitize("description");  	if (empty($description))      $description = "";
 $email  = sanitize("email");  			if (empty($email))      $email = "";
 $realname  = sanitize("realname");  		if (empty($realname))      $realname = "";
+$usertimezone  = sanitize("usertimezone"); 	if (empty($usertimezone))      $usertimezone= "Europe/London";
 
 
 switch ($op) {
@@ -117,8 +118,8 @@ function newuser(){
     $out .= "          <input name=\"description\" type=\"text\" class=\"text\" id=\"description\" maxlength=\"39\" value=\"$description\">\n";
     $out .= "        </p>\n";
     $out .= "        <p>\n";
-    $out .= "          <label for=\"timezone\">Time zone</label>\n";
-    $out .= "          <input name=\"timezone\" type=\"text\" class=\"text\" id=\"timezone\" maxlength=\"39\" value=\"$timezone\">\n";
+    $out .= "          <label for=\"usertimezone\">Time zone</label>\n";
+    $out .= "          <input name=\"usertimezone\" type=\"text\" class=\"text\" id=\"usertimezone\" maxlength=\"39\" value=\"$timezone\">\n";
     $out .= "        </p>\n";
     $out .= "        <p>\n";
     $out .= "          <label for=\"defaultnode\">Default Node</label>\n";
@@ -181,7 +182,7 @@ function deluser() {
 
 
 function adduser() {
-    global $username, $password1, $password2, $timezone, $deafultnode, $realname, $description, $email, $guilink;
+    global $username, $password1, $password2, $timezone, $deafultnode, $realname, $description, $email, $guilink, $usertimezone;
     checkauth();
 
     if ( iscurrentuser($username) ) {
@@ -196,7 +197,7 @@ function adduser() {
         showhead();
         $guilink=guiDB();
         $query="INSERT INTO users (username,password,realname,email,description,timezone,defaultnode)
-            VALUES ('$username', '$password1','$realname','$email','$description','$timezone','$deafultnode')";
+            VALUES ('$username', '$password1','$realname','$email','$description','$usertimezone','$deafultnode')";
         $result=mysql_query($query, $guilink) or die("GUI DB Eror: ".mysql_error());
         showsuccess("User Added");
         showusertable();
@@ -209,7 +210,7 @@ function adduser() {
 }
 
 function updateuser() {
-    global $username, $password1, $password2, $timezone, $deafultnode, $realname, $description, $email, $guilink;
+    global $username, $password1, $password2, $timezone, $deafultnode, $realname, $description, $email, $guilink,$usertimezone;
     checkauth();
 
     if ( ! iscurrentuser($username) ) {
@@ -227,7 +228,7 @@ function updateuser() {
 				realname = '$realname',
 				email = '$email',
 				description = '$description',
-				timezone = '$timezone',
+				timezone = '$usertimezone',
 				defaultnode = '$deafultnode'
 	    WHERE username = '$username'";
         $result=mysql_query($query, $guilink) or die("GUI DB Eror: ".mysql_error());
