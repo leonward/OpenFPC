@@ -405,7 +405,7 @@ sub put_session2db {
                 ?,?
              )];
 
-      $sth = $dbh->prepare_cached($sql) if not $sth;
+      $sth = $dbh->prepare_cached($sql);
       $sth->execute(
                 $HOSTNAME,$cx_id,$s_t,$e_t,$tot_time,
                 $ip_type,$src_dip,$src_port,$dst_dip,$dst_port,
