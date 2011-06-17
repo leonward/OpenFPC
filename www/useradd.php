@@ -266,7 +266,7 @@ function userRowFormat($data) {
 				"','" . $data["timezone"] .
 				"','" . $data["defaultnode"] .
 				"');\"";
-    $out .= ">";
+    $out .= "> \n";
 
     // User
     $out .= "<td>" . $data["username"] . "</td>";
@@ -284,8 +284,7 @@ function userRowFormat($data) {
 function showusertable(){
     
     checkauth();
-    
-    // top of users table
+    print "User List \n"; 
     $out = "<table summary=\"OpenFPC GUI user accounts\"  border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n";
     $out .= "  <caption>\n";
     $out .= "  <em>OpenFPC Users</em>\n";

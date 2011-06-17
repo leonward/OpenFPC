@@ -75,8 +75,8 @@ if ( preg_match("/^[A-Z]../", $config["TIMEZONE"])) {
 $ofpcuser = "";
 $ofpcpass = "";
  
-if ($config["GUIUSER"])  $ofpcuser=$config["GUIUSER"]  ;
-if ($config["GUIPASS"])  $ofpcpass=$config["GUIPASS"]  ;
+//if ($config["GUIUSER"])  $ofpcuser=$config["GUIUSER"]  ;
+//if ($config["GUIPASS"])  $ofpcpass=$config["GUIPASS"]  ;
 
 // Settings
 $maxRows = 100;
