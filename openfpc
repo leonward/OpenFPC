@@ -693,7 +693,7 @@ while(my $file=readdir $dh) {
 		
 		# Perform some sanity checks on the instance config, if something strange is found, disable it and warn the user.
 		my $badconfig=0;
-		if ($configs{$file}{NODENAME} =~ /[-\?\\\/]/ ) {
+		if ($configs{$file}{NODENAME} =~ /[-\?\\\/\.]/ ) {
 			print "ERROR: Invalid characters found in NODENAME in file $file \"$configs{$file}{NODENAME}\"\n";
 			$badconfig=1;
 		}
