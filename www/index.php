@@ -137,6 +137,7 @@ switch ($op) {
 }
 
 include "includes/header.php";
+include "includes/menu.php";
 echo $out; 
 include "includes/footer.php";
 
