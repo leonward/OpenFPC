@@ -70,6 +70,7 @@ sub sessionToLogline{
 		$logline .= "dip:$req->{'dip'} " if ($req->{'dip'});
 		$logline .= "dpt:$req->{'dpt'} " if ($req->{'dpt'});
 		$logline .= "spt:$req->{'spt'} " if ($req->{'spt'});
+		$logline .= "proto:$req->{'proto'} " if ($req->{'proto'});
 	}	
 
 	$logline .= "stime:$req->{'stime'} " if ($req->{'stime'});
