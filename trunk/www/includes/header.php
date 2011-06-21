@@ -29,7 +29,7 @@ $head .= "<link href=\"css/style.css\" rel=\"stylesheet\" type=\"text/css\" medi
 $head .= "<script src=\"javascript/jquery-1.5.1.min.js\" type=\"text/javascript\"></script>\n";
 $head .= "<script src=\"javascript/jqueryslidemenu.js\" type=\"text/javascript\"></script>\n\n";
 $head .= "<script type=\"text/javascript\" src=\"javascript/jquery-ui-1.8.13.custom.min.js\"></script>\n";
-$head .= "<script type=\"text/javascript\" src=\"js/jquery-ui-timepicker-addon.js\"></script>\n";
+$head .= "<script type=\"text/javascript\" src=\"javascript/jquery-ui-timepicker-addon.js\"></script>\n";
 
 
 $head .= "<!-- Color hover JavaScript Files -->\n";
