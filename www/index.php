@@ -40,7 +40,7 @@ $end_date   = sanitize("end_date");   if (!valdate($end_date))   $end_date   = d
 $protocol   = sanitize("protocol");   if (empty($protocol))   $protocol = "any";
 $logline    = sanitize("logline");    if (empty($logline))    $logline = "";
 $comment    = sanitize("comment");    if (empty($comment))    $comment = "No Comment";
-$bpf        = sanitize("bpf");        if (empty($bpf))        $logline = "bpf";
+$bpf        = sanitize("bpf");        if (empty($bpf))        $bpf= "bpf";
 
 $out="";
 
@@ -184,7 +184,7 @@ function showResults() {
 function extractPcapFromBPF($action) {
 	global $bpf, $comment, $ofpc_client, $debug;
 
-	$out = "<!-- extractPcapFromLog -->\n";
+	$out = "<!-- extractPcapFromBPF -->\n";
 
 	# Shell out to ofpc-client here. Note the --gui option.
 	$exec = "$ofpc_client -u " . $_SESSION[username] . " -p " . $_SESSION[password] . " --gui ";
@@ -216,7 +216,7 @@ function extractPcapFromBPF($action) {
 		$infomsg = "Error: $message<br>";
 		$out .= infoBox($infomsg);
 	}
-	$out .= "<!-- /extractPcapFromLog -->\n";
+	$out .= "<!-- /extractPcapFromBPF -->\n";
 	return $out;
 }
 
@@ -254,7 +254,7 @@ function extractPcapFromLog($action) {
 		}
 	} else {
 		$infomsg = "Error: $message<br>";
-		#$infomsg .= "$e";
+		if ($debug) { $infomsg .= "$e";}
 		$out .= infoBox($infomsg);
 	}
 	$out .= "<!-- /extractPcapFromLog -->\n";
