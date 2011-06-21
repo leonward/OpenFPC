@@ -17,6 +17,7 @@ my $verbose=0;
 my $oneline=0;
 my $manual=0;
 my $quiet=0;
+my $help;
 
 my %logs=(
 	SnortSyslog => [ 
@@ -30,7 +31,8 @@ my %logs=(
 			"2010-03-31 13:24:36	 high	 	 	 IPS Demo DE / sfukse3d00.lab.emea.sourcefire.com	 tcp	Go to Host View 192.168.4.248	Go to Host View 207.46.108.86	 Viktor Westcott (viktor.westcott, ldap)	 	 3044/tcp	 1863/tcp	 Standard Text Rule	 CHAT MSN message (1:540)	 Potential Corporate Policy Violation	 0" ,
 			"2010-10-25 11:56:29	high		 	IPS Demo DE / sfukse3d00.lab.emea.sourcefire.com	tcp	 192.168.4.249	 69.104.33.82	 	 	3537/tcp	6667 (ircd)/tcp	Standard Text Rule	CHAT IRC message (1:1463)	Potential Corporate Policy Violation" ,
 			"	2010-10-26 21:54:27	high			IPS Demo DE / sfukse3d00.lab.emea.sourcefire.com	tcp	 10.4.12.53	 10.4.12.12	 	 Gabrielle Schmitt (gabrielle.schmitt, ldap)	32775/tcp	80 (http)/tcp	Standard Text Rule	WEB-IIS cmd.exe access (1:1002)	Web Application Attack	0" ,
-			"2010-10-28 16:03:55	high		 	IPS Demo DE / sfukse3d00.lab.emea.sourcefire.com	tcp	 192.168.6.40	 195.54.102.4	 misterbear16 (aim)	 	3663/tcp	6668/tcp	Standard Text Rule	CHAT IRC message (1:1463)	Potential Corporate Policy Violation	0" 
+			"2010-10-28 16:03:55	high		 	IPS Demo DE / sfukse3d00.lab.emea.sourcefire.com	tcp	 192.168.6.40	 195.54.102.4	 misterbear16 (aim)	 	3663/tcp	6668/tcp	Standard Text Rule	CHAT IRC message (1:1463)	Potential Corporate Policy Violation	0",
+			"	2011-06-21 19:47:17	high		 	Demo IPS / sfukse3d01.lab.emea.sourcefire.com	tcp	 192.168.6.60	 66.225.225.225	 sourab.gita (POP3)	 	49180/tcp	6667 (ircd)/tcp	Standard Text Rule	CHAT IRC channel join (1:1729)	Potential Corporate Policy Violation	0"
 			] ,
 
 	Exim4 => 	[ 	
@@ -127,11 +129,27 @@ sub displayEvent{
 		"------------------------------\n";
 }
 
+sub showhelp{
+	print "testParse.pl - Test event text parsers
+	
+	Usage:
+		-o or --oneline    Paste your event into an interactive prompt
+		-m or --manual	   Only parse with the hard-coded parser
+		-q or --quiet	   Only output if there is an error
+		-h or --help	   This message\n\n";
+}
+
 GetOptions (    'o|oneline' => \$oneline,
 		'm|manual' => \$manual,
 		'v|verbose' => \$verbose,
 		'q|quiet' => \$quiet,
+		'h|help' => \$help,
 	);
+
+if ($help) {
+	showhelp;
+	exit(0);
+}
 
 unless ($oneline) {
 	print "* Autodetect type\n" unless ($quiet);

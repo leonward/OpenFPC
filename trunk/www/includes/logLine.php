@@ -35,7 +35,7 @@
     $out .= "      <div class=\"span-16 last \">\n";
     $out .= "        <p>\n";
     $out .= "          <input type=\"submit\" name=\"op\" value=\"Fetch pcap from event\" />\n";
-    $out .= "          <input type=\"submit\" name=\"op\" value=\"Store pcap form event\">\n";
+    //$out .= "          <input type=\"submit\" name=\"op\" value=\"Store pcap form event\">\n";
     $out .= "        </p>\n";
     $out .= "      </div>\n";
     $out .= "  </form>\n";
