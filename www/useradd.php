@@ -85,6 +85,7 @@ function showerror($error){
 function showhead(){
     checkauth();
     include "includes/header.php";
+    include "includes/menu.php";
 }
 
 function newuser(){
@@ -284,7 +285,7 @@ function userRowFormat($data) {
 function showusertable(){
     
     checkauth();
-    print "User List \n"; 
+    #print "User List \n"; 
     $out = "<table summary=\"OpenFPC GUI user accounts\"  border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n";
     $out .= "  <caption>\n";
     $out .= "  <em>OpenFPC Users</em>\n";
