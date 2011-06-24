@@ -97,8 +97,12 @@ function showlogout(){
 }
 
 function dologin() {
-    global $username, $password, $guilink;
+    global $username, $password, $guilink, $securePassword;
     $guilink=guiDB();
+    if($securePassword){
+        $password = sha1($password . $username);
+    }
+    errorpage($password);
     $query="SELECT username, password, timezone FROM users WHERE username='$username' and password='$password'";
     
     $result=mysql_query($query, $guilink) or errorpage("GUI DB Eror: ".mysql_error());
@@ -114,6 +118,7 @@ function dologin() {
         $_SESSION['auth'] = 1;
         header ("Location: index.php");
     } else {
+        errorpage("Login error");
         header ("Location: login.php");
     }
 }

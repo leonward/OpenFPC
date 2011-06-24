@@ -24,6 +24,12 @@
 	margin-left: auto;
 	padding-top:0px;
 }
+
+#infoDisplay {
+        font-size: 14px;
+
+}
+
 /***************************************************
 			JQUERYSLIDEMENU
 ***************************************************/

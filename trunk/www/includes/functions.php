@@ -519,14 +519,12 @@ function guiDB(){
     return($guilink);
 }
 
-function infoBox($infomsg) {
+function infobox($infomsg) {
 	$out = "<!-- infoBox -->\n";
-	$out .= "</p><div class=infoDisplay><table align=center border=1 width=300 cellpadding=0 cellspacing=0>\n";
-	#$out .= "</p><div class=infoDisplay><table align=center border=0 width=500 cellpadding=0 cellspacing=0>\n";
-	$out .= "<td width=100 valign=middle align=center> <div style=\"font-size: 10px; color: #DEDEDE\">\n";
-	$out .= "<center>$infomsg</center>";
-	$out .= "</td></table>\n";
+	$out .= "<div class=\"span-20\">";
+	$out .= $infomsg;
 	$out .= "<!-- /infoBox -->\n";
+	$out .= "</div>";
 	return $out;
 }
 

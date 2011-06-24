@@ -22,7 +22,7 @@
 
 require "includes/functions.php";
 require "includes/config.inc.php";
-
+require "includes/checkPassword.php";
 
 $op    = sanitize("op");                  	if (empty($op))        $op = "entry";
 $username  = sanitize("username");            	if (empty($username))      $username = "";
@@ -73,12 +73,12 @@ switch ($op) {
 
 
 function showsuccess($message){
-    $out .= infobox("Success: $message");
+    $out = infobox("Success: $message");
     echo $out;
 }
 
 function showerror($error){
-    $out .= infobox("Error: $error");
+    $out = infobox("Error: $error");
     echo $out;
 }
 
@@ -183,30 +183,53 @@ function deluser() {
 
 
 function adduser() {
-    global $username, $password1, $password2, $timezone, $deafultnode, $realname, $description, $email, $guilink, $usertimezone;
+    global $username, $password1, $password2, $timezone, $deafultnode, $realname, $description, $email, $guilink, $usertimezone, $securePassword;
     checkauth();
 
+    $errors = array();
+    $usernameMinChars = 4;
+
+    if (strlen($username) < $usernameMinChars) {
+         $errors[] = "Username must be at least $usernameMinChars characters.";
+    }
+    if (preg_match('/\s/', $username)) {
+        $errors[] = 'Username should not contain spaces.';
+    }
+    if ($password1 != $password2) {
+        $errors[] = "Your passwords don't match.";
+    }
+
+    $checkPwd = new Ps2_CheckPassword($password1, 6);
+    $checkPwd->requireMixedCase();
+    $checkPwd->requireNumbers();
+    $checkPwd->requireSymbols();
+    $passwordOK = $checkPwd->check();
+    if (!$passwordOK) {
+        $errors = array_merge($errors, $checkPwd->getErrors());
+    } 
+    
     if ( iscurrentuser($username) ) {
+        $errors[] = "User already exists";
+    } 
+
+    if (!$errors) {
         showhead();
-        showerror("User already exists");
-        newuser();
-    } elseif ($password1 == "") {
-        showhead();
-        showerror("Error: Blank password not allowed.");
-        newuser();
-    } elseif ( $password1 == $password2 ) {
-        showhead();
+        if ($securePassword){
+            // Salt the pw with the username
+            $password=sha1($password1 . $username);
+        }
         $guilink=guiDB();
         $query="INSERT INTO users (username,password,realname,email,description,timezone,defaultnode)
-            VALUES ('$username', '$password1','$realname','$email','$description','$usertimezone','$deafultnode')";
+            VALUES ('$username', '$password','$realname','$email','$description','$usertimezone','$deafultnode')";
         $result=mysql_query($query, $guilink) or die("GUI DB Eror: ".mysql_error());
         showsuccess("User Added");
         showusertable();
-        
     } else {
         showhead();
-        showerror("Passwords do not match.");
-        newuser();
+	foreach ($errors as $error) {
+	    showerror($error);
+	}
+	newuser();
     }
 }
 
@@ -285,8 +308,9 @@ function userRowFormat($data) {
 function showusertable(){
     
     checkauth();
-    #print "User List \n"; 
-    $out = "<table summary=\"OpenFPC GUI user accounts\"  border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n";
+    #print "User List \n";
+    $out = "<div class=\"span-20\">";
+    $out .= "<table summary=\"OpenFPC GUI user accounts\"  border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n";
     $out .= "  <caption>\n";
     $out .= "  <em>OpenFPC Users</em>\n";
     $out .= "  </caption>\n";
