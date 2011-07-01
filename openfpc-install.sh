@@ -46,7 +46,7 @@ OFPC_LIB_DIR="$PERL_LIB_DIR/OFPC"
 
 DEPSOK=0		# Track if obvious deps are met
 DISTRO="AUTO"		# Try to work out what distro we are installing on
-# DISTRO="RH"		# force to RedHat
+# DISTRO="REDHAT"		# force to RedHat
 # DISTRO="Debian" 	# Force to Debian / Ubuntu
 
 IAM=$(whoami)
@@ -160,7 +160,7 @@ function doinstall()
 		PERL_LIB_DIR="/usr/local/lib/site_perl"
 	elif [ "$DISTRO" == "REDHAT" ]
 	then
-		PERL_LIB_DIR="/usr/lib/perl5/site_perl"
+		PERL_LIB_DIR="/usr/local/share/perl5"
 	fi
 
 
@@ -305,7 +305,7 @@ function doinstall()
 	then
 		echo "[*] Performing a RedHat init Install"
 		echo "[-] RedHat install un-tested. YMMV"
-		PERL_LIB_DIR="/usr/lib/perl5/site_perl"
+		PERL_LIB_DIR="/usr/local/share/perl5"
 
 		#################################
 		# Enable website
