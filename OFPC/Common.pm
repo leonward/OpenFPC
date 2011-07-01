@@ -647,8 +647,10 @@ sub prepfile{
                 unless ($config{'KEEPFILES'}) {
                     wlog("DEBUG: Cleaning zip contents..\n") if ($debug);
 			foreach (@nodefiles) {
-                            wlog("DEBUG: Unlinking $_\n") if ($debug);
-                            unlink("$_");
+                            wlog("DEBUG: Unlinking $config{'SAVEDIR'}/$_\n") if ($debug);
+                            if ( -f "$config{'SAVEDIR'}/$_" ) {
+				unlink("$config{'SAVEDIR'}/$_") or wlog("Cant unlink $config{'SAVEDIR'}/$_");
+			    }
 			}
 		}
             }
