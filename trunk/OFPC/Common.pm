@@ -1044,7 +1044,8 @@ sub doExtract{
         wlog("EXTR: Merge command is \"$config{'MERGECAP'} -w $config{'SAVEDIR'}/$mergefile  @outputpcaps\"") if $debug;
 
         if (system("$config{'MERGECAP'} -w $config{'SAVEDIR'}/$mergefile @outputpcaps")) {
-		return(0,0,0);
+            wlog("ERROR: Unable to merge pcap files.  Verify that merge command exists at $config{'MERGECAP'}");
+            return(0,0,0);
         }
 
 	# Calculate a filesize (in human readable format), and a MD5
