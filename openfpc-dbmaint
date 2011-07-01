@@ -160,7 +160,8 @@ function configure_session
 
 function configure_gui
 {
-    echo -e "\n[*] Enter an initial username for the first OpenFPC GUI user"
+    echo -e "\n[*] Enter an initial username for the first OpenFPC GUI user."
+    echo -e "    Warning: Passwords are not (yet) hashed or encrypted."
     read -p "    GUI Username: " ADMIN_USER
     stty -echo
     read -p "    GUI Password: " ADMIN_PASS
