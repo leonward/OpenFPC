@@ -1535,4 +1535,69 @@ sub readroutes{
     }
 }
 
+=head readpasswd
+    Read in the config file, store it in the %config global variable.
+    - Leon Ward 2011
+    
+    Expects: $configfile
+    Returns: 1 for success, 0 for fail.
+    Depends on: A global %userlist
+=cut
+
+sub readpasswd{
+
+    my $configfile=shift;
+    
+    open my $config, '<', $configfile or die "ERROR: Unable to open passwd file $configfile $!\n";
+    while(<$config>) {
+        chomp;
+        if ( $_ =~ m/^[a-zA-Z]/) {
+            (my $key, my @value) = split /=/, $_;
+            if ($key eq "SHA1") {
+                wlog("DEBUG: Adding user \"$value[0]\" PassHash \"$value[1]\"\n") if ($debug);
+                $userlist{$value[0]} = $value[1] ;
+            }
+        }
+    }
+    close $config;
+    
+    return(%config);    
+}
+
+=head readconfig
+    Read in the config file, store it in the %config global variable.
+    - Leon Ward 2011
+    
+    Expects: $configfile
+    Returns: 1 for success, 0 for fail.
+    Depends on: A global %config
+=cut
+
+sub readconfig{
+
+    my $configfile=shift;
+    
+    unless ($configfile) {
+        die "Please specify a config file. See help (--help)\n";
+    }
+    
+    open my $config, '<', $configfile or die "Unable to open config file $configfile $!";
+    while(<$config>) {
+        chomp;
+        if ( $_ =~ m/^[a-zA-Z]/) {
+            (my $key, my @value) = split /=/, $_;
+            unless ($key eq "USER") {
+		if ($value[0]){
+		    $config{$key} = join '=', @value;
+		}
+            } else {
+                wlog("DEBUG: Adding user \"$value[0]\" Pass \"$value[1]\"\n") if ($debug);
+                $userlist{$value[0]} = $value[1] ;
+            }
+        }
+    }
+    close $config;
+    return(%config);    
+}
+
 1;

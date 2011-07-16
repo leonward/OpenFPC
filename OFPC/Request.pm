@@ -28,6 +28,7 @@ require Exporter;
 use Switch;
 use Data::Dumper;
 use Digest::MD5(qw(md5_hex));
+use Digest::SHA1;
 @EXPORT = qw(ALL);
 $VERSION = '0.2';
 
@@ -434,6 +435,24 @@ sub request{
 
 	$result{'message'} = "Something has gone wrong. You should never see this message - Leon";	
 	return %result;
+}
+
+
+=head2 mkhash
+	Create a SHA1 password
+=cut
+sub mkhash{
+	my $user=shift;
+	my $pass=shift;
+	my ($digest,$hash);
+
+	die("ERROR: user or pass not set") unless ($user and $pass);
+	
+	$digest = Digest::SHA1->new;
+	$digest->add($user,$pass);
+	$hash = $digest->hexdigest;
+	
+	return($hash);
 }
 
 1;

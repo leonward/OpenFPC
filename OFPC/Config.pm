@@ -49,7 +49,7 @@ our $rid=0;		#ÊMaster request ID. Unique for each instance.
 our %config=(
     CONFIGURED  => 0,
     NODENAME    => "NONAME",
-    PROXT       => 0,
+    PROXY       => 0,
     SAVEDIR     => 0,
     LOGFILE     => "/tmp/openfpc-untitled.log",
     TCPDUMP     => "/usr/sbin/tcpdump",
@@ -57,6 +57,7 @@ our %config=(
     PIDPATH     => "/var/run",
     KEEPFILES   => "0",
     TASK_INTERVAL => 600,
+    PASSWD	=> 0,
     );
 
 our %userlist=();  			# Global cache of users
@@ -66,49 +67,9 @@ our $queue = Thread::Queue->new();	# Queue shared over all threads
 our %pcaps: shared =();
 
 
-=head readconfig
-    Read in the config file, store it in the %config global variable.
-    - Leon Ward 2011
-    
-    Expects: $configfile
-    Returns: 1 for success, 0 for fail.
-    Depends on: A global %config
-=cut
 
-sub readconfig{
 
-    my $configfile=shift;
-    
-    unless ($configfile) {
-        die "Please specify a config file. See help (--help)\n";
-    }
-    
-    open my $config, '<', $configfile or die "Unable to open config file $configfile $!";
-    while(<$config>) {
-        chomp;
-        if ( $_ =~ m/^[a-zA-Z]/) {
-            (my $key, my @value) = split /=/, $_;
-            unless ($key eq "USER") {
-		if ($value[0]){
-		    $config{$key} = join '=', @value;
-		}
-            } else {
-                print "CONF: Adding user \"$value[0]\" Pass \"$value[1]\"\n" if ($debug);
-                $userlist{$value[0]} = $value[1] ;
-            }
-        }
-    }
-    close $config;
-    
-    my $numofusers=keys(%userlist);
-    unless ($numofusers) {
-        print("ERROR: $numofusers users defined in config file. You need to add some.\n");
-        print("Shutting down....\n");
-        exit 1
-    }
-    
-    return(%config);    
-}
+
 
 
 1;

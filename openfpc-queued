@@ -108,10 +108,25 @@ if ($help) {
 }
 
 OFPC::Common::initlog or die("Problem initilizating log subsystem");
-OFPC::Config::readconfig("$configfile") or die("Problem processing config file $configfile");
+OFPC::Common::readconfig("$configfile") or die("Problem processing config file $configfile");
+
+# If PASSWD is set, we have a SHA1 password file, lets read it and use secure passwords.
+
+if ($config{'PASSWD'}) {
+	wlog("DEBUG: SHA1 passwords enabled - Reading $config{'PASSWD'}") if $debug;
+	OFPC::Common::readpasswd("$config{'PASSWD'}") or die("Problem processing users file $config{'PASSWD'}");
+}
+
 
 wlog("START: *********** OpenFPC $openfpcver **********");
 wlog("START: **    http://www.openfpc.org    **");
+
+my $numofusers=keys(%userlist);
+unless ($numofusers) {
+   print("ERROR: $numofusers users defined in config file. You need to add some.\n");
+   print("Shutting down....\n");
+   exit 1
+}
 
 if ($config{'PROXY'}) {
         wlog("START: Starting OFPC Node \"$config{'NODENAME'}\" as an OpenFPC Proxy");

@@ -568,7 +568,7 @@ function checkauth(){
 
 function errorpage($message){
     include "includes/header.php";
-    $out .= infobox("Error: $error");
+    $out .= infobox("Error: $message");
     echo $out;
 }
 ?>

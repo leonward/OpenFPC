@@ -25,11 +25,11 @@ $configfile="/etc/openfpc/openfpc-default.conf";
 // Nothing to do below this line.
 # --------------------------------------------------------------------------
 
-$debug=0;
+$debug=1;
 $utc_offset=0;
 // Before enabling secure passwords, ensure that you are running the latest
 // DB schema which has sufficient length for the sha1 hash.
-$securePassword=0;
+$securePassword=1;
 $timezone="Europe/London"; 	# Default TZ - This is imported via the config file. But in case it's not set lets use something sane
 
 $enable_session=0;
