@@ -100,14 +100,14 @@ function dologin() {
     global $username, $password, $guilink, $securePassword;
     $guilink=guiDB();
     if($securePassword){
-        $password = sha1($password . $username);
+        $password = sha1($username . $password);
     }
-    errorpage($password);
     $query="SELECT username, password, timezone FROM users WHERE username='$username' and password='$password'";
     
     $result=mysql_query($query, $guilink) or errorpage("GUI DB Eror: ".mysql_error());
     
     if(mysql_num_rows($result)==1) {
+        print "GOT ROW\n";
         session_start();
         while ( $row = mysql_fetch_assoc($result)) {
             $_SESSION['timezone'] = $row['timezone'];
@@ -126,6 +126,7 @@ function dologin() {
 function dologout() {
     global $username, $password;
     session_start();
+    session_destroy();
     $_SESSION['username'] = 0;
     $_SESSION['auth'] = 0;
     header ("Location: login.php");

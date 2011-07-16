@@ -7,7 +7,7 @@
 
 TARPATH=~
 SRCPATH=..
-PROG_FILES="openfpc-cx2db openfpc-client openfpc-install.sh openfpc openfpc-queued openfpc-dbmaint"
+PROG_FILES="openfpc-cx2db openfpc-client openfpc-install.sh openfpc openfpc-queued openfpc-dbmaint openfpc-password"
 PERL_MODS="Parse.pm Request.pm CXDB.pm Common.pm Config.pm"
 WWW_DIR="www"
 CGI_FILES="extract.cgi"

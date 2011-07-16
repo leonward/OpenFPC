@@ -30,6 +30,7 @@ use OFPC::Parse;
 use Getopt::Long;
 use Switch;
 use Digest::MD5(qw(md5_hex));
+use Digest::SHA1;
 use Term::ReadKey;
 
 my $now=time();
@@ -37,6 +38,7 @@ my $openfpcver="0.6";
 my $timeoffset=0;		# Default time offset if a --timstamp isn't specified 
 my $debug;
 my (%config,$verbose);
+my $password=0;
 
 # Hint: "ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp timestamp:1274864808 msg:Some freeform text";
 my %cmdargs=( user => 0,
@@ -54,6 +56,7 @@ my %cmdargs=( user => 0,
 		gui => 0,
 		sumtype =>0,
 		last => 0,
+		plaintext => 0,
 		);
 
 my %request=(	user => 0,
@@ -288,7 +291,7 @@ GetOptions (    'u|user=s' => \$cmdargs{'user'},
 		't|logtype=s' => \$cmdargs{'logtype'},
 		'e|logline=s' => \$cmdargs{'logline'},
 		'a|action=s' => \$cmdargs{'action'},
-		'p|password=s' => \$cmdargs{'password'},
+		'p|password=s' => \$password,
 		'm|comment=s' => \$cmdargs{'comment'},
 		'g|gui'	=> \$cmdargs{'gui'},
 		'z|zip' => \$cmdargs{'zip'},
@@ -305,6 +308,7 @@ GetOptions (    'u|user=s' => \$cmdargs{'user'},
 		'sumtype|summarytype=s' => \$cmdargs{'sumtype'},
 		'save' => \$cmdargs{'dbsave'},
 		'l|last=s' => \$cmdargs{'last'},
+		'i|plaintext' => \$cmdargs{'plaintext'},
                 );
 
 
@@ -317,7 +321,6 @@ $request{'filename'} 	= $cmdargs{'filename'}	if $cmdargs{'filename'};
 $request{'logtype'} 	= $cmdargs{'logtype'}   if $cmdargs{'logtype'};
 $request{'action'} 	= $cmdargs{'action'}	if $cmdargs{'action'};
 $request{'logline'} 	= $cmdargs{'logline'}	if $cmdargs{'logline'};
-$request{'password'} 	= $cmdargs{'password'}  if $cmdargs{'password'};
 $request{'comment'} 	= $cmdargs{'comment'}   if $cmdargs{'comment'};
 $request{'device'} 	= $cmdargs{'device'}	if $cmdargs{'device'};
 $request{'filetype'} 	= "ZIP"			if $cmdargs{'zip'};
@@ -410,14 +413,21 @@ unless ($request{'user'}) {
 }
 
 
-unless ($request{'password'}) {
+unless ($password) {
 	print "Password for user $request{'user'} : ";
 	ReadMode 'noecho';
-	my $userpass = ReadLine 0;
-	chomp $userpass;
-	$request{'password'} = $userpass;
+	$password = ReadLine 0;
+	chomp $password;
 	ReadMode 'normal';
 	print "\n";
+}
+
+#HERE
+unless ($cmdargs{'plaintext'}) {
+	$request{'password'} = OFPC::Request::mkhash($request{'user'},$password);
+} else {
+	print "WARNING: Using plain text password\n";
+	$request{'password'} = $password;
 }
 
 my $sock = IO::Socket::INET->new(

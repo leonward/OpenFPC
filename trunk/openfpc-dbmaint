@@ -119,6 +119,7 @@ function readconfig
                 [ -n "$GUI_DB_NAME" ] || die "GUI_DB_NAME not set in $CONFIG"
                 [ -n "$GUI_DB_USER" ] || die "GUI_DB_USER not set in $CONFIG"
                 [ -n "$GUI_DB_PASS" ] || die "GUI_DB_PASS not set in $CONFIG"
+                [ -n "$PASSWD" ] || die "PASSWD file not set in $CONFIG"
                 
 		echo -e "[*] Enter mysql \"root\" credentials to connect to your local mysql server in order to create the databases"
 		read -p "    DB root Username: " DBUSER
@@ -161,7 +162,6 @@ function configure_session
 function configure_gui
 {
     echo -e "\n[*] Enter an initial username for the first OpenFPC GUI user."
-    echo -e "    Warning: Passwords are not (yet) hashed or encrypted."
     read -p "    GUI Username: " ADMIN_USER
     stty -echo
     read -p "    GUI Password: " ADMIN_PASS
@@ -174,17 +174,23 @@ function configure_gui
     TIMEZONE="Europe/London"
     DEFAULTNODE="None"
     
+    if ADMIN_HASH=$(openfpc-password -n --hash --user $ADMIN_USER --password $ADMIN_PASS)
+    then
+        echo HASH is $ADMIN_HASH
+    else
+        echo Error setting admin hash
+    fi
+    
     # Add this user to the openfpc $CONFIG to allow them to get pcaps
     # 1 Check if the user already exists
-    
-    if grep ^USER=$ADMIN_USER= $CONFIG
+
+    if grep ^SHA1=$ADMIN_USER= $PASSWD > /dev/null
     then
-        echo FOUND USER $ADMIN_USER IN $CONFIG
-	sed -e "s/USER=$ADMIN_USER=.*/USER=$ADMIN_USER=$ADMIN_PASS/g" -i $CONFIG
-        
+        echo FOUND USER $ADMIN_USER IN $PASSWD
+        openfpc-password -f $PASSWD --user $ADMIN_USER -password $ADMIN_PASS -a change
     else
         echo USER NOT FOUND. Adding $ADMIN_USER.
-        echo -e "USER=$ADMIN_USER=$ADMIN_PASS\n" >> $CONFIG
+        openfpc-password -f $PASSWD --user $ADMIN_USER --password $ADMIN_PASS -a add
     fi
 }
 
@@ -215,7 +221,7 @@ function create_gui
          realname VARCHAR(20),
          email VARCHAR(20),
          description VARCHAR(20),
-         password VARCHAR(20),
+         password VARCHAR(40),
          timezone VARCHAR(30),
          defaultnode VARCHAR(30)
        );"
@@ -223,7 +229,7 @@ function create_gui
     
     SQL="INSERT INTO users (username,password,realname,email,description,defaultnode,timezone)
         VALUES (
-            '$ADMIN_USER', '$ADMIN_PASS', '$REAL_NAME', '$EMAIL', '$DESCRIPTION', '$DEFAULTNODE', '$TIMEZONE'
+            '$ADMIN_USER', '$ADMIN_HASH', '$REAL_NAME', '$EMAIL', '$DESCRIPTION', '$DEFAULTNODE', '$TIMEZONE'
         );"
     mysql -u$DBUSER -p$DBPASS $GUI_DB_NAME -e "$SQL"
 
