@@ -39,7 +39,7 @@ our @ISA = qw(Exporter);
     $daemon
     $queue);		
 @EXPORT_OK = qw(ALL);
-$VERSION = '0.6';
+$VERSION = '0.7';
 
 our $debug=0;
 our $daemon=0;		# Daemon mode
