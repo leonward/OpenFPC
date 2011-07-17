@@ -48,6 +48,10 @@ switch ($op) {
     case "Logout":
         dologout();
         break;
+
+    case "gologout":
+        dologout();
+        break;
     
     default:
         showentry();
@@ -98,7 +102,9 @@ function showlogout(){
 
 function dologin() {
     global $username, $password, $guilink, $securePassword;
+    session_start();
     $guilink=guiDB();
+    print "Password is $password user is $username secure is $securePassword\n"; 
     if($securePassword){
         $password = sha1($username . $password);
     }
@@ -108,7 +114,8 @@ function dologin() {
     
     if(mysql_num_rows($result)==1) {
         print "GOT ROW\n";
-        session_start();
+        print "Auth status is " . $_SESSION['auth'] ." <br>";
+        
         while ( $row = mysql_fetch_assoc($result)) {
             $_SESSION['timezone'] = $row['timezone'];
         }
@@ -118,7 +125,11 @@ function dologin() {
         $_SESSION['auth'] = 1;
         header ("Location: index.php");
     } else {
+        print "Auth status is " . $_SESSION['auth'] ." <br>";
+        $_SESSION['auth'] = 0;
+        print "Auth status is now " . $_SESSION['auth'] ." <br>";
         errorpage("Login error");
+        
         header ("Location: login.php");
     }
 }
@@ -126,7 +137,6 @@ function dologin() {
 function dologout() {
     global $username, $password;
     session_start();
-    session_destroy();
     $_SESSION['username'] = 0;
     $_SESSION['auth'] = 0;
     header ("Location: login.php");

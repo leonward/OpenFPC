@@ -67,6 +67,7 @@ if ($debug) {
 	print "BPF is $bpf<br>";
 	print "Enable Session is $enable_session<br>";
 	print "Username is " . $_SESSION['username'] ." <br>";
+	print "Auth is " . $_SESSION['auth']  . " <br>" ;
 	//print "Password is ". $_SESSION['password'] . "<br>";
 }
 
@@ -189,6 +190,7 @@ function extractPcapFromBPF($action) {
 	# Shell out to ofpc-client here. Note the --gui option.
 	$exec = "$ofpc_client -u " . $_SESSION[username] . " -p " . $_SESSION[password] . " --gui ";
 	$exec .= "-a $action ";
+	$exec .= "--hash ";
 	$exec .= "--bpf \"$bpf\" ";
 	$exec .= "--comment \"$comment\" ";
 
@@ -228,6 +230,7 @@ function extractPcapFromLog($action) {
 
 	# Shell out to ofpc-client here. Note the --gui option.
 	$exec = "$ofpc_client -u " . $_SESSION[username] . " -p " . $_SESSION[password] . " --gui ";
+	$exec .= "--hash ";
 	$exec .= "-a $action ";
 	$exec .= "--logline \"$logline\" ";
 	$exec .= "--comment \"$comment\" ";
@@ -286,6 +289,7 @@ function extractPcapFromSession() {
 		" --gui " .
 		" --stime " . stime2unix($stime) .
 		" --etime " . stime2unix($etime) .
+		" --hash ";
 		" --src-addr "  . $array["src_ip"] .
 		" --dst-addr "  . $array["dst_ip"] .
 		" --proto "     . $array["ip_proto"];
@@ -335,7 +339,7 @@ function extractPcapFromSearch() {
 	}
 
 
-	$exec = "$ofpc_client -u " . $_SESSION[username] . " -p " . $_SESSION[password] . " --gui ";
+	$exec = "$ofpc_client -u " . $_SESSION[username] . " -p " . $_SESSION[password] . " --gui " . "--hash ";
 	$stime = stime2unix($start_date);
 	$etime = stime2unix($end_date);
 

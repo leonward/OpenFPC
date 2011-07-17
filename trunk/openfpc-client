@@ -34,7 +34,7 @@ use Digest::SHA1;
 use Term::ReadKey;
 
 my $now=time();
-my $openfpcver="0.6";
+my $openfpcver="0.7";
 my $timeoffset=0;		# Default time offset if a --timstamp isn't specified 
 my $debug;
 my (%config,$verbose);
@@ -56,7 +56,7 @@ my %cmdargs=( user => 0,
 		gui => 0,
 		sumtype =>0,
 		last => 0,
-		plaintext => 0,
+		hash => 0,
 		);
 
 my %request=(	user => 0,
@@ -107,6 +107,7 @@ sub showhelp{
   --gui	or -g				Output that's parseable via OpenFPC's gui (or other tool)
   --comment or -m 			Comment for session
   --device 				OpenFPC Node to extract from (via OpenFPC-Proxy --server)
+  --hash or -H				Dont generate SHA1 from password. Assume it is a hash.
 
   -------- Traffic Constraints -------
   --bpf					Specify constraints with a BPF syntax
@@ -308,7 +309,7 @@ GetOptions (    'u|user=s' => \$cmdargs{'user'},
 		'sumtype|summarytype=s' => \$cmdargs{'sumtype'},
 		'save' => \$cmdargs{'dbsave'},
 		'l|last=s' => \$cmdargs{'last'},
-		'i|plaintext' => \$cmdargs{'plaintext'},
+		'H|hash' => \$cmdargs{'hash'},
                 );
 
 
@@ -422,11 +423,9 @@ unless ($password) {
 	print "\n";
 }
 
-#HERE
-unless ($cmdargs{'plaintext'}) {
+unless ($cmdargs{'hash'}) {
 	$request{'password'} = OFPC::Request::mkhash($request{'user'},$password);
 } else {
-	print "WARNING: Using plain text password\n";
 	$request{'password'} = $password;
 }
 

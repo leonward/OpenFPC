@@ -29,7 +29,7 @@ use Switch;
 use Data::Dumper;
 use File::Path qw(mkpath);
 
-my $openfpcver=0.6;
+my $openfpcver=0.7;
 my $conf_dir="/etc/openfpc";
 
 my ($quiet,$usertype,$verbose,$help);
@@ -817,6 +817,15 @@ if ($thing) {
 								}
 								print " -  SESSION LAG:           $count\n";
 							}
+							$count=0;
+							if (opendir(FAIL_DIR,$configs{$instance}{'SESSION_DIR'} . "/failed") ) {
+								while (my $filename=readdir(FAIL_DIR)) {
+									$count++ unless $filename =~ /^(\.|failed)/;
+								}
+								print " -  SESSION INSERT FAIL:   $count\n";
+							}
+							
+							
 						} else {
 							print " -  SESSION DATA SEARCH:   DISABLED\n";	
 						}
