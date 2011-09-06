@@ -34,6 +34,7 @@ use Digest::MD5(qw(md5_hex));
 use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 use threads::shared;
 use Filesys::Df;
+use Data::Dumper;
 our @ISA = qw(Exporter);
 @EXPORT = qw(wlog);
 @EXPORT_OK = qw(ALL);
@@ -352,8 +353,12 @@ sub backgroundtasks($){
                 wlog("TASKS: Woke up to run PROXY tasks...") if ($debug);
             } else {
                 wlog("TASKS: Woke up to run NODE tasks...") if ($debug);
-                my $trim=trimsessiondb;
-                wlog("TASKS: Session DB trimmed to $trim") if ($debug);
+		if ($config{'ENABLE_SESSION'}) {
+                	my $trim=trimsessiondb;
+                	wlog("TASKS: Session DB trimmed to $trim") if ($debug);
+		} else {
+                	wlog("TASKS: Wont trim session DB, session not enabled") if ($debug);
+		}
             }
 	}
     } else {
@@ -1401,7 +1406,7 @@ sub comms{
 				foreach my $row (@table) {
                                     
                                     foreach (@$row) {
-                                        #printf '%20s', "$_" if ($debug);
+                                        wlog($_) if ($debug);
 					print $client "$_,";
                                     }
                                     
