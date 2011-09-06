@@ -504,10 +504,6 @@ sub SnortFast{
 
 }
 
-sub foofoo{
-
-	print "foo";
-}
 =head2 initevent
 	Init all of the values needed for a clean OpenFPC event parse
 	simply do a %event=initevent();
