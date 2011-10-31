@@ -489,10 +489,18 @@ function is_file_pcap($_file) {
 }
 
 function serv_pcap($filepath,$cxid) {
+    header('Content-Description: File Transfer');
     header('Content-Type: application/pcap-capture');
-    header("Content-Disposition: attachment; filename=\"$cxid\"");
-    readfile("$filepath");
-    #exit(0);
+    header("Content-Disposition: attachment; filename=$cxid");
+    header('Content-Transfer-Encoding: binary');
+    header('Expires: 0');
+    header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+    header('Pragma: public');
+    header('Content-Length: ' . filesize($filepath));
+    ob_clean();
+    flush();
+    readfile($filepath);
+    exit;
 }
 
 # Return unix timestamp including seconds.
