@@ -176,7 +176,7 @@ function configure_gui
     
     if ADMIN_HASH=$(openfpc-password -n --hash --user $ADMIN_USER --password $ADMIN_PASS)
     then
-        echo HASH is $ADMIN_HASH
+         echo HASH is $ADMIN_HASH > /dev/null
     else
         echo Error setting admin hash
     fi

@@ -116,7 +116,7 @@ function checkdeps()
 		if [ "$DISTRO" == "DEBIAN" ] 
 		then
 			echo -e "As you're running a distro based on Debian..."
-			echo -e "Hint: sudo apt-get install $DEPS\n"
+			echo -e "Hint: sudo apt-get install the stuff that's missing above\n"
 		else 
 			echo -e "As you're running a distro based on RedHat..."
 			echo -e "Hine 1) Enable rpmforge"
@@ -334,21 +334,26 @@ function doinstall()
 	#fi
 
 	echo -e "
-**************************************************************************
+--------------------------------------------------------------------------
 [*] Installation Complete 
 
-    OpenFPC should now be installed and ready for *configuration*.
+ ************************
+ **      IMPORTANT     **
+ ************************
+ OpenFPC should now be installed and ready for *configuration*.
    
-    1) Go configure /etc/openfpc/openfpc-default.conf
-       (Make sure you change the usernames and passwords!)
-    2) Start OpenFPC
-       $ sudo openfpc --action start
-    3) If you want to use the OpenFPC GUI, you MUST create the GUI database
-       - Install Mysql
-       - Create the DB with the command...
-         sudo ./openfpc-dbmaint create gui /etc/openfpc/openfpc-default.conf
-    4) Decide if you want to enable session searching
-       See -> http://www.openfpc.org/documentation/enabling-session-capture
+ 1) Go configure /etc/openfpc/openfpc-default.conf
+ 2) Add a user E.g.
+
+    $ sudo openfpc-password -a admin \
+	-f /etc/openfpc/openfpc.passwd  
+
+2) If you want to use the OpenFPC GUI, you MUST create the GUI database
+    $ sudo ./openfpc-dbmaint create gui /etc/openfpc/openfpc-default.conf
+ 3) Start OpenFPC
+    $ sudo openfpc --action start
+ 4) Decide if you want to enable session searching
+    See -> http://www.openfpc.org/documentation/enabling-session-capture
 "
 }
 
