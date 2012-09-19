@@ -29,6 +29,7 @@ $debug=0;
 $utc_offset=0;
 $timezone="Europe/London"; 	# Default TZ - This is imported via the config file. But in case it's not set lets use something sane
 $enable_session=0;
+$securePassword=1;
 
 
 $file = fopen($configfile, "r");
