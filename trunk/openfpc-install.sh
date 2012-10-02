@@ -504,15 +504,15 @@ function installstatus()
 		fi	
 	done
 
-
-	echo -e "[-] ----------------------------------"
+	echo 
 	if [ $SUCCESS == 1 ] 
 	then
+	
 		echo -e "  Installation Okay"
 	else
 		echo -e "  OpenFPC is not installed correctly"
 	fi
-	echo -e "[-] --------------------------------"
+	echo
 }
 
 echo -e "
