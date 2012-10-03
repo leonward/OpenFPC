@@ -472,7 +472,7 @@ sub new_session_table {
         INDEX dst_port (dst_port),                         \
         INDEX src_port (src_port),                         \
         INDEX start_time (start_time)                      \
-        )                                                  \
+        ) ENGINE=MyISAM                                    \
       ";
       $sth1 = $dbh->prepare($sql);
       $sth1->execute;
@@ -567,7 +567,7 @@ sub merge_session_tables {
       INDEX dst_port (dst_port),                         \
       INDEX src_port (src_port),                         \
       INDEX start_time (start_time)                      \
-      ) TYPE=MERGE UNION=($tables)                       \
+      ) ENGINE=MERGE UNION=($tables)                       \
       ";
       $sth = $dbh->prepare($sql);
       $sth->execute;
