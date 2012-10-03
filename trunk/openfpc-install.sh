@@ -88,7 +88,7 @@ function checkdeps()
 
 	elif [ "$DISTRO" == "REDHAT" ] 
 	then
-		DEPS="httpd perl-Archive-Zip perl-DateTime perl-Filesys-Df"
+		DEPS="httpd perl-Archive-Zip perl-DateTime perl-Filesys-Df perl-DateTime-Format-DateParse perl-TermReadKey perl-Date-Simple tcpdump wireshark"
 		echo -e "[-] Checking status on RedHat"
 
 		# Check if some obvious dependencies are met	
@@ -158,9 +158,11 @@ function doinstall()
 	if [ "$DISTRO" == "DEBIAN" ]
 	then
 		PERL_LIB_DIR="/usr/local/lib/site_perl"
+    OFPC_LIB_DIR="$PERL_LIB_DIR/OFPC"
 	elif [ "$DISTRO" == "REDHAT" ]
 	then
 		PERL_LIB_DIR="/usr/local/share/perl5"
+    OFPC_LIB_DIR="$PERL_LIB_DIR/OFPC"
 	fi
 
 
