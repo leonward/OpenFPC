@@ -28,7 +28,7 @@ require Exporter;
 use Switch;
 use Data::Dumper;
 use Digest::MD5(qw(md5_hex));
-use Digest::SHA1;
+use Digest::SHA;
 @EXPORT = qw(ALL);
 $VERSION = '0.2';
 
@@ -448,7 +448,7 @@ sub mkhash{
 
 	die("ERROR: user or pass not set") unless ($user and $pass);
 	
-	$digest = Digest::SHA1->new;
+	$digest = Digest::SHA->new(1);
 	$digest->add($user,$pass);
 	$hash = $digest->hexdigest;
 	

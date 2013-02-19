@@ -30,7 +30,7 @@ use OFPC::Parse;
 use Getopt::Long;
 use Switch;
 use Digest::MD5(qw(md5_hex));
-use Digest::SHA1;
+use Digest::SHA;
 use Term::ReadKey;
 
 my $now=time();
