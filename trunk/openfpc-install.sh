@@ -69,6 +69,7 @@ function chkroot()
 
 function checkdeps()
 {
+	missdeps=""
 	if [ "$DISTRO" == "DEBIAN" ] 
 	then
 		DEPS="apache2 daemonlogger tcpdump tshark libarchive-zip-perl libfilesys-df-perl libapache2-mod-php5 mysql-server php5-mysql libdatetime-perl libdbi-perl libdate-simple-perl php5-mysql libterm-readkey-perl libdate-simple-perl " 
@@ -83,6 +84,7 @@ function checkdeps()
 			else
 				DEPSOK=1
 				echo -e "    ERROR: Package $dep is not installed."
+				missdeps="$missdeps $dep"
 			fi
 		done	
 
@@ -101,6 +103,7 @@ function checkdeps()
 			else
 				DEPSOK=1
 				echo -e "[!] ERROR: Package $dep is not installed."
+				missdeps="$missdeps $dep"
 			fi
 		done	
 	else
@@ -117,6 +120,7 @@ function checkdeps()
 		then
 			echo -e "As you're running a distro based on Debian..."
 			echo -e "Hint: sudo apt-get install the stuff that's missing above\n"
+			echo -e " apt-get install $missdeps\n"
 		else 
 			echo -e "As you're running a distro based on RedHat..."
 			echo -e "Hine 1) Enable rpmforge"
