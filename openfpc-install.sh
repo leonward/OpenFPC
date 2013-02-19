@@ -72,7 +72,7 @@ function checkdeps()
 	missdeps=""
 	if [ "$DISTRO" == "DEBIAN" ] 
 	then
-		DEPS="apache2 daemonlogger tcpdump tshark libarchive-zip-perl libfilesys-df-perl libapache2-mod-php5 mysql-server php5-mysql libdatetime-perl libdbi-perl libdate-simple-perl php5-mysql libterm-readkey-perl libdate-simple-perl " 
+		DEPS="apache2 daemonlogger tcpdump tshark libarchive-zip-perl libfilesys-df-perl libapache2-mod-php5 mysql-server php5-mysql libdatetime-perl libdbi-perl libdate-simple-perl php5-mysql libterm-readkey-perl libdate-simple-perl libdigest-sha-perl" 
 
 		# Check if some obvious dependencies are met	
 		for dep in $DEPS
