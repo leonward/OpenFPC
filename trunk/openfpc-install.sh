@@ -351,7 +351,7 @@ function doinstall()
  1) Go configure /etc/openfpc/openfpc-default.conf
  2) Add a user E.g.
 
-    $ sudo openfpc-password -a admin \
+    $ sudo openfpc-password -a add -u admin \ 
 	-f /etc/openfpc/openfpc.passwd  
 
 2) If you want to use the OpenFPC GUI, you MUST create the GUI database
