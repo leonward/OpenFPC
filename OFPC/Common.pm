@@ -1,7 +1,7 @@
 package OFPC::Common;
 
 #########################################################################################
-# Copyright (C) 2011 Leon Ward 
+# Copyright (C) 2013 Leon Ward 
 # OFPC::Parse - Part of the OpenFPC - (Full Packet Capture) project
 #
 # Contact: leon@rm-rf.co.uk
@@ -1029,17 +1029,25 @@ sub doExtract{
         my @outputpcaps=();
         wlog("DEBUG: Doing Extraction with BPF $bpf into tempdir $tempdir\n") if ($debug);
 
+	# Test if tcpdump can read files, it's a common problem with apparmor - here we can catch it with a nice error
+	my $tdrc=system("$config{'TCPDUMP'} -r $filelist[0] -c 1 -w /dev/null 2>/dev/null");
+	if ($tdrc) {
+	    wlog("ERROR: Problem with tcpdump reading $filelist[0]. Got tcpdump error code $tdrc.");
+	    wlog("ERROR: Hint: This must work $config{'TCPDUMP'} -r $filelist[0] -c 1 -w /dev/null") if $debug;
+	    return(0,0,0);
+	}
+	
         foreach (@filelist){
 		my $splitstring="$config{'NODENAME'}\.pcap\.";
                 (my $pcappath, my $pcapid)=split(/$splitstring/, $_);
                 chomp $_;
                 my $filename="$tempdir/$mergefile-$pcapid.pcap";
                 push(@outputpcaps,$filename);
-                
+		
 		my $exec="$config{'TCPDUMP'} -r $_ -w $filename $bpf > /dev/null 2>&1";
                 $exec="$config{'TCPDUMP'} -r $_ -w $filename $bpf" if ($vdebug) ; # Show tcpdump o/p if debug is on
                 
-		wlog("DEBUG: Exec: $exec\n") if ($vdebug);
+		wlog("DEBUG: Exec was: $exec\n") if ($vdebug);
                 `$exec`;
         }
 
