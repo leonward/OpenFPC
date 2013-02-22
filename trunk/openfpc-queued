@@ -192,5 +192,8 @@ while (my $sock = $listenSocket->accept) {
 	wlog("COMMS: Accepted new connection from $client_ip") ;
 
 	# start new thread to process the request from this socket
-	threads->create("OFPC::Common::comms", $sock);
+	# Suggested fix from Michael Wenthold
+	# threads->create("OFPC::Common::comms", $sock);
+    	my $t = threads->create("OFPC::Common::comms", $sock);
+    	$t->detach();
 }
