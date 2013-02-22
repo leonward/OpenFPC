@@ -653,9 +653,9 @@ GetOptions (    'a|action=s' => \$action,		# Action to take
 );
 
 &showhelp if ($help);
-unless ($action) {
-	print "No action specified. See --help\n";
-	showhelp;	
+unless ($action =~ /^(status|start|stop)$/) {
+	print "Invalid action \"$action\". See --help\n";
+	exit(1);
 }
 
 # Check if we are root
