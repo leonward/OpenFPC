@@ -1206,251 +1206,250 @@ sub comms{
 	filename => 0,
 	response => 0,
     );
-        
     # Print banner to client
     print $client "OFPC READY\n";
     while (my $buf=<$client>) {
     	chomp $buf;
     	$buf =~ s/\r//;
-	#print "$client_ip -> Got data $buf :\n" if ($debug);
+		#print "$client_ip -> Got data $buf :\n" if ($debug);
         
-	switch($buf) {
-            
-	    case /USER/ {	# Start authentication process
-                
-                if ($buf =~ /USER:\s+([a-zA-Z1-9]+)/) {
-                    $state{'user'}=$1;	
-                    wlog("COMMS: $client_ip: GOT USER $state{'user'}") if ($debug);
-                        
-                    if ($userlist{$state{'user'}}) {	# If we have a user account for this user
-                            
-        	        my $clen=20; #Length of challenge to send
-                        my $challenge="";
-                        for (1..$clen) {
-                            $challenge="$challenge" . int(rand(99));
-                        }
-                     
-                        wlog("DEBUG: $client_ip: Sending challenge: $challenge\n") if $debug;
-                        print $client "CHALLENGE: $challenge\n";
-                        
-                        wlog("DEBUG: $client_ip: Waiting for response to challenge\n") if $debug;
-                        #my $expResp="$challenge$userlist{$reqh->{'user'}}";
-                            
-                        $state{'response'}=md5_hex("$challenge$userlist{$state{'user'}}");
-                    } else {
-                        wlog("AUTH : $client_ip: AUTH FAIL: Bad user: $state{'user'}");
-                        print $client "AUTH FAIL: Bad user $state{'user'}\n";
-                    }
-                } else {
-               	    wlog("AUTH : $client_ip: Bad USER: request $buf. Sending ERROR");
-                    print $client "AUTH FAIL: Bad user $state{'user'}\n";
-                }
-            }
-            
-            case /RESPONSE/ {
-		wlog("DEBUG: $client_ip: Got RESPONSE\n") if ($debug);
-                
-		if ($buf =~ /RESPONSE:*\s*(.*)/) {
-                    
-                    my $response=$1;
-                    if ($debug) {
-                        wlog("DEBUG: $client_ip: Expected resp: $state{'response'}-\n");
-                        wlog("DEBUG: $client_ip: Real resp    : $response\n");
-                    }
-                    
-                    # Check response hash
-                    if ( $response eq $state{'response'} ) {	
-			wlog("AUTH: $client_ip: Pass Okay") if ($debug);
-			$state{'response'}=0;		# Reset the response hash. Don't know why I need to, but it sounds like a good idea. 
-			$state{'auth'}=1;		# Mark as authed
-			print $client "AUTH OK\n";
-                    } else {
-			wlog("AUTH : $client_ip: Password Bad");
-			print $client "AUTH FAIL\n";
-                    }
-		} else {
-                    wlog("DEBUG $client_ip: Bad USER: request $buf\n") if ($debug);
-                    print $client "ERROR: Bad password request\n";
-		}
-            }
-            
-            case /ERROR/ {
-                wlog("DEBUG $client_ip: Got error. Closing connection\n");
-                shutdown($client,2);
-            }
-            
-            case /^REQ/ {	
-		my $reqcmd;
-		# OFPC request. Made up of ACTION||...stuff
-		if ($buf =~ /REQ:\s*(.*)/) {
-                    $reqcmd=$1;
-                    wlog("DEBUG: $client_ip: REQ -> $reqcmd\n") if $debug;
-                    
-                    my $request=OFPC::Common::decoderequest($reqcmd);
-                    
-                    if ($request->{'valid'} == 1) {	# Valid request then...		
-			# Generate a rid (request ID for this.... request!).
-			# Unless action is something we need to wait for, lets close connection
-                        
-			my $position=$queue->pending();
-                        
-			if ("$request->{'action'}" eq "store") {
-                            # Create a tempfilename for this store request
-                            $request->{'tempfile'}=time() . "-" . $request->{'rid'} . ".pcap";
-                            print $client "FILENAME: $request->{'tempfile'}\n";
-                            
-                            $queue->enqueue($request);
-                            
-                            #Say thanks and disconnect
-                            wlog("DEBUG: $client_ip: RID: $request->{'rid'}: Queue action requested. Position $position. Disconnecting\n");
-                            print $client "QUEUED: $position\n";
-                            shutdown($client,2);
-                            
-			} elsif ($request->{'action'} eq "fetch") {
-                            # Create a tempfilename for this store request
-                            $request->{'tempfile'}=time() . "-" . $request->{'rid'} . ".pcap";
-			    wlog("COMMS: $client_ip: RID: $request->{'rid'} Fetch Request OK -> WAIT!\n");
-                            
-			    # Prep result of the request for delivery (route/extract/compress etc etc)
-                            my $prep = OFPC::Common::prepfile($request);
-                            my $xferfile=$prep->{'filename'};
-                            
-                            if ($prep->{'success'}) {
-				wlog("COMMS: $request->{'rid'} $client_ip Sending File:$config{'SAVEDIR'}/$xferfile MD5: $prep->{'md5'}");
-				# Get client ready to recieve binary PCAP or zip file
-                                
-				if ($prep->{'filetype'} eq "ZIP") {
-                                    print $client "ZIP: $prep->{'md5'}\n";
-				} elsif ($prep->{'filetype'} eq "PCAP") {
-                                    print $client "PCAP: $prep->{'md5'}\n";
+		switch($buf) {
+	            
+		    case /USER/ {	# Start authentication process
+	                
+	                if ($buf =~ /USER:\s+([a-zA-Z1-9]+)/) {
+	                    $state{'user'}=$1;	
+	                    wlog("COMMS: $client_ip: GOT USER $state{'user'}") if ($debug);
+	                        
+	                    if ($userlist{$state{'user'}}) {	# If we have a user account for this user
+	                            
+	        	        my $clen=20; #Length of challenge to send
+	                        my $challenge="";
+	                        for (1..$clen) {
+	                            $challenge="$challenge" . int(rand(99));
+	                        }
+	                     
+	                        wlog("DEBUG: $client_ip: Sending challenge: $challenge\n") if $debug;
+	                        print $client "CHALLENGE: $challenge\n";
+	                        
+	                        wlog("DEBUG: $client_ip: Waiting for response to challenge\n") if $debug;
+	                        #my $expResp="$challenge$userlist{$reqh->{'user'}}";
+	                            
+	                        $state{'response'}=md5_hex("$challenge$userlist{$state{'user'}}");
+	                    } else {
+	                        wlog("AUTH : $client_ip: AUTH FAIL: Bad user: $state{'user'}");
+	                        print $client "AUTH FAIL: Bad user $state{'user'}\n";
+	                    }
+	                } else {
+	               	    wlog("AUTH : $client_ip: Bad USER: request $buf. Sending ERROR");
+	                    print $client "AUTH FAIL: Bad user $state{'user'}\n";
+	                }
+	            }
+	            
+	        case /RESPONSE/ {
+				wlog("DEBUG: $client_ip: Got RESPONSE\n") if ($debug);
+	                
+				if ($buf =~ /RESPONSE:*\s*(.*)/) {
+	                    
+	                    my $response=$1;
+	                    if ($debug) {
+	                        wlog("DEBUG: $client_ip: Expected resp: $state{'response'}-\n");
+	                        wlog("DEBUG: $client_ip: Real resp    : $response\n");
+	                    }
+	                    
+	                    # Check response hash
+	                    if ( $response eq $state{'response'} ) {	
+							wlog("AUTH: $client_ip: Pass Okay") if ($debug);
+							$state{'response'}=0;		# Reset the response hash. Don't know why I need to, but it sounds like a good idea. 
+							$state{'auth'}=1;		# Mark as authed
+							print $client "AUTH OK\n";
+	                    } else {
+							wlog("AUTH : $client_ip: Password Bad");
+							print $client "AUTH FAIL\n";
+	                    }
 				} else {
-                                    print $client "ERROR: Bad filetype extracted : $prep->{'filetype'}\n";
-                                    shutdown($client,2);	
+	                wlog("DEBUG $client_ip: Bad USER: request $buf\n") if ($debug);
+	                print $client "ERROR: Bad password request\n";
 				}
-                                
-				$client->flush();
-                             
-				# Wait for client to share its ready state
-				# Any data sent from the client will be fine.
-				my $ready=<$client>;
-				open(XFER, '<', "$config{'SAVEDIR'}/$xferfile") or die("cant open pcap file $config{'SAVEDIR'}/$xferfile");
-				binmode(XFER);
-				binmode($client);
-                                
-				my $data;
-				# Read and send pcap data to client
-				my $a=0;
-                                
-				while(sysread(XFER, $data, 1024)) {
-                                    syswrite($client,$data,1024);
-                                    $a++;
-				}
-				
-                                wlog("COMMS: Uploaded $a x 1KB chunks\n");
-				close(XFER);		# Close file
-	                        shutdown($client,2);	# CLose client
-								
-				wlog("COMMS: $client_ip Request: $request->{'rid'} : Transfer complete") if $debug;
-                                
-				# unless configured to keep it, delete the pcap file from
-				# this queue instance
-                                
-				unless ($config{'KEEPFILES'}) {
-                                    wlog("COMMS: $client_ip Request: $request->{'rid'} : Cleaning up.") if $debug;
-                                    unlink("$config{'SAVEDIR'}/$xferfile") or
-                                     wlog("COMMS: ERROR: $client_ip Request: $request->{'rid'} : Unable to unlink $config{'SAVEDIR'}/$xferfile");
-				}
-                            } else {
-				print $client "ERROR: $prep->{'message'}\n";
-	                        shutdown($client,2);	# CLose client
-                            }
-                            
-			} elsif ($request->{'action'} eq "status") {
-                            
-                            wlog ("COMMS: $client_ip Recieved Status Request");
-                            my $status=OFPC::Common::getstatus($request);
-                            
-                            my $statmsg="$status->{'success'}||" .
-				"$status->{'ofpctype'}||".
-				"$status->{'nodename'}||" .
-				"$status->{'firstpacket'}||" .
-				"$status->{'firstctx'}||" .
-				"$status->{'packetspace'}||" .
-				"$status->{'packetused'}||" .
-				"$status->{'sessionspace'}||" .
-				"$status->{'sessionused'}||".
-                                "$status->{'sessioncount'}||".
-				"$status->{'sessionlag'}||".
-				"$status->{'savespace'}||" .
-				"$status->{'saveused'}||".
-				"$status->{'ld1'}||" .
-				"$status->{'ld5'}||" .
-				"$status->{'ld15'}||" .
-				"$status->{'comms'}||" .
-				"$status->{'message'}||" .
-				"$openfpcver" . 
-				"\n";
-                           
-                            wlog("DEBUG: Status msg sent to client is $statmsg\n");	
-                            print $client "STATUS: $statmsg";
-	                    shutdown($client,2);
-                           
-			} elsif ($request->{'action'} eq "summary") {
-                            
-                            wlog("COMMS: $client_ip: RID: $request->{'rid'} getting summary data\n");
-                            wlog("COMMS: $client_ip: RID: $request->{'rid'} Stime=$request->{'stime'} Etime=$request->{'etime'}");
-                            
-                            (my $success, my $message, my @table)=OFPC::CXDB::getctxsummary($config{'SESSION_DB_NAME'}, 
-				$config{'SESSION_DB_USER'}, 
-				$config{'SESSION_DB_PASS'},
-				$request->{'sumtype'},
-				$request->{'stime'},
-				$request->{'etime'},
-				20);
-                            
-                            if ($success) {
-				print $client "TABLE:\n";
-				wlog("DEBUG: Sending table....\n") if ($debug);
-				foreach my $row (@table) {
-                                    
-                                    foreach (@$row) {
-                                        wlog($_) if ($debug);
-					print $client "$_,";
-                                    }
-                                    
-                                    print $client "\n";
-                                    #print "\n" if ($debug);
-                		}   
-                            } else {	# Problem found with query
-				print $client "ERROR: $message\n";
-                            }
-                            
-                            wlog("COMMS: $client_ip: RID: $request->{'rid'} Table Sent. Closing connection\n");
-	                    shutdown($client,2);
-			}
-                        
-                    } else {
-			wlog("COMMS: $client_ip: BAD request $request->{'msg'}");
-			print $client "ERROR $request->{'msg'}\n";
+	        }
+	            
+	        case /ERROR/ {
+	            wlog("DEBUG $client_ip: Got error. Closing connection\n");
+	            shutdown($client,2);
+	        }
+	            
+	        case /^REQ/ {	
+				my $reqcmd;
+				# OFPC request. Made up of ACTION||...stuff
+				if ($buf =~ /REQ:\s*(.*)/) {
+	                $reqcmd=$1;
+	                wlog("DEBUG: $client_ip: REQ -> $reqcmd\n") if $debug;
+	                    
+	                my $request=OFPC::Common::decoderequest($reqcmd);
+	                    
+	                if ($request->{'valid'} == 1) {	# Valid request then...		
+						# Generate a rid (request ID for this.... request!).
+						# Unless action is something we need to wait for, lets close connection
+	                        
+						my $position=$queue->pending();
+	                        
+						if ("$request->{'action'}" eq "store") {
+	                            # Create a tempfilename for this store request
+	                            $request->{'tempfile'}=time() . "-" . $request->{'rid'} . ".pcap";
+	                            print $client "FILENAME: $request->{'tempfile'}\n";
+	                            
+	                            $queue->enqueue($request);
+	                            
+	                            #Say thanks and disconnect
+	                            wlog("DEBUG: $client_ip: RID: $request->{'rid'}: Queue action requested. Position $position. Disconnecting\n");
+	                            print $client "QUEUED: $position\n";
+	                            shutdown($client,2);
+	                            
+						} elsif ($request->{'action'} eq "fetch") {
+	                            # Create a tempfilename for this store request
+	                            $request->{'tempfile'}=time() . "-" . $request->{'rid'} . ".pcap";
+				    			wlog("COMMS: $client_ip: RID: $request->{'rid'} Fetch Request OK -> WAIT!\n");
+	                            
+				    			# Prep result of the request for delivery (route/extract/compress etc etc)
+	                            my $prep = OFPC::Common::prepfile($request);
+	                            my $xferfile=$prep->{'filename'};
+	                            
+	                            if ($prep->{'success'}) {
+									wlog("COMMS: $request->{'rid'} $client_ip Sending File:$config{'SAVEDIR'}/$xferfile MD5: $prep->{'md5'}");
+									# Get client ready to recieve binary PCAP or zip file
+	                                
+									if ($prep->{'filetype'} eq "ZIP") {
+	                                    print $client "ZIP: $prep->{'md5'}\n";
+									} elsif ($prep->{'filetype'} eq "PCAP") {
+	                                    print $client "PCAP: $prep->{'md5'}\n";
+									} else {
+	                                    print $client "ERROR: Bad filetype extracted : $prep->{'filetype'}\n";
+	                                    shutdown($client,2);	
+									}
+	                                
+									$client->flush();
+	                             
+									# Wait for client to share its ready state
+									# Any data sent from the client will be fine.
+									my $ready=<$client>;
+									open(XFER, '<', "$config{'SAVEDIR'}/$xferfile") or die("cant open pcap file $config{'SAVEDIR'}/$xferfile");
+									binmode(XFER);
+									binmode($client);
+	                                
+									my $data;
+									# Read and send pcap data to client
+									my $a=0;
+	                                
+									while(sysread(XFER, $data, 1024)) {
+	                                    syswrite($client,$data,1024);
+	                                    $a++;
+									}
+					
+	                                wlog("COMMS: Uploaded $a x 1KB chunks\n");
+									close(XFER);		# Close file
+		                        	shutdown($client,2);	# CLose client
+									
+									wlog("COMMS: $client_ip Request: $request->{'rid'} : Transfer complete") if $debug;
+	                                
+									# unless configured to keep it, delete the pcap file from
+									# this queue instance
+	                                
+									unless ($config{'KEEPFILES'}) {
+	                                    wlog("COMMS: $client_ip Request: $request->{'rid'} : Cleaning up.") if $debug;
+	                                    unlink("$config{'SAVEDIR'}/$xferfile") or
+	                                     wlog("COMMS: ERROR: $client_ip Request: $request->{'rid'} : Unable to unlink $config{'SAVEDIR'}/$xferfile");
+									}
+	                            } else {
+									print $client "ERROR: $prep->{'message'}\n";
+		                        	shutdown($client,2);	# CLose client
+	                            }
+	                            
+						} elsif ($request->{'action'} eq "status") {
+	                            
+	                        wlog ("COMMS: $client_ip Recieved Status Request");
+	                        my $status=OFPC::Common::getstatus($request);
+	                            
+	                        my $statmsg="$status->{'success'}||" .
+								"$status->{'ofpctype'}||".
+								"$status->{'nodename'}||" .
+								"$status->{'firstpacket'}||" .
+								"$status->{'firstctx'}||" .
+								"$status->{'packetspace'}||" .
+								"$status->{'packetused'}||" .
+								"$status->{'sessionspace'}||" .
+								"$status->{'sessionused'}||".
+	                            "$status->{'sessioncount'}||".
+								"$status->{'sessionlag'}||".
+								"$status->{'savespace'}||" .
+								"$status->{'saveused'}||".
+								"$status->{'ld1'}||" .
+								"$status->{'ld5'}||" .
+								"$status->{'ld15'}||" .
+								"$status->{'comms'}||" .
+								"$status->{'message'}||" .
+								"$openfpcver" . 
+								"\n";
+	                           
+	                        wlog("DEBUG: Status msg sent to client is $statmsg\n");	
+	                        print $client "STATUS: $statmsg";
+		                    shutdown($client,2);
+	                           
+						} elsif ($request->{'action'} eq "summary") {
+	                            
+	                        wlog("COMMS: $client_ip: RID: $request->{'rid'} getting summary data\n");
+	                        wlog("COMMS: $client_ip: RID: $request->{'rid'} Stime=$request->{'stime'} Etime=$request->{'etime'}");
+	                            
+	                        (my $success, my $message, my @table)=OFPC::CXDB::getctxsummary($config{'SESSION_DB_NAME'}, 
+							$config{'SESSION_DB_USER'}, 
+							$config{'SESSION_DB_PASS'},
+							$request->{'sumtype'},
+							$request->{'stime'},
+							$request->{'etime'},
+							20);
+	                            
+	                        if ($success) {
+								print $client "TABLE:\n";
+								wlog("DEBUG: Sending table....\n") if ($debug);
+								foreach my $row (@table) {
+	                                    
+	                            foreach (@$row) {
+	                                wlog($_) if ($debug);
+									print $client "$_,";
+	                            }
+	                                    
+	                            print $client "\n";
+	                                #print "\n" if ($debug);
+	                			}	   
+	                        } else {	# Problem found with query
+								print $client "ERROR: $message\n";
+	                        }
+	                            
+	                        wlog("COMMS: $client_ip: RID: $request->{'rid'} Table Sent. Closing connection\n");
+		                    shutdown($client,2);
+						}
+	                } else {
+						wlog("COMMS: $client_ip: BAD request $request->{'msg'}");
+						print $client "ERROR $request->{'msg'}\n";
+		                shutdown($client,2);
+	                }
+				} else {
+	                wlog("DEBUG: $client_ip: BAD REQ -> $reqcmd") if $debug;
+	                print $client "ERROR bad request\n";
 	                shutdown($client,2);
-                    }
-		} else {
-                    wlog("DEBUG: $client_ip: BAD REQ -> $reqcmd") if $debug;
-                    print $client "ERROR bad request\n";
-                    shutdown($client,2);
+				}
+	                
+	        }
+	            
+	        case /OFPC-v1/ {
+				wlog("DEBUG $client_ip: GOT version, sending OFPC-v1 OK\n") if $debug;
+	     	    print $client "OFPC-v1 OK\n" ;
+	                
+	        } else {
+	        	wlog("COMMS: $client_ip : Bad Reuqest");
+				wlog("DEBUG: $client_ip : Bad request was: \"$buf\"\n") if $debug;	
+		        #shutdown($client,2);
+		    }
 		}
-                
-            }
-            
-            case /OFPC-v1/ {
-		wlog("DEBUG $client_ip: GOT version, sending OFPC-v1 OK\n") if $debug;
-     	        print $client "OFPC-v1 OK\n" ;
-                
-            } else {
-		wlog("DEBUG: $client_ip : Unknown request. \"$buf\"\n") if $debug;	
-	        #shutdown($client,2);
-	    }
-	}
     }
     close $client;
 }
