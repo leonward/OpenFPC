@@ -48,8 +48,8 @@ sub receivefile{
 		ext => 0,
 		filetype => 0,
 	};
-
-        print "Expecting MD5 for file is $svrmd5\n" if ($debug); 
+	print "Debug enabled in Request::receivefile\n" if ($debug);
+    print "Expecting MD5 for file is $svrmd5\n" if ($debug); 
 
 	if ( $filetype eq "ZIP" ) {
 		$result{'ext'} = ".zip";
