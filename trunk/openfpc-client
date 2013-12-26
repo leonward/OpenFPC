@@ -1,4 +1,4 @@
-#!/usr/bin/perl 
+#!/usr/bin/perl -I. 
 
 #########################################################################################
 # Copyright (C) 2010 Leon Ward 
@@ -36,9 +36,9 @@ use Term::ReadKey;
 my $now=time();
 my $openfpcver="0.7";
 my $timeoffset=0;		# Default time offset if a --timstamp isn't specified 
-my $debug;
 my (%config,$verbose);
 my $password=0;
+my $debug=0;
 
 # Hint: "ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp timestamp:1274864808 msg:Some freeform text";
 my %cmdargs=( user => 0,
@@ -276,6 +276,64 @@ sub displayResult{
 	}
 }
 
+=head2 sessionToLogline
+
+	Take a hashref of session id's (sip,dip,timestamp etc) and return a "logline" that
+	can be made in an ofpc-vX request.
+
+	# Examples of output:
+	# ofpc-v1 type:event sip:1.1.1.1 dip:1.1.1.1 spt:3432 dpt:1234 proto:tcp time:246583 msg:Some freeform text
+	# ofpc-v1-bpf type:search bpf: host 1.1.1.1 and not tcp port 22 stime: 12345 etime: 43213
+	- Leon
+=cut
+
+sub sessionToLogline{
+	# Take in a hash of session data, and return a "ofpc" log format
+
+	my $timeoffset=600;
+	my $now=time();
+	my $req=shift;
+	my $logline;
+
+	if ($req->{'bpf'}) {
+		$logline = "ofpc-v1-bpf ";
+	} else {
+		$logline = "ofpc-v1 ";
+	}
+
+	# Event  = single timestamp -> Give me packets from around this timetstamp
+	# Search = Start/End time   -> Look for traffic between these two timestamps
+
+	if ($req->{'stime'} or $req->{'etime'}) {
+		$logline .= "type:search ";
+	} else {
+		$logline .= "type:event ";
+	}
+
+	if ($req->{'bpf'}) {
+		$logline .= "bpf: $req->{'bpf'} ";
+	} else {
+		$logline .= "sip:$req->{'sip'} " if ($req->{'sip'});
+		$logline .= "dip:$req->{'dip'} " if ($req->{'dip'});
+		$logline .= "dpt:$req->{'dpt'} " if ($req->{'dpt'});
+		$logline .= "spt:$req->{'spt'} " if ($req->{'spt'});
+		$logline .= "proto:$req->{'proto'} " if ($req->{'proto'});
+	}	
+
+	$logline .= "stime:$req->{'stime'} " if ($req->{'stime'});
+	$logline .= "etime:$req->{'etime'} " if ($req->{'etime'});
+	$logline .= "timestamp:$req->{'timestamp'} " if ($req->{'timestamp'});
+
+	unless ($req->{'timestamp'}) {
+		# No timestamp specified, lets assume a NOW - $timeoffset seconds
+		$req->{'timestamp'} = $now - $timeoffset unless (($req->{'stime'} and $req->{'etime'})) ;	
+		$logline .= "timestamp:$req->{'timestamp'} ";
+	}
+
+	return($logline);
+}
+
+
 
 # Read in defailts from openfpc-client.rc if discovered
 my $tempref=readrcfile(\%cmdargs);
@@ -397,10 +455,9 @@ if ($cmdargs{'gui'}) {
 	$request{'logline'} =~ s/\\(.)/$1/g;
 }
 
-
 # Convert session info into a "logline" to make a request.
 unless ($cmdargs{'logline'}) {
-	my $logline=OFPC::Parse::sessionToLogline(\%cmdargs);
+	my $logline=sessionToLogline(\%cmdargs);
 	$request{'logline'} = $logline;	
 	print "Logline created from session IDs: $request{'logline'}\n" if ($debug);
 }
@@ -443,6 +500,7 @@ unless ($sock) {
 print "DEBUG: Connected to $config{'server'}\n" if ($debug);
 %result=OFPC::Request::request($sock,\%request);
 print "DEBUG: Sent Request\n" if ($debug);
+print Dumper(\%request) if ($debug);
 close($sock);
 
 displayResult($cmdargs{'gui'});

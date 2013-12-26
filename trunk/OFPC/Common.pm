@@ -112,7 +112,7 @@ sub wlog{
 
 sub getrequestid{
 	$mrid++;
-        wlog("Request ID is $mrid\n") if $debug;
+        wlog("COMMS: Request ID is $mrid\n") if $debug;
 	return($mrid);
 }
 
@@ -345,7 +345,7 @@ sub trimsessiondb(){
 sub backgroundtasks($){
     my $time=$config{'TASK_INTERVAL'};
     if ($time >= 59) {     # Check time is a reasonalble value
-        wlog("TASK: Sleeping $time seconds for each task interval") if $debug;
+        wlog("TASKS: Sleeping $time seconds for each task interval") if $debug;
 	while(1) {
             sleep $time;
             # Trim session table to the oldest packet in the PCAP buffer
@@ -405,7 +405,7 @@ sub decoderequest($){
 	$request{'rtime'} = gmtime();
 
         unless ($argnum == 9 ) {
-                wlog("DECODE:  Bad request, only $argnum args. Expected 9\n") if $debug;
+                wlog("DECOD:  Bad request, only $argnum args. Expected 9\n") if $debug;
 		$request{'msg'} = "Bad request. Only $argnum args. Expected 9\n";
                 return(\%request);
         }
@@ -423,7 +423,7 @@ sub decoderequest($){
 		) = split(/\|\|/, $rawrequest);
 
 	$request{'action'} = lc $request{'action'};
-	wlog("DECODE: Recieved action $request{'action'}") if ($debug);
+	wlog("DECOD: Recieved action $request{'action'}") if ($debug);
 
 	if ($request{'action'} =~ /(fetch|store)/) {
 
@@ -452,15 +452,15 @@ sub decoderequest($){
 			$request{'filetype'} = "PCAP";
 		}
 
-		wlog("DECODE: User $request{'user'} assigned RID: $request{'rid'} for action $request{'action'}. Comment: $request{'comment'} Filetype : $request{'filetype'}");
+		wlog("DECOD: User $request{'user'} assigned RID: $request{'rid'} for action $request{'action'}. Comment: $request{'comment'} Filetype : $request{'filetype'}");
 		$request{'valid'} = 1;
 
 	} elsif ($request{'action'} =~ /(status|summary)/) {
-		wlog("DECODE: Summary or Status request") if ($debug);
+		wlog("DECOD: Summary or Status request") if ($debug);
 		$request{'valid'} = 1;
 	} else {
 		# Invalid action
-		wlog("DECODE: Recieved invalid action $request{'action'}");
+		wlog("DECOD: Recieved invalid action $request{'action'}");
 		$request{'msg'} = "recieved invalid action $request{'action'}";
 	}
 
@@ -1259,7 +1259,7 @@ sub comms{
 	                    
 	                    # Check response hash
 	                    if ( $response eq $state{'response'} ) {	
-							wlog("AUTH: $client_ip: Pass Okay") if ($debug);
+							wlog("AUTH : $client_ip: Pass Okay") if ($debug);
 							$state{'response'}=0;		# Reset the response hash. Don't know why I need to, but it sounds like a good idea. 
 							$state{'auth'}=1;		# Mark as authed
 							print $client "AUTH OK\n";
@@ -1431,12 +1431,12 @@ sub comms{
 							}
 		                } else {
 							wlog("COMMS: $client_ip: BAD request $request->{'msg'}");
-							print $client "ERROR $request->{'msg'}\n";
+							print $client "ERROR: $request->{'msg'}\n";
 			                shutdown($client,2);
 		                }
 					} else {
 		                wlog("DEBUG: $client_ip: BAD REQ -> $reqcmd") if $debug;
-		                print $client "ERROR bad request\n";
+		                print $client "ERROR: bad request\n";
 		                shutdown($client,2);
 					}
 				} else {
