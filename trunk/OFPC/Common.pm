@@ -1147,11 +1147,11 @@ sub mkreport{
 sub doproxy{
     my $request=shift;
     my %result=(
-	message => "None",
-	success => 0,
-	filename => 0,
-	size => 0,
-	md5 => 0,
+		message => "None",
+		success => 0,
+		filename => 0,
+		size => 0,
+		md5 => 0,
     );
 
     my $nodesock = IO::Socket::INET->new(
@@ -1161,29 +1161,28 @@ sub doproxy{
                                 );
 
     unless ($nodesock) { 
-	wlog("PROXY: Unable to open socket to node $request->{'nodehost'}:$request->{'nodeport'}");
-	$result{'message'} = "Node: $config{'NODENAME'} unable to connect to node $request->{'nodehost'}:$request->{'nodeport'}";
-	$result{'success'} = 0;	
-	return(\%result);
+		wlog("PROXY: Unable to open socket to node $request->{'nodehost'}:$request->{'nodeport'}");
+		$result{'message'} = "Node: $config{'NODENAME'} unable to connect to node $request->{'nodehost'}:$request->{'nodeport'}";
+		$result{'success'} = 0;	
+		return(\%result);
     }
-     
     # This is an openfpc-proxy request, we don't want the user to control what file we will
     # write on the proxy. Create our own tempfile.
-    
+   
     $request->{'filename'}="M-$request->{'nodehost'}-$request->{'nodeport'}-" . time() . "-" . $request->{'rid'};
     $request->{'user'} = $request->{'nodeuser'};
-    $request->{'password'} = $request->{'nodepass'};
+    $request->{'password'} = OFPC::Request::mkhash($request->{'nodeuser'},$request->{'nodepass'});
     $request->{'savedir'} = $config{'SAVEDIR'};
      
     %result=OFPC::Request::request($nodesock,$request);
 	
     # Return the name of the file that we have been passed by the node
     if ($result{'success'} == 1) {
-	wlog("PROXY: Got $result{'filename'} MD5: $result{'md5'} Size $result{'size'} from $request->{'device'} ($request->{'nodehost'})\n");
+		wlog("PROXY: Got $result{'filename'} MD5: $result{'md5'} Size $result{'size'} from $request->{'device'} ($request->{'nodehost'})\n");
 	return(\%result);
-    } else {
+	    } else {
 	wlog("Problem with extract: Result: $result{'success'} Message: $result{'message'}");
-	return(\%result);
+		return(\%result);
     }
 }
 
@@ -1392,7 +1391,7 @@ sub comms{
 									"$openfpcver" . 
 									"\n";
 		                           
-		                        wlog("DEBUG: Status msg sent to client is $statmsg\n");	
+		                        wlog("DEBUG: Status msg sent to client is $statmsg\n") if $debug;	
 		                        print $client "STATUS: $statmsg";
 			                    shutdown($client,2);
 		                           
