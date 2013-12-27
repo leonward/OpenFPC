@@ -186,10 +186,10 @@ sub request{
                 "   Device:     $request->{'device'}\n" .
                 "   Filename:   $request->{'filename'}\n" .
                 "   Tempfile:   $request->{'tempfile'}\n" .
-		"   SaveDir:    $request->{'savedir'}\n" .
+				"   SaveDir:    $request->{'savedir'}\n" .
                 "   Filetype:   $request->{'filetype'}\n" . 
                 "   Type:       $request->{'type'}\n" .	    # Log type - Need to update this var name to logtype
-		"   Comment:	$request->{'comment'}" .
+				"   Comment:	$request->{'comment'}" .
                 "   LogLine:    $request->{'logline'}\n" .
                 "   SIP:        $request->{'sip'}\n" .
                 "   DIP:        $request->{'dip'}\n" .
@@ -200,10 +200,10 @@ sub request{
                 "   Timestamp   $request->{'timestamp'}\n" .
                 "   StartTime   $request->{'stime'}\n" .
                 "   EndTime     $request->{'etime'}\n" .
-		"   ShowPos	$request->{'showposition'}" .
-		"   SummaryType $request->{'sumtype'}" .
-		"   DB Save     $request->{'dbsave'}" ;
-		"\n";
+				"   ShowPos	$request->{'showposition'}" .
+				"   SummaryType $request->{'sumtype'}" .
+				"   DB Save     $request->{'dbsave'}" ;
+				"\n";
         }   
 
 	# Check that a request contains all of the data we require
@@ -266,7 +266,7 @@ sub request{
                                         my $challenge=$1;
                                         print "DEBUG: Got Challenge $1\n" if ($debug);
                                         my $response=md5_hex("$challenge$request->{'password'}");
-                                        print "DEBUG: Sending Response : $response\n" if ($debug);
+                                        print "DEBUG: Sending MD5 based Response : $response\n" if ($debug);
                                         print $socket "RESPONSE:$response\n";
                                 } else {
                                         print "DEBUG: CHALLENGE ERROR\n" if ($debug);
