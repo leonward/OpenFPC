@@ -204,8 +204,7 @@ sub convbytes{
 }
 
 sub displayResult{
-	# TODO, why the hell is $result a global?
-	# How did I get in to that state: Need to fix this.
+	# TODO, why did I make $result a global?
 
 	if ($result{'success'} == 1) { 			# Request is Okay and being processed
 		unless ($cmdargs{'gui'}) {  		# Command line output
@@ -225,9 +224,15 @@ sub displayResult{
 					" OpenFPC Node name   :  $result{'nodename'}\n".
 					" OpenFPC Node Type   :  $result{'ofpctype'} \n".
 					" OpenFPC Version     :  $result{'version'} \n".
-					" Oldest Packet       :  $result{'firstpacket'} (" . localtime($result{'firstpacket'}) .")\n".
-					" Oldest Session      :  $result{'firstctx'} (" . localtime($result{'firstctx'}) .")\n".
-					" Packet utilization  :  $result{'packetspace'}\% \n" .
+					" Oldest Packet       :  $result{'firstpacket'} (" . localtime($result{'firstpacket'}) .")\n";
+
+					if ($result{'firstctx'}) {
+						print " Oldest Session      :  $result{'firstctx'} (" . localtime($result{'firstctx'}) .")\n";
+					} else {
+						print " Oldest Session      :  DISABLED\n";
+					}
+
+				print " Packet utilization  :  $result{'packetspace'}\% \n" .
 					" Session utilization :  $result{'sessionspace'}\% \n" .
 					" Session DB Size     :  $result{'sessioncount'} rows \n" .
 					" Session lag         :  $result{'sessionlag'} files \n" .
