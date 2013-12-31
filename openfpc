@@ -2,7 +2,7 @@
 
 # The master control program for starting and stopping OpenFPC instances.
 #########################################################################################
-# Copyright (C) 2010 Leon Ward 
+# Copyright (C) 2013 Leon Ward 
 # openfpc - Part of the OpenFPC - (Full Packet Capture) project
 #
 # Contact: leon@rm-rf.co.uk
@@ -29,7 +29,7 @@ use Switch;
 use Data::Dumper;
 use File::Path qw(mkpath);
 
-my $openfpcver=0.7;
+my $openfpcver=0.8;
 my $conf_dir="/etc/openfpc";
 
 my ($quiet,$usertype,$verbose,$help);

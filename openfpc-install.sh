@@ -27,7 +27,7 @@
 # By semi-standard i refer to similar to how the .deb install leaves the system.
 # It should be noted that the .debs have not been updated for 0.6 - 11/06/2011
 
-openfpcver="0.7"
+openfpcver="0.8"
 PROG_DIR="/usr/bin"
 CONF_DIR="/etc/openfpc"
 CONF_FILES="etc/openfpc-default.conf etc/openfpc-example-proxy.conf etc/routes.ofpc"
@@ -72,7 +72,7 @@ function checkdeps()
 	missdeps=""
 	if [ "$DISTRO" == "DEBIAN" ] 
 	then
-		DEPS="apache2 daemonlogger tcpdump tshark libarchive-zip-perl libfilesys-df-perl libapache2-mod-php5 mysql-server php5-mysql libdbi-perl php5-mysql libterm-readkey-perl libdate-simple-perl libdigest-sha-perl" 
+		DEPS="apache2 daemonlogger tcpdump tshark libarchive-zip-perl libfilesys-df-perl libapache2-mod-php5 mysql-server php5-mysql libdbi-perl php5-mysql libterm-readkey-perl libdate-simple-perl libdigest-sha-perl libjson-pp-perl" 
 
 		# Check if some obvious dependencies are met	
 		for dep in $DEPS

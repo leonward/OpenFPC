@@ -28,6 +28,7 @@ use Exporter;
 use Switch;
 use OFPC::Config;
 use OFPC::Common;
+use OFPC::Request;
 use Sys::Syslog;
 use File::Temp(qw(tempdir));
 use Digest::MD5(qw(md5_hex));
@@ -35,6 +36,7 @@ use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 use threads::shared;
 use Filesys::Df;
 use Data::Dumper;
+use JSON::PP;
 our @ISA = qw(Exporter);
 @EXPORT = qw(wlog);
 @EXPORT_OK = qw(ALL);
@@ -117,6 +119,27 @@ sub getrequestid{
 }
 
 
+sub checkbpf{
+	my $bpf=shift;
+	# Check BPF to ensure it's valid before doing anything with it.
+	unless ($bpf =~/^[a-zA-Z 0-9\.]+$/) {
+		wlog("DEBUG: BPF Failed input validation, bad chars");
+		return(0);
+	}
+    # To check BPF is valid, open a pcap for reading.
+    my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-$config{'NODENAME'}.pcap.*`;
+    my $p=shift(@pcaptemp);
+    chomp $p;
+    my $i=system("$config{'TCPDUMP'} -r $p -c 1 $bpf > /dev/null 2>&1");
+
+    if ($i) {
+    	wlog("WARN : BPF failed to validate - $bpf");
+    	return(0);	
+    }
+    # Looks like the BPF is okay then...
+    return(1);
+}
+
 =head2 mkBPF
     Generate a BPF compatable filter string from the values found in an event hash.
     Takes: \%request
@@ -176,40 +199,125 @@ sub mkBPF($) {
 sub getstatus{
 	my $request=shift;
 	my $exec=0;
-	my %stat = ( 
+	my %sc = (
+		nodename => 0,
+		proxy => 0,
 		success => 0,
-		ofpctype => 0,			# Proxy or node
-		nodename => 0,			# Name of the node
-		firstpacket => 0,		# Oldest packet timestamp
-		packetspace => 0,		# Space available in PCAP partition
-		packetused => 0,
-		sessionspace => "Disabled",	# Space available in session data partition
-		sessionused => "Disabled",	# Space consumed by session data (excluding DB)
-		sessioncount => "Disabled",	# Number of sessions in DB
-		sessionlag => 0,		# Number of sessions lagging
-		savespace => 0,			# Space availabe in the savepath
-		saveused => 0,			# Space availabe in the savepath
-		comms => 0,			# Communication with nodes (proxy only)
-		ld1 => 0,			# UNIX load average 1,5, and 15
-		ld5 => 0,
-		ld15 => 0,
-		message => 0,			# Message for error text
-		firstctx => 0,			# First Session record
+		nodelist => [],
+	);
+
+	# Supported types for conversion are 
+		# e = time epoch
+		# t = text
+		# b = binary
+		# s = space (bytes)
+		# p = %
+	my %s = (   
+		success => {
+			val => 0,
+			text => "Request Status                 ",
+			type => "t",
+		},
+
+		ofpctype => {
+			val => 0,
+			text => "Node Type                      ",
+			type => "t",
+		},
+		nodename => {
+			val => 0,
+			text => "Node Name                      ",
+			type => "t",
+		},
+		firstpacket => {
+			val => 0,
+			text => "Oldest packet in storage       ",
+			type => "e",
+		},
+		packetspace => {
+			val => 0,
+			text => "Packet storage utilization     ",
+			type => "p",
+		},
+		packetused => {
+			val => 0,
+			text => "Packet storage used            ",
+			type => "b",
+		},
+		sessionspace => {
+			val => 0,		
+			text => "Session storage utilization    ",
+			type => "p",
+		},
+		sessionused => {
+			val => 0,
+			text => "Session storage used           ",
+			type => "b",
+		},
+		sessioncount => {
+			val => 0,
+			text => "Number of sessions in Database ",
+			type => "t",
+		},
+		sessionlag => {
+			val => 0,
+			text => "Number of session files lagging",
+			type => "t",
+		},
+		savespace => {
+			val => 0,
+			text => "Space available in save path   ",
+			type => "p",
+		},
+		saveused => {
+			val => 0,
+			text => "Space used in the save path    ",
+			type => "b",
+		},
+		comms => {
+			val => 0,
+			text => "Communication with nodes       ",		
+			type => "t",
+		},
+		ld1 => {
+			val => 0,
+			text => "Load Average 1                 ",
+			type => "t",
+		},
+		ld5 => {
+			val => 0,
+			text => "Load average 5                 ",
+			type => "t",
+		},
+		ld15 => { 
+			val => 0,
+			text => "Load average 15                ",
+			type => "t",
+		},
+		message => { 
+			val => 0,
+			text => "Message                        ",
+			type => "t",
+		},			# Message for error text
+		firstctx => {
+			val => 0,
+			text => "Oldest session in storage      ",
+			type => "e",
+		},
 	);
 
 	unless ($config{'PROXY'}) { 	# Process as a node. Don't check proxy specific stuff like comms
-		$stat{'ofpctype'} = "NODE";
-		$stat{'nodename'} = $config{'NODENAME'};
-
+		$s{'ofpctype'}{'val'} = "NODE";
+		$s{'nodename'}{'val'} = $config{'NODENAME'};
 		# Get timestamp of oldest pcap buffer
 		unless (opendir(DIR,$config{'BUFFER_PATH'}) ) {
-			$stat{'message'} = "Unable to open buffer path $config{'BUFFER_PATH'}";
-			return \%stat;
+			$s{'message'}{'val'} = "Unable to open buffer path $config{'BUFFER_PATH'}";
+			return \%s;
 		} 
 		my @files=readdir(DIR);
 		unless (@files) {
-			$stat{'message'} = "Unable to open buffer path $config{'BUFFER_PATH'}";
-			return \%stat;
+			$s{'message'}{'val'}= "Unable to open buffer path $config{'BUFFER_PATH'}";
+			return \%s;
 		}
 		@files=sort(@files);
 
@@ -226,36 +334,42 @@ sub getstatus{
 		}
 
 		if ( $oldestfile =~ /$config{'NODENAME'}\.pcap\.([0-9]+)/ ) {
-			$stat{'firstpacket'} = $1;
+			$s{'firstpacket'}{'val'} = $1;
 		}
 
 		# Get disk space info
+		##############################
 		my $packetref=df("$config{'BUFFER_PATH'}");
-		$stat{'packetspace'} = $packetref->{'per'};
-		$stat{'packetused'} = $packetref->{'used'};
+		$s{'packetspace'}{'val'} = $packetref->{'per'};
+		$s{'packetused'}{'val'} = $packetref->{'used'};
 		wlog("DEBUG: Packet used is $packetref->{'used'} \n") if $debug;
 
 		if ($config{'ENABLE_SESSION'}) {
 			my $sessionref=df("$config{'SESSION_DIR'}");
-			$stat{'sessionspace'} = $sessionref->{'per'};
-			$stat{'sessionused'} = $sessionref->{'used'};
+			$s{'sessionspace'}{'val'} = $sessionref->{'per'};
+			$s{'sessionused'}{'val'} = $sessionref->{'used'};
+		} else {
+			$s{'sessionspace'}{'val'} = "Disabled";
+			$s{'sessionused'}{'val'} = "Disabled";
 		}
 
 		my $saveref=df("$config{'SAVEDIR'}");
-		$stat{'savespace'} = $saveref->{'per'};
-		$stat{'saveused'} = $saveref->{'used'};
-		wlog("DEBUG: Savespace in $config{'SAVEDIR'} is $stat{'savespace'} \n") if $debug;
+		$s{'savespace'}{'val'} = $saveref->{'per'};
+		$s{'saveused'}{'val'} = $saveref->{'used'};
+		wlog("DEBUG: Savespace in $config{'SAVEDIR'} is $s{'savespace'}{'val'} \n") if $debug;
 	
-		# Grab uptime data
+		# Grab uptime and load average data
+		####################################	
 		my $uptime=`uptime`;
 		chomp $uptime;
 		if ($uptime =~ /load average.*:\s*([0-9]\.[0-9]+),*\s*([0-9]\.[0-9]+),*\s*([0-9]\.[0-9]+)/){ 
-			$stat{'ld1'} = $1;
-			$stat{'ld5'} = $2;
-			$stat{'ld15'} = $3;
+			$s{'ld1'}{'val'} = $1;
+			$s{'ld5'}{'val'} = $2;
+			$s{'ld15'}{'val'} = $3;
 		}
 
-		# If session data is enabled, connect to the DB and get some data back
+		# Get session DB data
+		#################################
 		if ($config{'ENABLE_SESSION'}) {
 			wlog("DEBUG: Session data enabled on this node. Checking DB status") if $debug;
 			if ( my $dbh= DBI->connect("dbi:mysql:database=$config{'SESSION_DB_NAME'};host=localhost",$config{'SESSION_DB_USER'},$config{'SESSION_DB_PASS'}) ) {
@@ -264,25 +378,25 @@ sub getstatus{
 			    my $sth= $dbh->prepare("SELECT COUNT(*) FROM session") or wlog("STATUS: ERROR: Unable to get session table size $DBI::errstr");
 			    if ( $sth->execute() ) {
 			        while ( my @row = $sth->fetchrow_array ) {
-			        	$stat{'sessioncount'} = $row[0];
-				}
+			        	$s{'sessioncount'}{'val'} = $row[0];
+					}
 			    } else {
 				    wlog("STATUS: ERROR: Unable to exec SQL command");
 			    }
-			    wlog("DEBUG: Session DB count is $stat{'sessioncount'}\n") if $debug;
+			    wlog("DEBUG: Session DB count is $s{'sessioncount'}{'val'}\n") if $debug;
 
 			    # Get Oldest session time
 			    $sth= $dbh->prepare("SELECT unix_timestamp(start_time) FROM session ORDER BY start_time LIMIT 1") or wlog("STATUS: ERROR: Unable to get first conenction $DBI::errstr");
 			    $sth->execute() or wlog("STATUS: ERROR: Unable to exec SQL command");
 			    while ( my @row = $sth->fetchrow_array ) {
-  				$stat{'firstctx'} = $row[0];
+  				$s{'firstctx'}{'val'} = $row[0];
 			    }
-			    wlog("DEBUG: Oldest connection in session DB is $stat{'firstctx'}\n") if $debug;
+			    wlog("DEBUG: Oldest connection in session DB is $s{'firstctx'}{'val'}\n") if $debug;
 
 			    $dbh->disconnect or wlog("Unable to disconnect from DB $DBI::errstr");
 			    if (opendir(SESSION_DIR,$config{'SESSION_DIR'}) ) { 
 				while (my $filename=readdir(SESSION_DIR)) {
-				      	$stat{'sessionlag'}++ unless $filename =~ /^(\.|failed)/;
+				      	$s{'sessionlag'}{'val'}++ unless $filename =~ /^(\.|failed)/;
 			        }
 			    }
 			} else {
@@ -293,17 +407,24 @@ sub getstatus{
 		}
 
 		# Check we are providing back some valid data
-		if ( $stat{'ld1'} and $stat{'ld5'} and $stat{'ld15'} and $stat{'nodename'} ) {
-			$stat{'success'} = 1; 	
+		if ( $s{'ld1'}{'val'} and $s{'nodename'}{'val'} ) {
+			$s{'success'}{'val'} = 1; 	
 		}
 
 	} else {
 		wlog("Recieved PROXY STATUS request - Not implemented");
-		$stat{'message'} = "Proxy status not implemented yet";
-		$stat{'ofpctype'} = "PROXY";
+		$s{'message'}{'val'} = "Proxy status not implemented yet";
+		$s{'ofpctype'}{'val'} = "PROXY";
 	}
 
-	return(\%stat);
+	# Put the node status hash into a container that can scale for multiple nodes
+
+	$sc{'nodename'} = $config{'NODENAME'};
+	push (@{$sc{'nodelist'}},$config{'NODENAME'});
+	$sc{'success'} = $s{'success'};
+	$sc{$config{'NODENAME'}} = \%s;
+
+	return(\%sc);
 }
 
 =head2 trimsessiondb
@@ -315,16 +436,19 @@ sub trimsessiondb(){
 	my $trimtime=0;		# New value of oldest ctx
 	my $status=OFPC::Common::getstatus();
 
-	wlog("TRIM: Trimming Session DB from: $status->{'firstctx'} to $status->{'firstpacket'}") if $debug;
+	my $fc=$status->{$config{'NODENAME'}}{'firstctx'}{'val'};
+	my $fp=$status->{$config{'NODENAME'}}{'firstpacket'}{'val'};
+
+	wlog("TRIM: Trimming Session DB from: $fc (" . localtime($fc) . ") to $fp (". localtime($fp) . ")") if $debug;
 
 	my $dbh= DBI->connect("dbi:mysql:database=$config{'SESSION_DB_NAME'};host=localhost",$config{'SESSION_DB_USER'},$config{'SESSION_DB_PASS'}) 
 		or wlog("DEBUG: Unable to connect to DB");
 
-	my $sth= $dbh->prepare("DELETE FROM session WHERE unix_timestamp(start_time) < $status->{'firstpacket'}") 
+	my $sth= $dbh->prepare("DELETE FROM session WHERE unix_timestamp(start_time) < $fp") 
 		or wlog("STATUS: ERROR: Unable to prep query $DBI::errstr");
 
 	if ($sth->execute()) {
-		$trimtime=$status->{'firstpacket'};
+		$trimtime=$fp;
 	} else {
 		 wlog("STATUS: ERROR: Unable to trim session DB");
 	}
@@ -332,6 +456,7 @@ sub trimsessiondb(){
 	$dbh->disconnect or wlog("Unable to disconnect from DB $DBI::errstr");
 	return($trimtime);
 }
+
 
 =head2 backgroundtasks
 	Perform regular tasks every X seconds.
@@ -344,7 +469,8 @@ sub trimsessiondb(){
 
 sub backgroundtasks($){
     my $time=$config{'TASK_INTERVAL'};
-    if ($time >= 59) {     # Check time is a reasonalble value
+    my $mintime=59;
+    if ($time >= $mintime) {     # Check time is a reasonable value
         wlog("TASKS: Sleeping $time seconds for each task interval") if $debug;
 	while(1) {
             sleep $time;
@@ -362,89 +488,123 @@ sub backgroundtasks($){
             }
 	}
     } else {
-	wlog("TASK: ERROR: Not starting perodic tasks, time value $time seconds");
+	wlog("TASK: ERROR: Not starting periodic tasks, time value $time seconds is less than minimum value of $mintime seconds");
     }
 }
 
 =head2 decoderequest
-	Take the OFPC request, and provide a hash(ref) to the decoded data.
+	Take the OFPC request JSON, and provide a hash(ref) to the decoded data.
 	Example of a OFPC request:
 	ofpc||fetch||||/tmp/foo.pcap||||auto||ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp time:1274864808 msg:Some freeform text||Some comment text
 	ofpc||summary||||||||||||||top_sip_by_volume
 =cut
 
 sub decoderequest($){
-        my $rawrequest=shift;
-        my %request=(   user     =>     0,
-                        action   =>     0,
-			rid	 =>	0,
-                        device   =>     0,
-                        filename =>     0,
-			tempfile =>	0,
-                        filetype =>     0,
-                        logtype  =>     0,
-                        logline  =>     0,
-			sip	=>	0,
-			dip	=>	0,
-			proto	=>	0,
-			spt	=>	0,
-			dpt	=>	0,
-			msg	=>	0,
-			bpf     =>	0,
-			rtime	=>	0,
-			timestamp =>	0,
-			stime	=>	0,
-			etime	=>	0,
-			comment =>	0,
-			valid   =>	0,
-			sumtype =>	0,
-        );
+	my $now=time();
+	my $rj=shift;
+    my $rawrequest=$rj;
+    my %request=(   
+    	user     	=>  0,
+        action   	=>  0,
+		rid	 		=>	0,
+        device   	=>  0,
+        filename 	=>  0,
+		tempfile 	=>	0,
+        filetype 	=>  0,
+        logtype  	=>  0,
+        logline  	=>  0,
+		sip			=>	0,
+		dip			=>	0,
+		proto		=>	0,
+		spt			=>	0,
+		dpt			=>	0,
+		msg			=>	0,
+		bpf     	=>	0,
+		rtime		=>	0,
+		timestamp 	=>	0,
+		stime		=>	0,
+		etime		=>	0,
+		comment 	=>	0,
+		valid   	=>	0,
+		sumtype 	=>	0,
+		msg 		=> 0,
+	);
+    my @requestarray = split(/\|\|/, $rawrequest);
+    my $argnum=@requestarray;
 
-        my @requestarray = split(/\|\|/, $rawrequest);
-        my $argnum=@requestarray;
 	$request{'rtime'} = gmtime();
 
-        unless ($argnum == 9 ) {
-                wlog("DECOD:  Bad request, only $argnum args. Expected 9\n") if $debug;
-		$request{'msg'} = "Bad request. Only $argnum args. Expected 9\n";
-                return(\%request);
-        }
+    my $r;
+    unless ($r=decode_json($rj)) {	
+    	wlog("ERROR: Failed to decode request JSON");
+    	$request{'msg'} = "Bad request. Unable to parse JSON.";
+    	return(\%request);
+    } 
 
-	# Each request element is seprated by a double-pipe - ||
-        ($request{'user'},			# OFPC user
-		$request{'action'},		# Action (store,status,fetch,summary,etc)
-		$request{'device'},		# Device to request from i.e openfpc-node
-		$request{'filename'},		# Filename to save file as 
-		$request{'filetype'},		# Filetype zip or pcap?
-		$request{'logtype'},		# Type of log being processed
-		$request{'logline'},		# The log-line (including one made from session identifiers
-		$request{'comment'},		# User comments
-		$request{'sumtype'}		# Type of connection summary
-		) = split(/\|\|/, $rawrequest);
+	#Copy values from the client JSON request into the server request hash.
+	$request{'user'}		=	$r->{'user'}{'val'};
+	$request{'action'}		=	$r->{'action'}{'val'}; 			# Action (store,status,fetch,summary,etc)
+	$request{'device'} 		=	$r->{'device'}{'val'};			# Device to request from i.e openfpc-node
+	$request{'filename'} 	= 	$r->{'filename'}{'val'};		# Filename to save file as 
+	$request{'filetype'} 	= 	$r->{'filetype'}{'val'};		# Filetype zip or pcap?
+	$request{'logtype'} 	= 	$r->{'logtype'}{'val'};			# Type of log being processed
+	$request{'logline'}		= 	$r->{'logline'}{'val'};			# The log-line (including one made from session identifiers
+	$request{'comment'} 	= 	$r->{'comment'}{'val'};			# User comments
+	$request{'sumtype'}		= 	$r->{'sumtype'}{'val'}; 		# Type of connection summary
 
 	$request{'action'} = lc $request{'action'};
 	wlog("DECOD: Recieved action $request{'action'}") if ($debug);
 
 	if ($request{'action'} =~ /(fetch|store)/) {
 
-		# Check logline is valid
-		my ($eventdata, $error)=OFPC::Parse::parselog($request{'logline'});
+		# Data could be requested in multiple forms, need to define a priority order in case multiple appear in the same request
+		# bpf
+		# session identifiers
+		# logline
 
-		unless ($eventdata) {
-			wlog("ERROR: Cannot parse logline-> $error");
-			return(\%request);
+		if ($r->{'bpf'}{'val'}) {
+			wlog("DEBUG: Found BPF set as $r->{'bpf'}{'val'}\n") if $debug;
+			# Check BPF to ensure it's valid before doing anything with it.
+			unless (checkbpf($r->{'bpf'}{'val'})) {
+				$request{'msg'} = "BPF Failed input validation";
+				return(\%request);
+    		}
+			$request{'bpf'} = $r->{'bpf'}{'val'};
+		} elsif ($r->{'logline'}{'val'}) {
+			wlog("DEBUG: Found logline requested as $r->{'logline'}{'val'}\n") if $debug;
+
+			# Check logline is valid
+			my ($eventdata)=OFPC::Parse::parselog($request{'logline'});
+
+			unless ($eventdata->{'parsed'}) {
+				wlog("ERROR: Cannot parse logline");
+				$request{'msg'} = "Unable to parse logline \"$request{'logline'}\"";
+				return(\%request);
+			} else {
+				# Append the session that is being requested to the hash that is the request itself
+				$request{'sip'} = $eventdata->{'sip'};
+				$request{'dip'} = $eventdata->{'dip'};
+				$request{'spt'} = $eventdata->{'spt'};
+				$request{'dpt'} = $eventdata->{'dpt'};
+				$request{'msg'} = $eventdata->{'msg'};
+				$request{'timestamp'} = $eventdata->{'timestamp'};
+				$request{'stime'} = $eventdata->{'stime'};
+				$request{'etime'} = $eventdata->{'etime'};
+				$request{'proto'} = $eventdata->{'proto'};
+			}
 		} else {
-			# Append the session that is being requested to the hash that is the request itself
-			$request{'sip'} = $eventdata->{'sip'};
-			$request{'dip'} = $eventdata->{'dip'};
-			$request{'spt'} = $eventdata->{'spt'};
-			$request{'dpt'} = $eventdata->{'dpt'};
-			$request{'msg'} = $eventdata->{'msg'};
-			$request{'timestamp'} = $eventdata->{'timestamp'};
-			$request{'stime'} = $eventdata->{'stime'};
-			$request{'etime'} = $eventdata->{'etime'};
-			$request{'proto'} = $eventdata->{'proto'};
-			$request{'bpf'} = $eventdata->{'bpf'};
+			wlog("DEBUG: No BPF or logline detected, using session identifiers if set");
+			$request{'sip'} = $r->{'sip'}{'val'};
+			$request{'dip'} = $r->{'dip'}{'val'};
+			$request{'spt'} = $r->{'spt'}{'val'};
+			$request{'dpt'} = $r->{'dpt'}{'val'};
+			$request{'timestamp'} = $r->{'timestamp'}{'val'};
+			$request{'stime'} = $r->{'stime'}{'val'};
+			$request{'etime'} = $r->{'etime'}{'val'};
+			$request{'proto'} = $r->{'proto'}{'val'};
+			wlog("DEBUG: Timestamp is $r->{'timestamp'}{'val'}");
+			wlog("DEBUG: Session IDs sip: \'$r->{'sip'}{'val'}\' dip: \'$r->{'dip'}{'val'}\' spt: \'$r->{'spt'}{'val'}\' dpt: \'$r->{'dpt'}{'val'}\' proto: \'$r->{'proto'}{'val'}\'");
+
 		}
 
 		# Default to PCAP file if filetype not specified
@@ -460,18 +620,31 @@ sub decoderequest($){
 		$request{'valid'} = 1;
 	} else {
 		# Invalid action
-		wlog("DECOD: Recieved invalid action $request{'action'}");
-		$request{'msg'} = "recieved invalid action $request{'action'}";
+		wlog("DECOD: Received invalid action $request{'action'}");
+		$request{'msg'} = "received invalid action $request{'action'}";
 	}
 
 	unless ($request{'comment'}) {
 		$request{'comment'} = "No comment";
 	}
 
-	$request{'rid'} = OFPC::Common::getrequestid;
+	# If no timestamp, stime or etime have been specified, set a default range to search
+	unless ($r->{'timestamp'}{'val'}) {
+		if ($r->{'stime'}{'val'} and $r->{'etime'}{'val'}) {
+			wlog("DECOD: stime and etime are set\n") if $debug;
+		} else {
+			wlog("DECOD: Neither timestamp or stime/etime are set, setting timestamp to $now, it was $r->{'timestamp'}{'val'}\n") if $debug;
+			$request{'timestamp'} = $now;
+		}
+	} else {
+		wlog("DECOD: Timestamp was set to $r->{'timestamp'}{'val'}") if $debug;
+		$request{'timestamp'} = $r->{'timestamp'}{'val'};
+	}
 
-        return(\%request);
+	$request{'rid'} = OFPC::Common::getrequestid;
+    return(\%request);
 }
+
 
 =head2 prepfile 
 	prepare a file to deliver back to the client.
@@ -610,7 +783,7 @@ sub prepfile{
             my @mergefiles=();
             
             foreach (@nodefiles) {
-		push(@mergefiles, "$config{'SAVEDIR'}/$_");
+				push(@mergefiles, "$config{'SAVEDIR'}/$_");
             }
             
             my $mergecmd="$config{'MERGECAP'} -w $config{'SAVEDIR'}/$request->{'tempfile'}.pcap @mergefiles";
@@ -692,7 +865,7 @@ sub donode{
             md5 => 0,
             size => 0,
 	);
-	
+
 	# Unless we have been given a real bpf from the user, make our own
 	unless ($request->{'bpf'} ) {
             $bpf=OFPC::Common::mkBPF($request);
@@ -702,12 +875,12 @@ sub donode{
         
         # If for some reason we have failed to get a BPF, lets return an error
 	unless ($bpf) {
-            wlog("NODE: Request: $request->{'rid'} Insufficent constraints for request (Null BPF)");
+            wlog("NODE : Request: $request->{'rid'} Insufficent constraints for request (Null BPF)");
             $result{'message'} = "Insufficent constraints for request (Null BPF)";
             return(\%result);
 	}
         
-	wlog("NODE: Request: $request->{'rid'} User: $request->{'user'} Action: $request->{'action'} BPF: $bpf");
+	wlog("NODE : Request: $request->{'rid'} User: $request->{'user'} Action: $request->{'action'} BPF: $bpf");
         
 	# Do we have a single timestamp or pair of them?
 	# Single= event sometime in the middle of a session
@@ -738,9 +911,9 @@ sub donode{
 	    $result{'message'} = "Success";
 	    $result{'md5'} = $md5;
 	    $result{'size'} = $size;
-	    wlog("NODE: Request: $request->{'rid'} User: $request->{'user'} Result: $filename, $size, $md5");   
+	    wlog("NODE : Request: $request->{'rid'} User: $request->{'user'} Result: $filename, $size, $md5");   
 	} else {
-            wlog("NODE: Request: $request->{'rid'} User: $request->{'user'} Result: Problem performing doExtract $filename, $size, $md5");   
+            wlog("NODE : Request: $request->{'rid'} User: $request->{'user'} Result: Problem performing doExtract $filename, $size, $md5");   
 	}
 	
 	# Create extraction Metadata file
@@ -897,11 +1070,11 @@ sub bufferRange {
 
 sub findBuffers {
 
-        my $targetTimeStamp=shift;
-        my $numberOfFiles=shift;
-        my @TARGET_PCAPS=();
-        my %timeHash=();
-        my @timestampArray=();
+    my $targetTimeStamp=shift;
+    my $numberOfFiles=shift;
+    my @TARGET_PCAPS=();
+    my %timeHash=();
+    my @timestampArray=();
 	my @pcaps;
 
 	wlog("DEBUG: WARNING vdebug not enabled to inspect pcap filename selection\n") if ($debug and not $vdebug);
@@ -912,7 +1085,7 @@ sub findBuffers {
                 push(@pcaps,$_);
         }
 
-        wlog("DEBUG: $numberOfFiles requested each side of target timestamp ($targetTimeStamp) ( " . localtime($targetTimeStamp) . ")\n") if $debug;
+        wlog("DEBUG: Request is to look in $numberOfFiles files each side of target timestamp ($targetTimeStamp) ( " . localtime($targetTimeStamp) . ")\n") if $debug;
 
         $targetTimeStamp=$targetTimeStamp-0.5;                  # Remove risk of TARGET conflict with file timestamp.   
         push(@timestampArray, $targetTimeStamp);                # Add target timestamp to an array of all file timestamps
@@ -963,7 +1136,8 @@ sub findBuffers {
         if ($vdebug) {
 		my @tmptarget=split(/\./, $timeHash{$timestampArray[$location]});
 		my $tts=pop(@tmptarget);
-                wlog(" - Target PCAP filename is $timeHash{$timestampArray[$location]} : $tts ( " . localtime($tts) . ")\n");
+              #  wlog(" - Target PCAP filename is $timeHash{$timestampArray[$location]} : $tts ( " . localtime($tts) . ")\n");
+                wlog(" - Target PCAP filename is $timeHash{$timestampArray[$location]} : $tts ( " . localtime($tts) . ")\n") if $tts;
         }
 
         # Find what pcap files are eachway of target timestamp
@@ -1056,7 +1230,7 @@ sub doExtract{
                 die("Tempdir $tempdir not found!")
 	}
 
-        wlog("EXTR: Merge command is \"$config{'MERGECAP'} -w $config{'SAVEDIR'}/$mergefile  @outputpcaps\"") if $debug;
+        wlog("EXTR : Merge command is \"$config{'MERGECAP'} -w $config{'SAVEDIR'}/$mergefile  @outputpcaps\"") if $debug;
 
         if (system("$config{'MERGECAP'} -w $config{'SAVEDIR'}/$mergefile @outputpcaps")) {
             wlog("ERROR: Unable to merge pcap files.  Verify that merge command exists at $config{'MERGECAP'}");
@@ -1197,19 +1371,21 @@ sub comms{
     my ($client) = @_;
     my $client_ip=$client->peerhost;
     my %state=(
-	version => 0,
-	user	=> 0,
-	auth	=> 0,
-	action	=> 0,
-	logline	=> 0,
-	filename => 0,
-	response => 0,
+		version => 0,
+		user	=> 0,
+		auth	=> 0,
+		action	=> 0,
+		logline	=> 0,
+		filename => 0,
+		response => 0,
     );
+
     # Print banner to client
     print $client "OFPC READY\n";
     while (my $buf=<$client>) {
     	chomp $buf;
     	$buf =~ s/\r//;
+    	# Display everything received in the socket for debug
 		#print "$client_ip -> Got data $buf :\n" if ($debug);
         
 		switch($buf) {
@@ -1252,8 +1428,8 @@ sub comms{
 	                    
 	                    my $response=$1;
 	                    if ($debug) {
-	                        wlog("DEBUG: $client_ip: Expected resp: $state{'response'}-\n");
-	                        wlog("DEBUG: $client_ip: Real resp    : $response\n");
+	                        wlog("DEBUG: $client_ip: Expected resp: \'$state{'response'}\'\n");
+	                        wlog("DEBUG: $client_ip: Actual resp  : \'$response\'\n");
 	                    }
 	                    
 	                    # Check response hash
@@ -1287,7 +1463,7 @@ sub comms{
 		                wlog("DEBUG: $client_ip: REQ -> $reqcmd\n") if $debug;
 		                    
 		                my $request=OFPC::Common::decoderequest($reqcmd);
-		                    
+
 		                if ($request->{'valid'} == 1) {	# Valid request then...		
 							# Generate a rid (request ID for this.... request!).
 							# Unless action is something we need to wait for, lets close connection
@@ -1368,31 +1544,11 @@ sub comms{
 							} elsif ($request->{'action'} eq "status") {
 		                            
 		                        wlog ("COMMS: $client_ip Recieved Status Request");
-		                        my $status=OFPC::Common::getstatus($request);
-		                            
-		                        my $statmsg="$status->{'success'}||" .
-									"$status->{'ofpctype'}||".
-									"$status->{'nodename'}||" .
-									"$status->{'firstpacket'}||" .
-									"$status->{'firstctx'}||" .
-									"$status->{'packetspace'}||" .
-									"$status->{'packetused'}||" .
-									"$status->{'sessionspace'}||" .
-									"$status->{'sessionused'}||".
-		                            "$status->{'sessioncount'}||".
-									"$status->{'sessionlag'}||".
-									"$status->{'savespace'}||" .
-									"$status->{'saveused'}||".
-									"$status->{'ld1'}||" .
-									"$status->{'ld5'}||" .
-									"$status->{'ld15'}||" .
-									"$status->{'comms'}||" .
-									"$status->{'message'}||" .
-									"$openfpcver" . 
-									"\n";
-		                           
-		                        wlog("DEBUG: Status msg sent to client is $statmsg\n") if $debug;	
-		                        print $client "STATUS: $statmsg";
+		                        my $s=OFPC::Common::getstatus($request);
+		                        my $sj = encode_json($s);
+		                        print Dumper $s;
+		                        wlog("DEBUG: Status msg sent to client \n") if $debug;	
+		                        print $client "STATUS: $sj";
 			                    shutdown($client,2);
 		                           
 							} elsif ($request->{'action'} eq "summary") {
@@ -1448,15 +1604,19 @@ sub comms{
 	            
 	        case /OFPC-v1/ {
 				wlog("DEBUG $client_ip: GOT version, sending OFPC-v1 OK\n") if $debug;
-	     	    print $client "OFPC-v1 OK\n" ;
-	                
-	        } else {
-	        	wlog("COMMS: $client_ip : Bad Reuqest");
-				wlog("DEBUG: $client_ip : Bad request was: \"$buf\"\n") if $debug;	
+	     	    print $client "ERROR: Request format OFPC-v1 is depricated and no longer compatable with OFPC. Please update your OpenFPC Client\n" ;
+	        } 
+	        case /OFPC-v2/ {
+				wlog("DEBUG $client_ip: GOT version, sending OFPC-v2 OK\n") if $debug;
+	     	    print $client "OFPC-v2 OK\n" ;
+	        } 
+	        else {
+	        	wlog("COMMS: $client_ip : Bad Request");
+				wlog("DEBUG: $client_ip : Bad request was: \"$buf\"\n") if $debug;
+				shutdown($client,$2);
 		    }
 		}
     }
-    close $client;
 }
 
 =head2 runq
@@ -1482,12 +1642,12 @@ sub runq {
             
             if ($config{'PROXY'}) {
                 # The proxy mode routes the request to a Node,
-                # routereq takes a device name, and provides all data requred to
+                # routereq takes a device name, and provides all data required to
                 # route the request to said device.
                
-		(my $nodehost,my $nodeport,my $nodeuser,my $nodepass)=routereq($request->{'device'});
+				(my $nodehost,my $nodeport,my $nodeuser,my $nodepass)=routereq($request->{'device'});
                 
-		if ($nodehost) { 		# If this request is routable....
+				if ($nodehost) { 		# If this request is routable....
                     $request->{'nodehost'} = $nodehost;
                     $request->{'nodeuser'} = $nodeuser;
                     $request->{'nodeport'} = $nodeport;
@@ -1498,18 +1658,18 @@ sub runq {
                     wlog("RUNQ : PROXY: Request: $request->{'rid'} Result: $result->{'success'} Message: $result->{'message'}");
                     
                     if ($result->{'success'} ) {
-			$pcaps{$request->{'rid'}}=$request->{'filename'} ; # Report done
+						$pcaps{$request->{'rid'}}=$request->{'filename'} ; # Report done
                     } else {
-			$pcaps{$request->{'rid'}}="ERROR" ; # Report FAIL 
+						$pcaps{$request->{'rid'}}="ERROR" ; # Report FAIL 
                     }
-		} else {
+				} else {
                     wlog("RUNQ : No openfpc-route to $request->{'device'}. Cant extract.");
                     $pcaps{$request->{'rid'}}="NOROUTE"; # Report FAIL 
-		}
+				}
             } else {    # If this device is not a proxy, it must be a NODE.
                 
-		my $result = donode($request,$request->{'rid'});
-		if ($result->{'success'}) {
+				my $result = donode($request,$request->{'rid'});
+				if ($result->{'success'}) {
                     wlog("RUNQ : NODE: Request: $request->{'rid'} Success. File: $result->{'filename'} $result->{'size'} now cached on NODE in $config{'SAVEDIR'}"); 
                     $pcaps{$request->{'rid'}}=$result->{'filename'};
                 } else {

@@ -1,7 +1,7 @@
 #!/usr/bin/perl -I ../
 
 # leon@rm-rf.co.uk
-# Quick script to test event parsing. Nothing to see here. Move on.
+# Quick script to test event parsing. 
 
 
 use strict;
@@ -52,10 +52,9 @@ my %logs=(
 			"ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp timestamp:1274864808 msg:Some freeform text" ,
 			"ofpc-v1 type:event sip:192.168.222.1 timestamp:1285142949" 
 			] ,
-
-	ofpcv1BPF => 	[ 
-			"ofpc-v1-bpf bpf: host 1.1.1.1 and host 2.2.2.2 not tcp port 23 stime:1274864808 etime:1274864899" 
-			] ,
+	#ofpcv1BPF => 	[  #DEPRICATED
+	#		"ofpc-v1-bpf bpf: host 1.1.1.1 and host 2.2.2.2 not tcp port 23 stime:1274864808 etime:1274864899" 
+	#		] ,
 	pradslog => 	[
 			"192.168.42.5,0,22,6,SERVER,[ssh:OpenSSH 5.3p1 (Protocol 2.0)],0,1290888581",
 			"192.168.42.107,0,443,6,CLIENT,[unknown:\@https],0,1290816603",
@@ -67,6 +66,11 @@ my %logs=(
 			"1292142613,6,85.19.221.54,59406,78.46.89.231,80,png" ,
 			"1292144009,6,85.19.221.54,34695,78.46.89.231,80,png" 
 			],
+	ofpccxsearch => [
+		"2013-12-30 14:13:40  192.168.42.107:46619  ->    192.168.42.1:53     ( 17)   [-|-]",
+		"2013-12-30 14:15:27  192.168.42.107:41523  ->    192.168.42.1:53     ( 17)   [-|-]",
+		"2013-12-30 14:18:41   192.168.42.98:60224  ->  192.168.42.107:22     (  6)   [SAPFR|SAPF]",
+	],
 );
 
 sub checkParse{
@@ -88,34 +92,31 @@ sub checkParse{
                 'etime' => 0,
 	);
 
-	while (1) {
-		%tmpdata=OFPC::Parse::ofpcv1BPF($logline); if ($tmpdata{'parsed'} ) { last; }
-		%tmpdata=OFPC::Parse::OFPC1Event($logline); if ($tmpdata{'parsed'} ) { last; }
-		%tmpdata=OFPC::Parse::SF49IPS($logline); if ($tmpdata{'parsed'} ) { last; }
-		%tmpdata=OFPC::Parse::Exim4($logline); if ($tmpdata{'parsed'} ) { last; }
-		%tmpdata=OFPC::Parse::SnortSyslog($logline); if ($tmpdata{'parsed'} ) { last; }
-		%tmpdata=OFPC::Parse::SnortFast($logline); if ($tmpdata{'parsed'} ) { last; }
-		%tmpdata=OFPC::Parse::pradslog($logline); if ($tmpdata{'parsed'} ) { last; }
-		%tmpdata=OFPC::Parse::nftracker($logline); if ($tmpdata{'parsed'} ) { last; }
-		last;
-	}
-	
-	if ($tmpdata{'parsed'}) {
-		%eventdata=%tmpdata;
-		print "[*] Event Parsed as $eventdata{'type'}\n" unless ($quiet);
-		return(\%eventdata);
+#	while (1) {
+#		%tmpdata=OFPC::Parse::OFPC1Event($logline); if ($tmpdata{'parsed'} ) { last; }
+#		%tmpdata=OFPC::Parse::SF49IPS($logline); if ($tmpdata{'parsed'} ) { last; }
+#		%tmpdata=OFPC::Parse::Exim4($logline); if ($tmpdata{'parsed'} ) { last; }
+#		%tmpdata=OFPC::Parse::SnortSyslog($logline); if ($tmpdata{'parsed'} ) { last; }
+#		%tmpdata=OFPC::Parse::SnortFast($logline); if ($tmpdata{'parsed'} ) { last; }
+#		%tmpdata=OFPC::Parse::pradslog($logline); if ($tmpdata{'parsed'} ) { last; }
+#		%tmpdata=OFPC::Parse::nftracker($logline); if ($tmpdata{'parsed'} ) { last; }
+#		last;
+#	}
+
+	my $p=OFPC::Parse::parselog($logline);
+	if ($p->{'parsed'}) {
+		print ": Detected and parsed as $p->{'type'}\n" unless ($quiet);
+		return($p);
 	} else {
-		$problem = $logline;
 		print "[*] ERROR Cant parse event!\n";
 		print "    $logline\n";
 		print "------------------------------\n";
-		return(\%tmpdata);
+		return($p);
 	}
 }
 
 sub displayEvent{
 	my $eventdata=shift;
-	#print Dumper $eventdata;
 	print "    SIP = $eventdata->{'sip'}  DIP = $eventdata->{'dip'}\n" .
 		"    SPT = $eventdata->{'spt'} DPT = $eventdata->{'dpt'} \n" .
 		"    proto = $eventdata->{'proto'} \n" .
@@ -155,11 +156,16 @@ unless ($oneline) {
 	print "* Autodetect type\n" unless ($quiet);
 	foreach my $type (keys(%logs)) {		# For every log type
 		foreach(@{$logs{$type}}) {		# For each log line of that type
-			print "[-] Event type $type\n" unless $quiet;
-			print " V  $_\n" if ($verbose);
+			print "- Testing $type";
 			my $result=checkParse($_);
-			unless ($quiet) {
-				displayEvent($result) if ($result->{'parsed'});
+			if ($result->{'parsed'}){
+				if ($verbose) {
+					print "\n";
+					displayEvent($result) if ($verbose);
+				}
+			} else {
+				print "ERROR: Unable to Parse something!!!\n";
+				exit(1)
 			}
 		}
 	}
@@ -172,7 +178,7 @@ if ($oneline)  {
 
 	unless ($manual) {
 		my $result=checkParse($logline); 
-		displayEvent($result);
+		displayEvent($result) if $verbose;
 	} else {
 		print "[*] Manual Tests...\n";
 		my %tmpdata=OFPC::Parse::SnortSyslog($logline);
