@@ -30,7 +30,16 @@ use Date::Parse;
 @EXPORT = qw(ALL);
 $VERSION = '0.2';
 
+=head2 wantdebug
+	Check if debug is enabled via a shell variable OFPCDEBUG=1
+	If so, return a value that enables debug in this funtion.
+=cut
 
+sub wantdebug{
+	my $var="OFPCDEBUG";
+	my $debug=$ENV{$var}; 
+	return($debug); 
+}
 
 
 =head2 norm_time
@@ -55,9 +64,11 @@ sub norm_time($) {
 sub parselog{
         # Recieve a logline, and return a ref to a hash that contains its data if valid
         my $logline=shift;
-		my $debug=0;
-        if ($debug) { print "   Parsing the logline :$logline\n"; }
-        my %eventdata = ();     # Hash of decoded event
+		my $debug=wantdebug();
+        if ($debug) { print "\nParsing the logline :$logline\n"; }
+        my %eventdata = (
+        		parsed => 0,
+        		);     # Hash of decoded event
 
         # Work through a list of file-parsers until we get a hit        
         while (1) {
@@ -66,14 +77,16 @@ sub parselog{
                 %eventdata=OFPC::Parse::Exim4($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=OFPC::Parse::SnortSyslog($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=OFPC::Parse::SnortFast($logline); if ($eventdata{'parsed'} ) { last; }
-                %eventdata=OFPC::Parse::ofpcv1BPF($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=OFPC::Parse::pradslog($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=OFPC::Parse::nftracker($logline); if ($eventdata{'parsed'} ) { last; }
-                return(0, "Unable to parse request");
+                %eventdata=OFPC::Parse::cxsearch($logline); if ($eventdata{'parsed'} ) { last; }
+
+                return(\%eventdata);
         }   
  
         if ($debug) {
                 print "   ---Decoded Event from parselog---\n" .
+                	   "   Parsed: $eventdata{'parsed'}\n" .
                        "   Type: $eventdata{'type'}\n" .
                        "   Timestamp: $eventdata{'timestamp'} (" . localtime($eventdata{'timestamp'}) . ")\n" .
 		       "   stime: $eventdata{'stime'} \n" .
@@ -87,8 +100,10 @@ sub parselog{
                        "   Message: $eventdata{'msg'}\n" ;
         }   
 
-        return(\%eventdata,"Success");
+        return(\%eventdata);
 }
+
+
 
 ####################################################
 # Input = logfile line
@@ -558,56 +573,38 @@ sub nftracker{
 
 	return(%event);
 }
-
-sub ofpcv1BPF{
-
-	# User defined BPF
-	my %event=(
-		'type' => "ofpc-v1-bpf",
-		'spt' => 0,
-		'dpt' => 0,
-		'sip' => 0,
-		'dip' => 0,
-		'proto' => 0,
-		'msg' => 0,
-		'timestamp' => 0,
-		'bpf' => 0,
-		'device' => 0,
-		'parsed' => 0,
-		'stime' => 0,
-		'etime' => 0,
-		);
-
-	#BPF: host 1.1.1.1 and tcp port 22 timestamp:12345
-
+=head2 cxsearch
+	OpenFPC connection search tool, found in /tools/
+=cut
+sub cxsearch{
 	my $logline=shift;
+	my %e=initevent();
+	$e{'type'} = "ofpc-cxsearch";
+	my $debug=wantdebug();
 
-	if ($logline =~ m/^(ofpc-v1-bpf)\s+.*bpf:\s+(.*?)(timestamp|stime|etime)/i) {
-        $event{'msg'} = "User requested BPF: $logline"; 
-		$event{'bpf'} = $2;
-    }
+	my @d=();
+	(@d)=split(/\s+/,$logline);
 
-    unless ($event{'bpf'} =~/^[a-zA-Z 0-9\.]+$/) {
-   		return(%event);
-    }
+	$e{'timestamp'}=norm_time("$d[0] $d[1]");
 
-	if ($logline =~ m/timestamp:\s*(\d{1,20})/) { 
-        $event{'timestamp'}=$1;
+	($e{'sip'}, $e{'spt'}) = split(/:/, $d[2]);
+	($e{'dip'}, $e{'dpt'}) = split(/:/, $d[4]);
+	my $ipproto = $d[6];
+
+	if ($ipproto =~ /6/ ) {
+		$e{'proto'} = "tcp";
+	} elsif ($ipproto =~ /17/ ) {
+		$e{'proto'} = "udp";
+	}	
+
+	if ($e{'timestamp'} and
+		$e{'sip'} and
+		$e{'dip'} and
+		$e{'spt'} and 
+		$e{'dpt'}) {
+		$e{'parsed'} = 1;
 	} 
-	
-	if ($logline =~ m/stime:\s*(\d{1,20})/) { 
-        $event{'stime'}=$1;
-	} 
-	
-	if ($logline =~ m/etime:\s*(\d{1,20})/) { 
-        $event{'etime'}=$1;
-	} 
-
-	if (( $event{'bpf'} and $event{'timestamp'}) or ( $event{'bpf'} and ($event{'stime'} and $event{'etime'}))) {
-		$event{'parsed'}=1;
-	}
-	
-	return(%event);
+	return(%e);
 }
 
 1;
