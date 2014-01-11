@@ -156,6 +156,11 @@ sub mkreqv2{
 			val => 0,
 			required => 0,
 		},
+		limit => {
+			text => "Results limit",
+			val => 20,
+			requred => 0,
+		},
 	);
 
 	return(\%reqv2);
@@ -430,21 +435,16 @@ sub request{
 				my @table=();	
 				print "DEBUG: Incomming Table of data\n" if ($debug);
 				$result{'success'} = 1;
-				while (my $line=<$socket>) {
-					my @row=split(/,/, $line);	
-					push @table, [ @row ];
+				my $tj=<$socket>;
+				my $t;
+				if (decode_json($tj)) {
+					print "Decodedi JSON\n" if $debug;
+				} else {
+					print "Failed to decode JSON table data recieved\n" if $debug;
 				}
-				if ($debug){
-					print "DEBUG: Request: Printing table data ---------------\n";
-					foreach my $foo (@table) {
-						foreach (@$foo) {
-							printf '%20s', "$_";
-						}   
-					}   
-					print "DEBUG: End Table data -----------------------------\n";
-				}   
+
 				shutdown($socket,$2);
-				$result{'table'}=\@table; 
+				$result{'table'}=$tj; 
 				return %result;
 			} 
 			case /FILENAME/ {

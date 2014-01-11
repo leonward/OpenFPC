@@ -80,6 +80,7 @@ sub parselog{
                 %eventdata=OFPC::Parse::pradslog($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=OFPC::Parse::nftracker($logline); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=OFPC::Parse::cxsearch($logline); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OFPC::Parse::ofpc_search($logline); if ($eventdata{'parsed'} ) { last; }
 
                 return(\%eventdata);
         }   
@@ -606,5 +607,50 @@ sub cxsearch{
 	} 
 	return(%e);
 }
+
+=head2 ofpc_search
+	OpenFPC connection search via the queue daemon
+=cut
+
+sub ofpc_search{
+	my $logline=shift;
+	my %e=initevent();
+	$e{'type'} = "ofpc_search";
+	my $debug=wantdebug();
+
+	my @d=();
+
+	#kill whitespace at the start of the line
+	$logline =~ s/^\s+|\s+$//g;
+
+	(@d)=split(/\s+/,$logline);
+
+
+	print "TIME $d[1]  and $d[2] and $d[3]\n";
+	$e{'timestamp'}=norm_time("$d[1] $d[2]");
+
+	$e{'sip'} = $d[3];
+	$e{'spt'} = $d[4];	
+	$e{'dip'} = $d[5];	
+	$e{'dpt'} = $d[6];	
+
+	my $ipproto = $d[8];
+
+	if ($ipproto =~ /6/ ) {
+		$e{'proto'} = "tcp";
+	} elsif ($ipproto =~ /17/ ) {
+		$e{'proto'} = "udp";
+	}	
+
+	if ($e{'timestamp'} and
+		$e{'sip'} and
+		$e{'dip'} and
+		$e{'spt'} and 
+		$e{'dpt'}) {
+		$e{'parsed'} = 1;
+	} 
+	return(%e);
+}
+
 
 1;
