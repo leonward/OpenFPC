@@ -428,7 +428,7 @@ sub getctxsummary{
 
 	# Add time details to the table hash that is sent to the client
 	$t->{'stime'} = $stime;
-	$t->{'etime'} = $stime;
+	$t->{'etime'} = $etime;
 	$t->{'slocaltime'} = localtime($stime);
 	$t->{'elocaltime'} = localtime($etime);
 
