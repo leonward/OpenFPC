@@ -528,6 +528,7 @@ sub decoderequest($){
 		valid   	=>	0,
 		sumtype 	=>	0,
 		msg 		=> 0,
+		limit 		=> 0,
 	);
     my @requestarray = split(/\|\|/, $rawrequest);
     my $argnum=@requestarray;
@@ -541,7 +542,8 @@ sub decoderequest($){
     	return(\%request);
     } 
 
-	#Copy values from the client JSON request into the server request hash.
+	# Copy values from the client JSON request into the server request hash.
+	
 	$request{'user'}		=	$r->{'user'}{'val'};
 	$request{'action'}		=	$r->{'action'}{'val'}; 			# Action (store,status,fetch,summary,etc)
 	$request{'device'} 		=	$r->{'device'}{'val'};			# Device to request from i.e openfpc-node
@@ -551,6 +553,7 @@ sub decoderequest($){
 	$request{'logline'}		= 	$r->{'logline'}{'val'};			# The log-line (including one made from session identifiers
 	$request{'comment'} 	= 	$r->{'comment'}{'val'};			# User comments
 	$request{'sumtype'}		= 	$r->{'sumtype'}{'val'}; 		# Type of connection summary
+	$request{'limit'}		= 	$r->{'limit'}{'val'}; 		# Type of connection summary
 
 	$request{'action'} = lc $request{'action'};
 	wlog("DECOD: Recieved action $request{'action'}") if ($debug);
@@ -617,6 +620,17 @@ sub decoderequest($){
 
 	} elsif ($request{'action'} =~ /(status|summary)/) {
 		wlog("DECOD: Summary or Status request") if ($debug);
+		$request{'valid'} = 1;
+	} elsif ($request{'action'} =~/search/) {
+		wlog("DECOD: Search request") if ($debug);
+		$request{'sip'} = $r->{'sip'}{'val'};
+		$request{'dip'} = $r->{'dip'}{'val'};
+		$request{'spt'} = $r->{'spt'}{'val'};
+		$request{'dpt'} = $r->{'dpt'}{'val'};
+		$request{'timestamp'} = $r->{'timestamp'}{'val'};
+		$request{'stime'} = $r->{'stime'}{'val'};
+		$request{'etime'} = $r->{'etime'}{'val'};
+		$request{'proto'} = $r->{'proto'}{'val'};
 		$request{'valid'} = 1;
 	} else {
 		# Invalid action
@@ -1556,31 +1570,46 @@ sub comms{
 		                        wlog("COMMS: $client_ip: RID: $request->{'rid'} getting summary data\n");
 		                        wlog("COMMS: $client_ip: RID: $request->{'rid'} Stime=$request->{'stime'} Etime=$request->{'etime'}");
 		                            
-		                        (my $success, my $message, my @table)=OFPC::CXDB::getctxsummary($config{'SESSION_DB_NAME'}, 
+		                        #(my $success, my $message, my @table)=OFPC::CXDB::getctxsummary($config{'SESSION_DB_NAME'},  XXX
+		                        (my $t)=OFPC::CXDB::getctxsummary($config{'SESSION_DB_NAME'}, 
 								$config{'SESSION_DB_USER'}, 
 								$config{'SESSION_DB_PASS'},
 								$request->{'sumtype'},
 								$request->{'stime'},
 								$request->{'etime'},
-								20);
+								20);		# Row count?
 		                            
-		                        if ($success) {
+		                        unless ($t->{'error'}) { 
+		                        	my $tj=encode_json($t);	
 									print $client "TABLE:\n";
-									wlog("DEBUG: Sending table....\n") if ($debug);
-									foreach my $row (@table) {
-		                                    
-		                            foreach (@$row) {
-		                                wlog($_) if ($debug);
-										print $client "$_,";
-		                            }
+									wlog("DEBUG: Sending table JSON....\n") if ($debug);
+									print $client $tj . "\n";
 		                                    
 		                            print $client "\n";
-		                                #print "\n" if ($debug);
-		                			}	   
-		                        } else {	# Problem found with query
-									print $client "ERROR: $message\n";
+		                        } else {	
+									print $client "ERROR: $t->{'error'}\n";
 		                        }
+		                        wlog("COMMS: $client_ip: RID: $request->{'rid'} Table Sent. Closing connection\n");
+			                    shutdown($client,2);
+							} elsif ($request->{'action'} eq "search") {
+								wlog("COMMS: $client_ip: RID: $request->{'rid'} Search Request\n");
+		                        wlog("COMMS: $client_ip: RID: $request->{'rid'} Stime=$request->{'stime'} Etime=$request->{'etime'}");
+
+		                        (my $t)=OFPC::CXDB::cx_search($config{'SESSION_DB_NAME'}, 
+												$config{'SESSION_DB_USER'}, 
+												$config{'SESSION_DB_PASS'},
+												$request);
 		                            
+		                        unless ($t->{'error'}) { 
+		                        	my $tj=encode_json($t);	
+									print $client "TABLE:\n";
+									wlog("DEBUG: Sending table JSON....\n") if ($debug);
+									print $client $tj . "\n";
+		                                    
+		                            print $client "\n";
+		                        } else {	
+									print $client "ERROR: $t->{'error'}\n";
+		                        }
 		                        wlog("COMMS: $client_ip: RID: $request->{'rid'} Table Sent. Closing connection\n");
 			                    shutdown($client,2);
 							}

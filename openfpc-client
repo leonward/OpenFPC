@@ -38,7 +38,7 @@ my $now=time();
 my $openfpcver="0.8";
 my (%config,$verbose);
 my $password=0;
-my $debug=0;
+my $debug=OFPC::Request::wantdebug();
 my $r2=OFPC::Request::mkreqv2();
 
 # Hint: "ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp timestamp:1274864808 msg:Some freeform text";
@@ -79,7 +79,7 @@ sub showhelp{
   -port or -o <TCP PORT>                 Port to connect to (default 4242)
   -user or -u <username>                 Username	
   -password or -p <password>             Password (if not supplied, it will be prompted for)
-  -action or -a <action>                 OFPC action to take. fetch, store, status, summary
+  -action or -a <action>                 Action to take. fetch, store, status, summary, search
   -verbose or -v                         Run in verbose mode
   -debug or -d                           Run in debug mode
   -write or -w                           Output PCAP file to write to
@@ -98,11 +98,21 @@ sub showhelp{
   -dst-port or -dpt <port>               Destination Port
   -vlan <vlan>                           VLAN (NOT DONE YET)
 
-  -------- Connection Tables -------
-  -summarytype <summary type>            Generate a summary 
-  -save                                  Save connection data in local database
-  -top <number>                          Show top x entries
- 
+  -------- Connection Data -------
+  -summtype or summary_type <table>      Connection Summary table can be one of
+	    top_source_ip_by_connection		 <- these tables
+	    top_source_ip_by_volume
+	    top_destination_ip_by_connection
+	    top_destination_ip_by_volume
+	    top_source_tcp_by_connection
+	    top_source_tcp_by_volume
+	    top_destination_tcp_by_connection
+	    top_destination_tcp_by_volume
+	    top_destination_udp_by_connection
+	    top_destination_udp_by_volume
+	    top_source_udp_by_connection
+	    top_source_udp_by_volume
+
   -------- Time Constraints -------
   --last <seconds>                       Specify relative time range to now ($now) 
   --timestamp	<timestamp>              Event timestamp
@@ -181,6 +191,85 @@ sub convbytes{
 		} 
 	}
 	return("$bytes $units");
+}
+
+sub bar{
+	my $l=1;
+	my $i=0;
+	my $c="-";		# Default bar type
+	$l=shift;
+	$c=shift;
+	while ($i < $l) {
+		print $c;
+		$i++;
+	}
+	print "\n";	
+}
+
+sub displayTable{
+	my $r=shift;
+	my $tj=$r->{'table'};
+	my $t=decode_json($tj);
+	my $len=15;				# Default length 
+							#in case the table doesn't set it
+
+	if (defined $t->{'len'}) {
+		$len=$t->{'len'};
+	}
+
+	my $blen=5;						# Including the "row" entry
+	if (defined $t->{'format'}) {
+		foreach (@{$t->{'format'}}) {
+			$blen=$blen+$_;
+		}
+	} else {
+		$blen=40;
+	}
+
+	bar($blen,"=");	
+	print " $t->{'title'}\n";
+	bar($blen,"=");	
+	print " Start: " . localtime($t->{'stime'}) . "\n";
+	print " End  : " . localtime($t->{'etime'}) . "\n";
+	print " Node : $t->{'nodename'}\n"							if (defined $t->{'nodename'});
+	print " Rows : $t->{'size'}\n";
+	bar($blen,"=");	
+
+	# Colum heads. Line number is added after
+	printf ("%5s", "Row");
+
+	my $fc=0;
+	foreach (@{$t->{'cols'}}) {
+		if (defined $t->{'format'}[$fc]) {		# IF format is defined in the table, use it for output
+			my $l=$t->{'format'}[$fc];			
+			printf ("%${l}s", $_);	
+		} else {	
+			printf ("%${len}s", $_);
+		}
+		$fc++;
+	}
+	print "\n";
+
+	my $i=0;
+	my $table=$t->{'table'};
+	while ($i < $t->{'size'}) {
+		printf("%5s",$i);			# Line number at the start
+		my $fc=0;				# Counter for format
+
+		foreach (@{$t->{'table'}{$i}}) {
+			if (defined $t->{'format'}[$fc]) {		# IF format is defined in the table, use it for output
+				my $l=$t->{'format'}[$fc];			
+				printf ("%${l}s", $_);
+			} else {								# Use the default column format length
+				#print "FORMAT $t->{'format'}[$fc]:";
+				printf ("%${len}s", $_);
+			}
+			$fc++;
+		} 
+		print "\n";
+		$i++;
+	}
+	bar($blen,"=");	
 }
 
 sub displayStatus{
@@ -336,10 +425,11 @@ GetOptions (    'u|user=s' => \$cmdargs{'user'},
 		'stime=s' =>  \$cmdargs{'stime'},
 		'etime=s' => \$cmdargs{'etime'},
 		'bpf=s' => \$cmdargs{'bpf'},
-		'sumtype|summarytype=s' => \$cmdargs{'sumtype'},
+		'sumtype|summary_type=s' => \$cmdargs{'sumtype'},
 		'save' => \$cmdargs{'dbsave'},
 		'l|last=s' => \$cmdargs{'last'},
 		'H|hash' => \$cmdargs{'hash'},
+		'limit=s' => \$cmdargs{'limit'},
     );
 
 
@@ -361,6 +451,7 @@ $r2->{'stime'}->{'val'} 		= $cmdargs{'stime'} 	if ($cmdargs{'stime'});
 $r2->{'etime'}->{'val'}			= $cmdargs{'etime'} 	if ($cmdargs{'etime'});
 $r2->{'sumtype'}->{'val'}		= $cmdargs{'sumtype'}   if ($cmdargs{'sumtype'});
 $r2->{'save'}->{'val'}			= $cmdargs{'save'}   	if ($cmdargs{'save'});
+$r2->{'limit'}->{'val'}			= $cmdargs{'limit'}   	if ($cmdargs{'limit'});
 
 
 $r2->{'sip'}->{'val'}			= $cmdargs{'sip'}   	if ($cmdargs{'sip'});
@@ -407,8 +498,11 @@ if ($r2->{'action'}{'val'} =~ m/(fetch|store)/)  {
 		exit;
 	}
 } elsif ($r2->{'action'}{'val'} eq "status" ) {
-	print "Sending status request\n" if ($debug);
 	print "DEBUG: Sending status request\n" if ($debug);
+} elsif ($r2->{'action'}{'val'} eq "summary" ) {
+	print "DEBUG: Sending Summary request" if ($debug);
+} elsif ($r2->{'action'}{'val'} eq "search" ) {
+	print "DEBUG: Sending Search request" if ($debug);
 } else {
 	die("Action \'$r2->{'action'}{'val'}\' invalid, or not implemented yet");
 }
@@ -468,8 +562,9 @@ unless ($result{'success'}) {
 
 # Output result to console
 if ($r2->{'action'}{'val'} eq "status") {
-	print "Displaying status\n";
 	displayStatus(\%result);
+} elsif ($r2->{'action'}{'val'} =~/(summary|search)/) {
+	displayTable(\%result);
 } else {
 	displayResult($cmdargs{'gui'});
 }
