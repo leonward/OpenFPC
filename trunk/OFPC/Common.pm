@@ -620,6 +620,8 @@ sub decoderequest($){
 
 	} elsif ($request{'action'} =~ /(status|summary)/) {
 		wlog("DECOD: Summary or Status request") if ($debug);
+		$request{'stime'} = $r->{'stime'}{'val'};
+		$request{'etime'} = $r->{'etime'}{'val'};
 		$request{'valid'} = 1;
 	} elsif ($request{'action'} =~/search/) {
 		wlog("DECOD: Search request") if ($debug);
@@ -1577,7 +1579,7 @@ sub comms{
 								$request->{'sumtype'},
 								$request->{'stime'},
 								$request->{'etime'},
-								20);		# Row count?
+								$request->{'limit'});
 		                            
 		                        unless ($t->{'error'}) { 
 		                        	my $tj=encode_json($t);	
