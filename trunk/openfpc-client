@@ -480,6 +480,7 @@ unless( ($cmdargs{'quiet'} or $cmdargs{'gui'})) {
 
 if ($cmdargs{'help'}) {
 	showhelp;
+	return 1;
 	exit;
 }
 

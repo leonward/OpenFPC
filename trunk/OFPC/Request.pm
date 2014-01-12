@@ -22,7 +22,6 @@ package OFPC::Request;
 #########################################################################################
 
 use strict;
-use OFPC::Parse;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
 require Exporter;
 use Switch;
