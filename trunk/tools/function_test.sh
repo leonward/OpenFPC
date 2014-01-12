@@ -1,13 +1,9 @@
 #!/bin/bash -e
 
 # Quickly test a set of functions to ensure things work before rolling a release
-
 # Leon Ward - leon@rm-rf.co.uk
 
-
-TARPATH=~
-SRCPATH=..
-USER="admin";		# Creds to use for this one tes
+USER="admin";		# Creds to use for this one test
 PASS="admin";
 OFPC="openfpc-client -u $USER -p $PASS"
 IP=$(hostname --all-ip-addresses)
@@ -78,6 +74,11 @@ ARGS="-a store --dip $IP --last 60"
 $OFPC $ARGS 
 ARGS="-a store --dpt 80 --last 60"
 $OFPC $ARGS 
+ARGS="-a store --dpt 22 --last 60"
+$OFPC $ARGS 
+ARGS="-a store --sip $IP --last 60
+$OFPC $ARGS --comment "SOME COMMENT"
+
 
 
 
