@@ -212,7 +212,14 @@ sub getctxsummary{
 	my $debug=wantdebug();	# Print debug data
 	my @table=();			# Data returned to caller
 	my $error="None";		# Error text
-	my $t=0;				# Href to the table hash we will return
+	my $t={
+		error => 0,
+		stime => 0,
+		etime => 0,
+		title => "Untitled",
+		name => 0,
+	};
+
 
 
 	if ($debug) {
@@ -420,8 +427,8 @@ sub getctxsummary{
 
 		}
 		else {
-			$error="Invalid summary table type $type\n";
-			print "ERROR: Invalid summary table type $type\n" if ($debug);
+			$t->{'error'}="Invalid table type: $type\n";
+			print "ERROR: Invalid table type $type\n" if ($debug);
 		}	
 	}
 
@@ -432,11 +439,11 @@ sub getctxsummary{
 	$t->{'slocaltime'} = localtime($stime);
 	$t->{'elocaltime'} = localtime($etime);
 
-	if ($debug){
-		print "DEBUG: getctxsummary results\n";
-		print Dumper $t;
-		print "-----------------------------\n";
-	}
+	#if ($debug){
+	#	print "DEBUG: getctxsummary results\n";
+	#	print Dumper $t;
+	#	print "-----------------------------\n";
+	#}
 
 	return($t);
 
