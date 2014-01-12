@@ -596,7 +596,7 @@ sub decoderequest($){
 				$request{'proto'} = $eventdata->{'proto'};
 			}
 		} else {
-			wlog("DEBUG: No BPF or logline detected, using session identifiers if set");
+			wlog("DEBUG: No BPF or logline detected, using session identifiers if set") if $debug;
 			$request{'sip'} = $r->{'sip'}{'val'};
 			$request{'dip'} = $r->{'dip'}{'val'};
 			$request{'spt'} = $r->{'spt'}{'val'};
@@ -605,8 +605,8 @@ sub decoderequest($){
 			$request{'stime'} = $r->{'stime'}{'val'};
 			$request{'etime'} = $r->{'etime'}{'val'};
 			$request{'proto'} = $r->{'proto'}{'val'};
-			wlog("DEBUG: Timestamp is $r->{'timestamp'}{'val'}");
-			wlog("DEBUG: Session IDs sip: \'$r->{'sip'}{'val'}\' dip: \'$r->{'dip'}{'val'}\' spt: \'$r->{'spt'}{'val'}\' dpt: \'$r->{'dpt'}{'val'}\' proto: \'$r->{'proto'}{'val'}\'");
+			wlog("DEBUG: Timestamp is $r->{'timestamp'}{'val'}") if $debug;
+			wlog("DEBUG: Session IDs sip: \'$r->{'sip'}{'val'}\' dip: \'$r->{'dip'}{'val'}\' spt: \'$r->{'spt'}{'val'}\' dpt: \'$r->{'dpt'}{'val'}\' proto: \'$r->{'proto'}{'val'}\'") if $debug;
 
 		}
 
