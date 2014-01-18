@@ -53,8 +53,8 @@ sub cx_search{
 
 	($t)=getresults($dbname, $dbuser, $dbpass, $q);
 
-	my @cols = ("Time", "Source IP", "sPort", "Destination", "dPort", "Proto", "Flags", "Flags"); 
-	my @format = (22,     18,          8,             18,            8,           8,        7,   7);
+	my @cols = ("Time", "Source IP", "sPort", "Destination", "dPort", "Proto", "src_bytes", "dst_bytes", "total_bytes"); 
+	my @format = (22,   18,           8,       18,            8,      8,        14,          14,          14);
 	$t->{'title'} = "Custom Search";
 	$t->{'type'} = "search";
 	$t->{'cols'} = [ @cols ];
@@ -93,7 +93,7 @@ sub buildQuery {
 	print "We have $LIMIT\n";
 	my $QUERY = q();
 
-	$QUERY = qq[SELECT start_time,INET_NTOA(src_ip),src_port,INET_NTOA(dst_ip),dst_port,ip_proto,src_flags,dst_flags \
+	$QUERY = qq[SELECT start_time,INET_NTOA(src_ip),src_port,INET_NTOA(dst_ip),dst_port,ip_proto,src_bytes, dst_bytes,(src_bytes+dst_bytes) as total_bytes\
 	            FROM session IGNORE INDEX (p_key) WHERE ];
 
 	if ( $r->{'stime'} =~ /^\d+$/) {
