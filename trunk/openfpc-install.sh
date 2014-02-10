@@ -286,7 +286,7 @@ function doinstall()
 			echo -e "[*] Enabling and restarting Apache2"	
 			# Add openfpc config in apache
 			cp etc/openfpc.apache2.site /etc/apache2/sites-available/
-			a2ensite openfpc.apache2.site
+			a2ensite openfpc.apache2.conf
 			service apache2 reload
 		else
 			echo -e "[!] Cant find apache conf dir. Won't enable web UI"
@@ -320,7 +320,7 @@ function doinstall()
 		then
 			echo -e "[*] Enabling and restarting httpd"	
 			# Add openfpc config in apache
-			cp etc/openfpc.apache2.site /etc/httpd/conf.d
+			cp etc/openfpc.apache2.conf /etc/httpd/conf.d
 			/etc/init.d/httpd restart
 		else
 			echo -e "[!] Cant find apache conf dir. Won't enable web UI"
@@ -381,10 +381,10 @@ function remove()
 	echo -e "[*] Disabling OpenFPC GUI"
 	if [ -f /etc/apache2/sites-available/openfpc.apache2.site ]
 	then	
-		a2dissite openfpc.apache2.site
+		a2dissite openfpc.apache2.conf
 		service apache2 reload
 	fi
-	[ -f /etc/apache2/sites-available/openfpc.apache2.site ] && rm /etc/apache2/sites-available/openfpc.apache2.site 
+	[ -f /etc/apache2/sites-available/openfpc.apache2.conf ] && rm /etc/apache2/sites-available/openfpc.apache2.conf
 
 
 	echo -e "[*] Removing openfpc-progs ..."
