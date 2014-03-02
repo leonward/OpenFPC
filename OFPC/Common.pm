@@ -573,6 +573,9 @@ sub decoderequest($){
 				return(\%request);
     		}
 			$request{'bpf'} = $r->{'bpf'}{'val'};
+			$request{'stime'} = $r->{'stime'}{'val'};
+			$request{'etime'} = $r->{'etime'}{'val'};
+			$request{'timestamp'} = $r->{'timestamp'}{'val'};
 		} elsif ($r->{'logline'}{'val'}) {
 			wlog("DEBUG: Found logline requested as $r->{'logline'}{'val'}\n") if $debug;
 
