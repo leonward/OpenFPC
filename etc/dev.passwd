@@ -1,0 +1,6 @@
+########################################
+# This file is only used in automated testing
+# it should never make its way on to any production system
+SHA1=bar=0f6c5d02114253073f6b80c7bbcbba27548715e8
+SHA1=qux=548732c73ba7954a67d08b414c6e20728bcfd435
+SHA1=foo=4080da143eca2ca421d25e4ee9bf1ec5d7b0ddbd

@@ -1,5 +1,4 @@
-#!/opt/local/bin/perl5.12 -I. 
-
+#!/usr/bin/perl -I.
 #########################################################################################
 # Copyright (C) 2013 Leon Ward 
 # openfpc-client.pl - Part of the OpenFPC - (Full Packet Capture) project
@@ -79,6 +78,7 @@ sub showhelp{
   -port or -o <TCP PORT>                 Port to connect to (default 4242)
   -user or -u <username>                 Username	
   -password or -p <password>             Password (if not supplied, it will be prompted for)
+  -device                                Node name you would like the proxy to extract from
   -action or -a <action>                 Action to take. fetch, store, status, summary, search
   -verbose or -v                         Run in verbose mode
   -debug or -d                           Run in debug mode
@@ -275,6 +275,7 @@ sub displayTable{
 sub displayStatus{
 	my $s=shift;
 	my @d=(
+		'ofpctype',
 		'packetspace',
 		'sessionspace',
 		'savespace',
@@ -421,7 +422,7 @@ GetOptions (    'u|user=s' => \$cmdargs{'user'},
         'src-port|spt=s' => \$cmdargs{'spt'},
         'dst-port|dpt=s' => \$cmdargs{'dpt'},
         'proto=s' => \$cmdargs{'proto'},
-		'device=s' => \$cmdargs{'device'},
+		'node|device=s' => \$cmdargs{'device'},
 		'stime=s' =>  \$cmdargs{'stime'},
 		'etime=s' => \$cmdargs{'etime'},
 		'bpf=s' => \$cmdargs{'bpf'},
