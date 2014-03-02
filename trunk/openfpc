@@ -347,7 +347,7 @@ sub openfpcqueued{
 sub openfpcdaemonlogger{
 	my $action=shift;
 	my $instance=shift;
-	my $daemonargs="-d";
+	my $daemonargs="-d ";
 	
 	my $daemoncmd=findcmd("openfpc-daemonlogger",$instance);
 
@@ -372,9 +372,11 @@ sub openfpcdaemonlogger{
 			"-p $pidfile " .
 			"-P $pidpath " .
 			"-n openfpc-$configs{$instance}{'NODENAME'}.pcap" .
-			" >> /tmp/openfpc-dl-out 2>&1 ";
-			# Daemonlogger is verbose at startup, and we need to store the op to find 
-			# any problems if found. Throwing it to a file in /tmp works for now.
+			" 2>&1 " .
+			"| logger -t OFPC-DL-$configs{$instance}{'NODENAME'}";
+			#" >> /tmp/openfpc-dl-out 2>&1 ";
+			# Daemonlogger is verbose at startup, and we need to store the output to find 
+			# any problems if found. Throwing it to syslog.
 
 	# Get a PID, and check if it's runnings
 	my $pid=getPidFromFile("$pidpath/$pidfile");
@@ -382,7 +384,9 @@ sub openfpcdaemonlogger{
 
 	switch($action){
 		case "start" {
-			#print "$daemoncmd $daemonargs\n";
+			print "DEBUG: Command used to start daemonlogger is\n " .
+				"$daemoncmd $daemonargs\n" if $verbose;
+
 			printf '%-70s',  "Starting Daemonlogger ($configs{$instance}{'NODENAME'})...";
 			if ($running) {
 				printf '%10s', "Running\n";
@@ -399,12 +403,22 @@ sub openfpcdaemonlogger{
 						return(0);
 					}
 				}
+				my $cf = "$configs{$instance}{'BUFFER_PATH'}/openfpc-$configs{$instance}{'NODENAME'}.pcap.0";
+				print "\nDEBUG: Touching a canary file to check if DL needs to delete something at startup:$cf\n" if $verbose;
+				`touch $cf`;
+
 				if ( -x $daemoncmd ) {
 					my $result=system("$daemoncmd $daemonargs");
 					if ($result) {
 						printf '%10s', "Failed\n";
 					} else {
 						printf '%10s', "Done\n";
+						if (-e $cf) {
+							print "DEBUG: canary file still here (good)" if $verbose;
+							unlink $cf;
+						} else {
+							print "WARNING: Buffer path is already over capacity, and a new instance is starting to log!\nBad things will happen unless you clean up older large buffer files.\n";
+						}
 						return(1);
 					}
 				} else {

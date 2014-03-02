@@ -94,7 +94,7 @@ GetOptions (
         );
 
 if ($debug) { 
-	wlog("DEBUG Enabled\n");
+	wlog("DEBUG Enabled - environment variable OFPCDEBUG\n");
 }
 
 if ($vdebug) {

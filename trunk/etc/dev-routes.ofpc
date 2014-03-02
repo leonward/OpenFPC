@@ -1,0 +1,10 @@
+# Example OpenFPC route file.
+##############################################################################
+# http://www.openfpc.org
+# These two lines work with the example configs included.
+# Note you can have multiple aliases for a single Node, this allows extraction
+# by multiple different aliases. 
+#
+
+foo=localhost:4243:foo:foo
+bar=localhost:4244:bar:bar

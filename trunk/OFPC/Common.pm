@@ -31,6 +31,7 @@ use OFPC::Common;
 use OFPC::Request;
 use Sys::Syslog;
 use File::Temp(qw(tempdir));
+use File::Basename;
 use Digest::MD5(qw(md5_hex));
 use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 use threads::shared;
@@ -568,9 +569,11 @@ sub decoderequest($){
 		if ($r->{'bpf'}{'val'}) {
 			wlog("DEBUG: Found BPF set as $r->{'bpf'}{'val'}\n") if $debug;
 			# Check BPF to ensure it's valid before doing anything with it.
-			unless (checkbpf($r->{'bpf'}{'val'})) {
-				$request{'msg'} = "BPF Failed input validation";
-				return(\%request);
+			unless ($config{'PROXY'}) { 			# Check BPF validity on the node, not the proxy
+				unless (checkbpf($r->{'bpf'}{'val'})) {
+					$request{'msg'} = "BPF Failed input validation";
+					return(\%request);
+    			}
     		}
 			$request{'bpf'} = $r->{'bpf'}{'val'};
 			$request{'stime'} = $r->{'stime'}{'val'};
@@ -718,85 +721,84 @@ sub prepfile{
     # Return the filename of the data that is to be sent back to the client.
 
     if ( $config{'PROXY'} ) {
-	# Check if we can route this request
+		# Check if we can route this request
 
- 	(my $nodehost,my $nodeport,my $nodeuser,my $nodepass)=routereq($request->{'device'});
-	unless ($nodehost) { 	# If request isn't routeable....
-				# Request from all devices
+ 		(my $nodehost,my $nodeport,my $nodeuser,my $nodepass)=routereq($request->{'device'});
+		unless ($nodehost) { 	# If request isn't routeable....
+			# Request from all devices
             wlog("PREP : Request is NOT routable. Requesting from all nodes SOUTH from this proxy");
-	    $multifile=1;	# Fraged request will be a multi-file return so we use a ZIP to combine
-	    foreach (keys %route) {
- 		($nodehost,$nodeport,$nodeuser,$nodepass)=routereq($_);
-		$request->{'nodehost'} = $nodehost;
-		$request->{'nodeuser'} = $nodeuser;
-		$request->{'nodeport'} = $nodeport;
-		$request->{'nodepass'} = $nodepass;
+	    	$multifile=1;	# Fraged request will be a multi-file return so we use a ZIP to combine
+	    	foreach (keys %route) {
+ 				($nodehost,$nodeport,$nodeuser,$nodepass)=routereq($_);
+				$request->{'nodehost'} = $nodehost;
+				$request->{'nodeuser'} = $nodeuser;
+				$request->{'nodeport'} = $nodeport;
+				$request->{'nodepass'} = $nodepass;
                 
-		my $result=doproxy($request);
-		if ($result->{'success'}) {
+				my $result=doproxy($request);
+				if ($result->{'success'}) {
                     wlog("DEBUG: Adding $result->{'filename'} to zip list") if ($debug);
                     push (@nodefiles, $result->{'filename'});
-		} else {
+				} else {
                     $prep{'message'} = $result->{'message'};
                     wlog("Error: $result->{'message'}");
-		}
-                
+				}
             }
-	} else { 					# Routeable, do the proxy action 
-            $request->{'nodehost'} = $nodehost;
-            $request->{'nodeuser'} = $nodeuser;
-            $request->{'nodeport'} = $nodeport;
-            $request->{'nodepass'} = $nodepass;
-            
-            my $result=doproxy($request);
+		} else { 					# Route-able, do the proxy action 
+        	$request->{'nodehost'} = $nodehost;
+        	$request->{'nodeuser'} = $nodeuser;
+        	$request->{'nodeport'} = $nodeport;
+        	$request->{'nodepass'} = $nodepass;
+			wlog("PREP: DEBUG: Taking proxy action on this request\n") if $debug;            
+        	my $result=doproxy($request);
 
-            if ($result->{'success'}) {
-		$prep{'success'} = 1;
-		$prep{'md5'} = $result->{'md5'};
-		$prep{'filetype'} = "PCAP";
-		$prep{'filename'}="$result->{'filename'}";
-       		push (@nodefiles, $result->{'filename'});
-		wlog("PREP : Added $result->{'filename'} to zip list") if ($debug);
-            } else {
-		$prep{'message'} = $result->{'message'};
-		wlog("Error: $result->{'message'}");
-            }
-	}
+        	if ($result->{'success'}) {
+				$prep{'success'} = 1;
+				$prep{'md5'} = $result->{'md5'};
+				$prep{'filetype'} = "PCAP";
+				$prep{'filename'}="$result->{'filename'}";
+       			push (@nodefiles, $result->{'filename'});
+				wlog("PREP : Added $result->{'filename'} to zip list") if ($debug);
+        	} else {
+				$prep{'message'} = $result->{'message'};
+				wlog("Error: $result->{'message'}");
+        	}
+		}
         
-	# If we are sending back a zip, add the report file
-	if ($prep{'filetype'} eq "ZIP") {
-            push (@nodefiles,"$request->{'filename'}.txt");
-    	}
+		# If we are sending back a zip, add the report file
+		if ($prep{'filetype'} eq "ZIP") {
+        	push (@nodefiles,"$request->{'filename'}.txt");
+   		}
 
     } else { 	
-	#####################################
-	# Node stuff
-	# Do node stuff, no routing etc just extract the data and make a report
+		#####################################
+		# Node stuff
+		# Do node stuff, no routing etc just extract the data and make a report
 
-	my $result = donode($request,$rid);
+		my $result = donode($request,$rid);
 
-	if ($result->{'success'}) {
+		if ($result->{'success'}) {
             $prep{'success'} = 1;
-	    $prep{'filename'} = $result->{'filename'};
-	    $prep{'md5'} = $result->{'md5'};
-	    $prep{'size'} = $result->{'size'};
-	} else {
-	    $prep{'message'} = $result->{'message'};
-	}
+	    	$prep{'filename'} = $result->{'filename'};
+	    	$prep{'md5'} = $result->{'md5'};
+	    	$prep{'size'} = $result->{'size'};
+		} else {
+	    	$prep{'message'} = $result->{'message'};
+		}
         
-	my $reportfilename=mkreport(0,$request,\%prep);
+		my $reportfilename=mkreport(0,$request,\%prep);
         
-	if ($prep{'filetype'} eq "ZIP") {
+		if ($prep{'filetype'} eq "ZIP") {
             if ($reportfilename) {
 		push(@nodefiles,"$result->{'filename'}.txt");
             }
-	}
-	push(@nodefiles,$request->{'tempfile'});
+		}
+		push(@nodefiles,$request->{'tempfile'});
     }
     
     # Now we have the file(s) we want to rtn to the client, lets zip or merge into a single pcap as requested
     if ($multifile) {
-	if ( $prep{'filetype'} eq "PCAP" ) {
+		if ( $prep{'filetype'} eq "PCAP" ) {
             # @nodefiles is a list of pcaps w/o a path, we need then with a path to merge
             # @mergefiles is a temp array of just that.
             my @mergefiles=();
@@ -822,36 +824,36 @@ sub prepfile{
                 $prep{'message'} = "ERROR: No pcap files returned from any NODE";
             }
 				
-	} else {
+		} else {
             my $zip = Archive::Zip->new();
-            
+          	wlog("DEBUG: Prepping a ZIP file") if $debug; 
             foreach my $filename (@nodefiles) {
                 if ( -f "$config{'SAVEDIR'}/$filename" ) {
                     $zip->addFile("$config{'SAVEDIR'}/$filename","$filename");
-		} else {
+				} else {
                     wlog("ZIP : Cant find $config{'SAVEDIR'}/$filename to add to zip! - Skipping"); 
-		}
+				}
             }
             
             if ($zip->writeToFileNamed("$config{'SAVEDIR'}/$request->{'tempfile'}.zip") !=AZ_OK ) {
-		wlog("PREP: ERROR: Problem creating $config{'SAVEDIR'}/$request->{'tempfile'}.zip");
+				wlog("PREP: ERROR: Problem creating $config{'SAVEDIR'}/$request->{'tempfile'}.zip");
             } else {
-		wlog("PREP: Created $config{'SAVEDIR'}/$request->{'tempfile'}.zip") if $debug;
-		$prep{'filename'}="$request->{'tempfile'}.zip";
-		$prep{'success'} = 1;
-		$prep{'md5'} = getmd5("$config{'SAVEDIR'}/$prep{'filename'}");
+				wlog("PREP: Created $config{'SAVEDIR'}/$request->{'tempfile'}.zip") if $debug;
+				$prep{'filename'}="$request->{'tempfile'}.zip";
+				$prep{'success'} = 1;
+				$prep{'md5'} = getmd5("$config{'SAVEDIR'}/$prep{'filename'}");
                 
                 unless ($config{'KEEPFILES'}) {
                     wlog("DEBUG: Cleaning zip contents..\n") if ($debug);
-			foreach (@nodefiles) {
-                            wlog("DEBUG: Unlinking $config{'SAVEDIR'}/$_\n") if ($debug);
-                            if ( -f "$config{'SAVEDIR'}/$_" ) {
-				unlink("$config{'SAVEDIR'}/$_") or wlog("Cant unlink $config{'SAVEDIR'}/$_");
-			    }
-			}
-		}
+					foreach (@nodefiles) {
+                        wlog("DEBUG: Unlinking $config{'SAVEDIR'}/$_\n") if ($debug);
+                        if ( -f "$config{'SAVEDIR'}/$_" ) {
+							unlink("$config{'SAVEDIR'}/$_") or wlog("Cant unlink $config{'SAVEDIR'}/$_");
+			    		}
+					}
+				}
             }
-	} 
+		}	
     }	
 
     return(\%prep);
@@ -885,6 +887,7 @@ sub donode{
             size => 0,
 	);
 
+	wlog "DEBUG: Doing Node action \n" if $debug;
 	# Unless we have been given a real bpf from the user, make our own
 	unless ($request->{'bpf'} ) {
             $bpf=OFPC::Common::mkBPF($request);
@@ -894,8 +897,8 @@ sub donode{
         
         # If for some reason we have failed to get a BPF, lets return an error
 	unless ($bpf) {
-            wlog("NODE : Request: $request->{'rid'} Insufficent constraints for request (Null BPF)");
-            $result{'message'} = "Insufficent constraints for request (Null BPF)";
+            wlog("NODE : Request: $request->{'rid'} Insufficient constraints for request (Null BPF)");
+            $result{'message'} = "Insufficient constraints for request (Null BPF)";
             return(\%result);
 	}
         
@@ -972,7 +975,7 @@ sub routereq{
     if (exists $route{$device} ) {
         $nodevalue=$route{$device};
         ($nodehost, $nodeport, $nodeuser, $nodepass) = split(/:/, $nodevalue);
-        wlog("ROUTE: Routing request to : $device ( $nodehost : $nodeport User: $nodeuser )");
+        wlog("ROUTE: Routing equest to node: $device ( $nodehost : $nodeport User: $nodeuser )");
     } else {
         wlog("ROUTE: No openfpc-route entry found for $device in routing table\n");
         return(0,0,0,0);
@@ -1213,14 +1216,14 @@ sub findBuffers {
 =cut
 
 sub doExtract{
-        my $bpf=shift;
+    my $bpf=shift;
 	my $filelistref=shift;
 	my $mergefile=shift;
 	my @filelist=@{$filelistref};
 	my $tempdir=tempdir(CLEANUP => 1);
 	
-        my @outputpcaps=();
-        wlog("DEBUG: Doing Extraction with BPF $bpf into tempdir $tempdir\n") if ($debug);
+    my @outputpcaps=();
+    wlog("DEBUG: Doing Extraction with BPF $bpf into tempdir $tempdir\n") if ($debug);
 
 	# Test if tcpdump can read files, it's a common problem with apparmor - here we can catch it with a nice error
 	my $tdrc=system("$config{'TCPDUMP'} -r $filelist[0] -c 1 -w /dev/null 2>/dev/null");
@@ -1346,7 +1349,7 @@ sub doproxy{
 		size => 0,
 		md5 => 0,
     );
-
+    my $r2=OFPC::Request::mkreqv2();
     my $nodesock = IO::Socket::INET->new(
                                 PeerAddr => $request->{'nodehost'},
                                 PeerPort => $request->{'nodeport'},
@@ -1361,20 +1364,25 @@ sub doproxy{
     }
     # This is an openfpc-proxy request, we don't want the user to control what file we will
     # write on the proxy. Create our own tempfile.
-   
-    $request->{'filename'}="M-$request->{'nodehost'}-$request->{'nodeport'}-" . time() . "-" . $request->{'rid'};
-    $request->{'user'} = $request->{'nodeuser'};
-    $request->{'password'} = OFPC::Request::mkhash($request->{'nodeuser'},$request->{'nodepass'});
-    $request->{'savedir'} = $config{'SAVEDIR'};
-     
-    %result=OFPC::Request::request($nodesock,$request);
+    $r2->{'filename'}{'val'}="M-$request->{'nodehost'}-$request->{'nodeport'}-" . time() . "-" . $request->{'rid'};
+    $r2->{'user'}{'val'} = $request->{'nodeuser'};
+    $r2->{'password'}{'val'} = OFPC::Request::mkhash($request->{'nodeuser'},$request->{'nodepass'});
+    $r2->{'savedir'}{'val'} = $config{'SAVEDIR'};
+    $r2->{'action'}{'val'} = "fetch";
+    $r2->{'bpf'}{'val'} = $request->{'bpf'};
+
+    %result=OFPC::Request::request($nodesock,$r2);
 	
     # Return the name of the file that we have been passed by the node
     if ($result{'success'} == 1) {
-		wlog("PROXY: Got $result{'filename'} MD5: $result{'md5'} Size $result{'size'} from $request->{'device'} ($request->{'nodehost'})\n");
-	return(\%result);
-	    } else {
-	wlog("Problem with extract: Result: $result{'success'} Message: $result{'message'}");
+		wlog("PROXY: Success: Received file $result{'filename'} MD5: $result{'md5'} Size $result{'size'} from $request->{'device'} ($request->{'nodehost'})\n");
+		# XXX
+		wlog("Removing the pathname from the file returned in the proxy request $result{'filename'}") if $debug;
+		$result{'filename'} = basename($result{'filename'});
+		wlog("Filename is now $result{'filename'}") if $debug;
+		return(\%result);
+	} else {
+		wlog("Proxy: Problem: Issue reported back from node: Result: $result{'success'} Message: $result{'message'}");
 		return(\%result);
     }
 }
@@ -1680,7 +1688,6 @@ sub runq {
                 # route the request to said device.
                
 				(my $nodehost,my $nodeport,my $nodeuser,my $nodepass)=routereq($request->{'device'});
-                
 				if ($nodehost) { 		# If this request is routable....
                     $request->{'nodehost'} = $nodehost;
                     $request->{'nodeuser'} = $nodeuser;
