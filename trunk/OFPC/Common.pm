@@ -121,24 +121,28 @@ sub getrequestid{
 
 
 sub checkbpf{
-	my $bpf=shift;
-	# Check BPF to ensure it's valid before doing anything with it.
-	unless ($bpf =~/^[a-zA-Z 0-9\.]+$/) {
-		wlog("DEBUG: BPF Failed input validation, bad chars");
-		return(0);
-	}
-    # To check BPF is valid, open a pcap for reading.
-    my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-$config{'NODENAME'}.pcap.*`;
-    my $p=shift(@pcaptemp);
-    chomp $p;
-    my $i=system("$config{'TCPDUMP'} -r $p -c 1 $bpf > /dev/null 2>&1");
-
-    if ($i) {
-    	wlog("WARN : BPF failed to validate - $bpf");
-    	return(0);	
-    }
-    # Looks like the BPF is okay then...
-    return(1);
+        my $bpf=shift;
+        # Check BPF to ensure it's valid before doing anything with it.
+        unless ($bpf =~/^[A-Za-z0-9 \.\[\]\(\)&=\/]+$/) {
+                wlog("DEBUG: BPF Failed input validation, bad chars in $bpf");
+                return(0);
+        }
+        # To check BPF is valid, open a pcap for reading.
+        my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-$config{'NODENAME'}.pcap.*`;
+        if (@pcaptemp) {
+                my $p=shift(@pcaptemp);
+                chomp $p;
+                my $i=system("$config{'TCPDUMP'} -nnr $p -c 1 \"$bpf or not($bpf)\" > /dev/null 2>&1");
+                if ($i) {
+                        wlog("WARN : BPF failed to validate - $bpf");
+                        return(0);
+                    }
+                    # Looks like the BPF is okay then...
+                    return(1);
+        } else {
+                wlog("WARN: No pcaps found in $config{'BUFFER_PATH'}");
+                return(2);
+        }
 }
 
 =head2 mkBPF
@@ -207,12 +211,13 @@ sub getstatus{
 		nodelist => [],
 	);
 
-	# Supported types for conversion are 
+	# Supported types for text format conversion are 
 		# e = time epoch
 		# t = text
 		# b = binary
 		# s = space (bytes)
-		# p = %
+		# p = %a
+
 	my %s = (   
 		success => {
 			val => 0,
@@ -234,6 +239,11 @@ sub getstatus{
 			val => 0,
 			text => "Oldest packet in storage       ",
 			type => "e",
+		},
+		packetpacptotal => {
+			val => 0,
+			text => "PCAP file space used           ",
+			type => "t",
 		},
 		packetspace => {
 			val => 0,
@@ -353,6 +363,13 @@ sub getstatus{
 			$s{'sessionspace'}{'val'} = "Disabled";
 			$s{'sessionused'}{'val'} = "Disabled";
 		}
+
+		# Get summary of pcap file total space in this buffer
+		################################
+		my $ps=`du -hsc $config{'BUFFER_PATH'}/openfpc-$config{'NODENAME'}\.pcap* |grep total`;
+		(my $pso)=split(/\s/,$ps);
+		wlog ("pso is '$pso'") if $debug;
+		$s{'packetpacptotal'}{'val'} = $pso;
 
 		my $saveref=df("$config{'SAVEDIR'}");
 		$s{'savespace'}{'val'} = $saveref->{'per'};
@@ -567,18 +584,21 @@ sub decoderequest($){
 		# logline
 
 		if ($r->{'bpf'}{'val'}) {
-			wlog("DEBUG: Found BPF set as $r->{'bpf'}{'val'}\n") if $debug;
-			# Check BPF to ensure it's valid before doing anything with it.
-			unless ($config{'PROXY'}) { 			# Check BPF validity on the node, not the proxy
-				unless (checkbpf($r->{'bpf'}{'val'})) {
-					$request{'msg'} = "BPF Failed input validation";
-					return(\%request);
-    			}
-    		}
-			$request{'bpf'} = $r->{'bpf'}{'val'};
-			$request{'stime'} = $r->{'stime'}{'val'};
-			$request{'etime'} = $r->{'etime'}{'val'};
-			$request{'timestamp'} = $r->{'timestamp'}{'val'};
+                        wlog("DEBUG: Found BPF set as $r->{'bpf'}{'val'}\n") if $debug;
+                        # Check BPF to ensure it's valid before doing anything with it.
+                        my $bpfcheck = checkbpf($r->{'bpf'}{'val'});
+                        if ($bpfcheck==1) {
+                                $request{'bpf'} = $r->{'bpf'}{'val'};
+                                $request{'timestamp'} = $r->{'timestamp'}{'val'};
+                                $request{'stime'} = $r->{'stime'}{'val'};
+                                $request{'etime'} = $r->{'etime'}{'val'};
+                        } elsif ($bpfcheck==2) {
+                                $request{'msg'} = "No pcap files found in buffer path";
+                                return(\%request);
+                        } else {
+                                $request{'msg'} = "BPF Failed input validation";
+                                return(\%request);
+                        }
 		} elsif ($r->{'logline'}{'val'}) {
 			wlog("DEBUG: Found logline requested as $r->{'logline'}{'val'}\n") if $debug;
 
@@ -1573,7 +1593,7 @@ sub comms{
 		                        wlog ("COMMS: $client_ip Recieved Status Request");
 		                        my $s=OFPC::Common::getstatus($request);
 		                        my $sj = encode_json($s);
-		                        print Dumper $s;
+		                        # print Dumper $s;
 		                        wlog("DEBUG: Status msg sent to client \n") if $debug;	
 		                        print $client "STATUS: $sj";
 			                    shutdown($client,2);
