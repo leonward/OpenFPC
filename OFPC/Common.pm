@@ -559,7 +559,6 @@ sub decoderequest($){
     	$request{'msg'} = "Bad request. Unable to parse JSON.";
     	return(\%request);
     } 
-
 	# Copy values from the client JSON request into the server request hash.
 	
 	$request{'user'}		=	$r->{'user'}{'val'};
@@ -620,6 +619,7 @@ sub decoderequest($){
 				$request{'stime'} = $eventdata->{'stime'};
 				$request{'etime'} = $eventdata->{'etime'};
 				$request{'proto'} = $eventdata->{'proto'};
+				wlog("DEBUG: logline timestamp has been set to $request{'timestamp'}\n");
 			}
 		} else {
 			wlog("DEBUG: No BPF or logline detected, using session identifiers if set") if $debug;
@@ -678,9 +678,6 @@ sub decoderequest($){
 			wlog("DECOD: Neither timestamp or stime/etime are set, setting timestamp to $now, it was $r->{'timestamp'}{'val'}\n") if $debug;
 			$request{'timestamp'} = $now;
 		}
-	} else {
-		wlog("DECOD: Timestamp was set to $r->{'timestamp'}{'val'}") if $debug;
-		$request{'timestamp'} = $r->{'timestamp'}{'val'};
 	}
 
 	$request{'rid'} = OFPC::Common::getrequestid;
