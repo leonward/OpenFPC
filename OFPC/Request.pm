@@ -504,6 +504,7 @@ sub mkhash{
 	my $pass=shift;
 	my ($digest,$hash);
 
+	print "User is $user, pass is $pass\'";
 	die("ERROR: Can't make a hash without user and pass set") unless ($user and $pass);
 	
 	$digest = Digest::SHA->new(1);

@@ -35,7 +35,7 @@ use JSON::PP;
 
 my $now=time();
 my $openfpcver="0.8";
-my (%config,$verbose);
+my (%config);
 my $password=0;
 my $debug=OFPC::Request::wantdebug();
 my $r2=OFPC::Request::mkreqv2();
@@ -49,7 +49,6 @@ my %cmdargs=( user => 0,
 		logtype => "auto",
 		filetype => "PCAP",
 		debug => 0,
-		verbose => 0,
 		filename => "/tmp/pcap-openfpc-$now",
 		logline => 0,
 		quiet => 0,
@@ -80,8 +79,6 @@ sub showhelp{
   -password or -p <password>             Password (if not supplied, it will be prompted for)
   -device                                Node name you would like the proxy to extract from
   -action or -a <action>                 Action to take. fetch, store, status, summary, search
-  -verbose or -v                         Run in verbose mode
-  -debug or -d                           Run in debug mode
   -write or -w                           Output PCAP file to write to
   -quiet or -q                           Quiet. Only print saved filename||error
   -gui	or -g                            Output that's parseable via OpenFPC's gui (or other tool)
@@ -160,11 +157,12 @@ sub readrcfile{
 		} else {
 			while(<RC>) {
 				chomp;
-		        	if ( $_ =~ m/^[a-zA-Z]/) {
- 		 	               (my $key, my $value) = split /=/, $_;
+		        if ( $_ =~ m/^[a-zA-Z]/) {
+ 		 	        (my $key, my $value) = split /=/, $_;
 					# If config line looks valid, set it
 					if (defined $config->{$key}) {
 						$config->{$key} = $value;
+						print "DEBUG: $rcfile: Setting $key to $value\n" if $debug;
 					} else {
 						print "* Invalid variable $key found in $rcfile \n";
 					}
@@ -319,7 +317,7 @@ sub displayStatus{
 			} elsif ($s->{$n}{$_}{'type'} eq 'e') {									
 				#  epoch timestamp format
 				print "   - $s->{$n}{$_}{'text'} : \t $s->{$n}{$_}{'val'} ";
-				print "(". localtime($s->{$n}{$_}{'val'}) . ")\n";
+				print "(". localtime($s->{$n}{$_}{'val'}) . " UTC)\n";
 			}
    		}
     }  
@@ -411,11 +409,9 @@ my $tempref=readrcfile(\%cmdargs);
 GetOptions (    'u|user=s' => \$cmdargs{'user'},
 		's|server=s' => \$cmdargs{'server'},
 		'o|port=s' => \$cmdargs{'port'},
-		'd|debug' => \$cmdargs{'debug'},
 		'h|help' => \$cmdargs{'help'},
 		'q|quiet' => \$cmdargs{'quiet'},
 		'w|write=s'=> \$cmdargs{'filename'},
-		'v|verbose' => \$cmdargs{'verbose'},
 		't|logtype=s' => \$cmdargs{'logtype'},
 		'e|logline=s' => \$cmdargs{'logline'},
 		'a|action=s' => \$cmdargs{'action'},
@@ -447,6 +443,7 @@ $config{'port'} 	= $cmdargs{'port'}	if $cmdargs{'port'};
 
 ########### rv2
 $r2->{'user'}->{'val'} 			= $cmdargs{'user'}		if $cmdargs{'user'};
+$r2->{'password'}->{'val'} 		= $cmdargs{'password'}	if $cmdargs{'password'};
 $r2->{'filename'}->{'val'} 		= $cmdargs{'filename'}	if $cmdargs{'filename'};
 $r2->{'logtype'}->{'val'} 		= $cmdargs{'logtype'}   if $cmdargs{'logtype'};
 $r2->{'action'}->{'val'} 		= $cmdargs{'action'}	if $cmdargs{'action'};
@@ -461,18 +458,12 @@ $r2->{'sumtype'}->{'val'}		= $cmdargs{'sumtype'}   if ($cmdargs{'sumtype'});
 $r2->{'save'}->{'val'}			= $cmdargs{'save'}   	if ($cmdargs{'save'});
 $r2->{'limit'}->{'val'}			= $cmdargs{'limit'}   	if ($cmdargs{'limit'});
 
-
 $r2->{'sip'}->{'val'}			= $cmdargs{'sip'}   	if ($cmdargs{'sip'});
 $r2->{'dip'}->{'val'}			= $cmdargs{'dip'}   	if ($cmdargs{'dip'});
 $r2->{'dpt'}->{'val'}			= $cmdargs{'dpt'}   	if ($cmdargs{'dpt'});
 $r2->{'spt'}->{'val'}			= $cmdargs{'spt'}   	if ($cmdargs{'spt'});
 $r2->{'proto'}->{'val'}			= $cmdargs{'proto'}   	if ($cmdargs{'proto'});
 $r2->{'timestamp'}->{'val'}		= $cmdargs{'timestamp'} if ($cmdargs{'timestamp'});
-
-if ($cmdargs{'debug'}) { 
-	$debug=1;
-	$verbose=1;
-}
 
 if ($cmdargs{'last'}) {
 	$r2->{'etime'}->{'val'} = $now;
@@ -529,20 +520,21 @@ unless ($r2->{'user'}->{'val'}) {
 	$r2->{'user'}->{'val'} = $username;
 }
 	
-unless ($password) {
+unless ($r2->{'password'}->{'val'}) {
 	print "Password for user $r2->{'user'}{'val'} : ";
 	ReadMode 'noecho';
-	$password = ReadLine 0;
-	chomp $password;
+	$r2->{'password'}{'val'} = ReadLine 0;
+	chomp $r2->{'password'}{'val'};
 	ReadMode 'normal';
 	print "\n";
 }
 
-
+# Unless password val is already a hash, go make it one...
 unless ($cmdargs{'hash'}) {
-	$r2->{'password'}{'val'} = OFPC::Request::mkhash($r2->{'user'}{'val'},$password);
+	print "DEBUG: Converting password into a hash\n" if $debug;
+	$r2->{'password'}{'val'} = OFPC::Request::mkhash($r2->{'user'}{'val'},$r2->{'password'}{'val'});
 } else {
-	$r2->{'password'}{'val'} = $password;
+	print "DEBUG: Not converting password to a hash, assuming it is already one\n" if $debug;
 }
 
 my $sock = IO::Socket::INET->new(
@@ -558,7 +550,6 @@ unless ($sock) {
 
 print "DEBUG: Connected to $config{'server'}\n" if ($debug);
 %result=OFPC::Request::request($sock,$r2);
-#$result=OFPC::Request::request($sock,$r2);
 
 print "DEBUG: Sent Request\n" if ($debug);
 close($sock);

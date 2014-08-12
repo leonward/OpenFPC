@@ -496,6 +496,7 @@ sub openfpccxtracker{
 				}
 
 				if ( -x $daemoncmd ) {
+					print "DEBUG: Daemon start command is\n $daemoncmd $daemonargs\n" if $verbose;
 					my $result=system("$daemoncmd $daemonargs");
 					if ($result) {
 						printf '%10s', "Failed\n";
