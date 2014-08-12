@@ -315,6 +315,11 @@ sub getstatus{
 			text => "Oldest session in storage      ",
 			type => "e",
 		},
+		lastctx => {
+			val => 0,
+			text => "Newest session in storage      ",
+			type => "e",
+		},
 	);
 
 	unless ($config{'PROXY'}) { 	# Process as a node. Don't check proxy specific stuff like comms
@@ -401,15 +406,23 @@ sub getstatus{
 			    } else {
 				    wlog("STATUS: ERROR: Unable to exec SQL command");
 			    }
-			    wlog("DEBUG: Session DB count is $s{'sessioncount'}{'val'}\n") if $debug;
+			    wlog("DEBUG: Session DB size is $s{'sessioncount'}{'val'} sessions\n") if $debug;
 
 			    # Get Oldest session time
-			    $sth= $dbh->prepare("SELECT unix_timestamp(start_time) FROM session ORDER BY start_time LIMIT 1") or wlog("STATUS: ERROR: Unable to get first conenction $DBI::errstr");
+			    $sth= $dbh->prepare("SELECT unix_timestamp(start_time) FROM session ORDER BY start_time LIMIT 1") or wlog("STATUS: ERROR: Unable to get oldest conenction $DBI::errstr");
 			    $sth->execute() or wlog("STATUS: ERROR: Unable to exec SQL command");
 			    while ( my @row = $sth->fetchrow_array ) {
-  				$s{'firstctx'}{'val'} = $row[0];
+  					$s{'firstctx'}{'val'} = $row[0];
 			    }
 			    wlog("DEBUG: Oldest connection in session DB is $s{'firstctx'}{'val'}\n") if $debug;
+
+			    # Get Newest session time
+			    $sth= $dbh->prepare("SELECT unix_timestamp(start_time) FROM session ORDER BY start_time desc LIMIT 1") or wlog("STATUS: ERROR: Unable to get newest conenction $DBI::errstr");
+			    $sth->execute() or wlog("STATUS: ERROR: Unable to exec SQL command");
+			    while ( my @row = $sth->fetchrow_array ) {
+  					$s{'lastctx'}{'val'} = $row[0];
+			    }
+			    wlog("DEBUG: Newest connection in session DB is $s{'firstctx'}{'val'}\n") if $debug;
 
 			    $dbh->disconnect or wlog("Unable to disconnect from DB $DBI::errstr");
 			    if (opendir(SESSION_DIR,$config{'SESSION_DIR'}) ) { 

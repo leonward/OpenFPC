@@ -1,7 +1,7 @@
 #!/bin/bash 
 
 #########################################################################################
-# Copyright (C) 2010 Leon Ward 
+# Copyright (C) 2014 Leon Ward 
 # install-openfpc.sh - Part of the OpenFPC - (Full Packet Capture) project
 #
 # Contact: leon@openfpc.org
@@ -20,7 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #########################################################################################
-
 
 # This installer is for users that cannot or will not use the .debs for installation.
 # It's goal is to take a system from being OpenFPC-less to one that has OpenFPC operating in a semi-standard setup.
@@ -72,7 +71,7 @@ function checkdeps()
 	missdeps=""
 	if [ "$DISTRO" == "DEBIAN" ] 
 	then
-		DEPS="apache2 daemonlogger tcpdump tshark libarchive-zip-perl libfilesys-df-perl libapache2-mod-php5 mysql-server php5-mysql libdbi-perl php5-mysql libterm-readkey-perl libdate-simple-perl libdigest-sha-perl libjson-pp-perl libdatetime-perl" 
+		DEPS="apache2 daemonlogger tcpdump tshark libarchive-zip-perl libfilesys-df-perl libapache2-mod-php5 mysql-server php5-mysql libdbi-perl php5-mysql libterm-readkey-perl libdate-simple-perl libdigest-sha-perl libjson-pp-perl libdatetime-perl libswitch-perl" 
 
 		# Check if some obvious dependencies are met	
 		for dep in $DEPS
@@ -135,7 +134,7 @@ function checkdeps()
 	# 
 	if which cxtracker
 	then
-		echo "* Found cxtracker in your \$PATH (good)"
+		echo "[*] Found cxtracker in your \$PATH (good)"
 	else
 		echo -e "
 ###########################################################
@@ -146,7 +145,7 @@ function checkdeps()
 # cxtracker likely isn't included as part of your distro's
 # package manager. Go grab it from www.openfpc.org/downloads
 # Without cxtracker OpenFPC will function, but you loose 
-# the ability to search flow/connection data in the web UI.
+# the ability to search flow/connection data.
 # All PCAP capture and extraction capabilities will still function.
 # -Leon
 ###########################################################

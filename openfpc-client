@@ -284,6 +284,7 @@ sub displayStatus{
 		'packetused',
 		'sessionused',
 		'firstctx',
+		'lastctx',
 		'firstpacket',
 		'ld1',
 		'ld5',
@@ -295,6 +296,11 @@ sub displayStatus{
 
 	print $bar;
 	print " Status from: $s->{'nodename'} \n"; 
+	if ($debug) {
+		print "DEBUG: Dumping status hash\n";
+		print Dumper $s;
+	}
+
     foreach my $n (@{$s->{'nodelist'}}) {
     	print $bar;
     	print " * Node: $n\n";
