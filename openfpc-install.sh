@@ -284,7 +284,7 @@ function doinstall()
 		then
 			echo -e "[*] Enabling and restarting Apache2"	
 			# Add openfpc config in apache
-			cp etc/openfpc.apache2.site /etc/apache2/sites-available/
+			cp etc/openfpc.apache2.conf /etc/apache2/sites-available/
 			a2ensite openfpc.apache2.conf
 			service apache2 reload
 		else

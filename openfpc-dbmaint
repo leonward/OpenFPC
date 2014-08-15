@@ -186,7 +186,8 @@ function configure_gui
 
     if grep ^SHA1=$ADMIN_USER= $PASSWD > /dev/null
     then
-        echo FOUND USER $ADMIN_USER IN $PASSWD
+        echo -e "[*] Found user $ADMIN_USER IN $PASSWD"
+        echo -e "    Updating the password for $ADMIN_USER in to match the password just entered"
         openfpc-password -f $PASSWD --user $ADMIN_USER -password $ADMIN_PASS -a change
     else
         echo USER NOT FOUND. Adding $ADMIN_USER.

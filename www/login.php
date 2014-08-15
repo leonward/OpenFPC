@@ -104,7 +104,6 @@ function dologin() {
     global $username, $password, $guilink, $securePassword;
     session_start();
     $guilink=guiDB();
-    print "Password is $password user is $username secure is $securePassword\n"; 
     if($securePassword){
         $password = sha1($username . $password);
     }
