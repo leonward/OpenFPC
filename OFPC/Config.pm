@@ -42,10 +42,10 @@ our @ISA = qw(Exporter);
 $VERSION = '0.7';
 
 our $debug=0;
-our $daemon=0;		# Daemon mode
+our $daemon=0;		       # Daemon mode
 our $vdebug=0;
-our $openfpcver=0.8;
-our $rid=0;		#Master request ID. Unique for each instance.
+our $openfpcver=0.9;
+our $rid=0;		           # Master request ID. Unique for each instance.
 our %config=(
     CONFIGURED  => 0,
     NODENAME    => "NONAME",
@@ -65,11 +65,6 @@ our %route=();				# Hash to contain OFPC routing data for nodes
 our $mrid : shared =1; $mrid=1;		# Master request counter. Quick way to identify  request
 our $queue = Thread::Queue->new();	# Queue shared over all threads
 our %pcaps: shared =();
-
-
-
-
-
 
 
 1;

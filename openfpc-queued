@@ -31,6 +31,7 @@ use Getopt::Long;
 use POSIX qw(setsid);		# Required for daemon mode
 use Data::Dumper;
 use File::Temp(qw(tempdir));
+use DateTime;
 use OFPC::Config;
 use OFPC::Common;
 use OFPC::Parse;
@@ -49,6 +50,7 @@ my $help;
 my %route: shared =();
 my $configfile=0;
 my $debug=OFPC::Common::wantdebug();
+my $ltz=DateTime::TimeZone->new( name => 'local' )->name();
 
 =head 2 showhelp
 	Show a simple help message.
@@ -139,6 +141,8 @@ if ($debug) {
 	wlog("DEBUG: mergecap : $config{'MERGECAP'}");
 	wlog("DEBUG: tcpdump : $config{'TCPDUMP'}");
 	wlog("DEBUG: Keep files : $config{'KEEPFILES'}");
+	wlog("DEBUG: Local Timezone for this node is $ltz");
+	wlog("DEBUG: Local time at $ltz is ". localtime());
 }
 
 # Start listener
@@ -151,7 +155,7 @@ my $listenSocket = IO::Socket::INET->new(
                                 );
 
 unless ($listenSocket) { 
-	wlog("ERROR: Problem creating socke on $config{'OFPC_PORT'}"); 
+	wlog("ERROR: Problem creating socket on $config{'OFPC_PORT'}"); 
 	exit 1;
 }
 $listenSocket->autoflush(1);
