@@ -43,7 +43,18 @@ our @ISA = qw(Exporter);
 @EXPORT_OK = qw(ALL);
 $VERSION = '0.5';
 
+=head2 wantdebug
+	Check if debug is enabled via a shell variable OFPCDEBUG=1
+	If so, return a value that enables debug in this function.
+=cut
+	
+sub wantdebug{
+	my $var="OFPCDEBUG";
 
+	my $debug=$ENV{$var}; 
+	wlog("DEBUG: Enabling debug via shell variable $var\n") if $debug;
+	return($debug); 
+}
 
 =head2 initlog
     Set up any logging subsystems.

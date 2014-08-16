@@ -291,6 +291,24 @@ sub openfpcqueued{
 	my $running=isPidRunning($pid) if ($pid);
 
 	switch($action){
+		case "debug" {
+			print "[*] Putting $configs{$instance}{'NODENAME'} into DEBUG mode\n";
+			openfpcqueued('stop', $instance);
+			print " -  Waiting for daemon to stop..";
+			my $count=1;
+			while ($count < 20) {
+				$running=isPidRunning($pid) if ($pid);
+				unless ($running) {
+					print "Putting openfpc-queued into debug mode:\n";
+					exec("export OFPCDEBUG=1 && $daemoncmd -c $conf_dir/$instance");				
+				} else {
+					print ".";
+					sleep 1;
+				}
+				$count++;
+			} 
+			print "Error: Daemon $configs{$instance}{'NODENAME'} still running\n";
+		}	
 		case "start" {
 			printf '%-70s', "Starting OpenFPC Queue Daemon ($configs{$instance}{'NODENAME'})... ";
 			if ($running) {
@@ -668,7 +686,7 @@ GetOptions (    'a|action=s' => \$action,		# Action to take
 );
 
 &showhelp if ($help);
-unless ($action =~ /^(status|start|stop)$/) {
+unless ($action =~ /^(status|start|stop|debug)$/) {
 	print "Invalid action \"$action\". See --help\n";
 	exit(1);
 }
@@ -798,7 +816,7 @@ if ($thing) {
 		die("Sorry, I Don't know what \"$thing\" is.\nIt doesn't match any of the openfpc-daemon names, instance filenames, or Node names\n");
 	}
 } else {
-	# Thing not speficied, taking action on 
+	# Thing not specified, taking action on 
 	# all daemons for all instances.
 	my $fail;
 	foreach my $instance (keys(%configs)) {

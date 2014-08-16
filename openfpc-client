@@ -78,7 +78,12 @@ sub showhelp{
   -user or -u <username>                 Username	
   -password or -p <password>             Password (if not supplied, it will be prompted for)
   -device                                Node name you would like the proxy to extract from
-  -action or -a <action>                 Action to take. fetch, store, status, summary, search
+  -action or -a <action>                 Action to take. Can be one of the below:
+        status                           Get status of the OpenFPC Node
+        fetch                            Fetch PCAP of traffic that matches constraints
+        store                            Extract PCAP of traffic, and store it on the OpenFPC Node
+        summary                          Get a summary of traffic status
+        Search                           Search for traffic that matches constraints
   -write or -w                           Output PCAP file to write to
   -quiet or -q                           Quiet. Only print saved filename||error
   -gui	or -g                            Output that's parseable via OpenFPC's gui (or other tool)
@@ -95,9 +100,9 @@ sub showhelp{
   -dst-port or -dpt <port>               Destination Port
   -vlan <vlan>                           VLAN (NOT DONE YET)
 
-  -------- Connection Data -------
-  -summtype or summary_type <table>      Connection Summary table can be one of
-	    top_source_ip_by_connection		 <- these tables
+  --------  Connction Summary  -------
+  -summtype or summary_type <table>      Connection Summary table can be one of:
+	    top_source_ip_by_connection		 
 	    top_source_ip_by_volume
 	    top_destination_ip_by_connection
 	    top_destination_ip_by_volume

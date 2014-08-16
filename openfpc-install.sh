@@ -23,34 +23,38 @@
 
 # This installer is for users that cannot or will not use the .debs for installation.
 # It's goal is to take a system from being OpenFPC-less to one that has OpenFPC operating in a semi-standard setup.
-# By semi-standard i refer to similar to how the .deb install leaves the system.
+# By semi-standard I refer to similar to how the .deb install leaves the system.
 # It should be noted that the .debs have not been updated for 0.6 - 11/06/2011
 
-openfpcver="0.8"
+openfpcver="0.9"
 PROG_DIR="/usr/bin"
 CONF_DIR="/etc/openfpc"
 CONF_FILES="etc/openfpc-default.conf etc/openfpc-example-proxy.conf etc/routes.ofpc"
 PROG_FILES="openfpc-client openfpc-queued openfpc-cx2db openfpc openfpc-dbmaint openfpc-password"
-GUI_FILES="css images includes index.php javascript login.php useradd.php"
-WWW_DIR="/usr/share/openfpc/www"
+
+#GUI_FILES="css images includes index.php javascript login.php useradd.php"
+#WWW_DIR="/usr/share/openfpc/www"
+
 CGI_FILES="extract.cgi"
 CGI_DIR="/usr/share/openfpc/cgi-bin"
 PERL_MODULES="Parse.pm Request.pm CXDB.pm Common.pm Config.pm"
 INIT_SCRIPTS="openfpc-daemonlogger openfpc-cx2db openfpc-cxtracker openfpc-queued"
 INIT_DIR="/etc/init.d/" 
-REQUIRED_BINS="tcpdump date mergecap perl tshark"
+REQUIRED_BINS="tcpdump date mergecap perl tshark test"
 LOCAL_CONFIG="/etc/openfpc/openfpc.conf"
 PERL_LIB_DIR="/usr/local/lib/site_perl"
 OFPC_LIB_DIR="$PERL_LIB_DIR/OFPC"
 
-DEPSOK=0		# Track if obvious deps are met
+DEPSOK=0			# Track if known deps are met
 DISTRO="AUTO"		# Try to work out what distro we are installing on
-# DISTRO="REDHAT"		# force to RedHat
-# DISTRO="Debian" 	# Force to Debian / Ubuntu
+# DISTRO="REDHAT"	# Force detection of distribution to RedHat
+# DISTRO="Debian" 	# Force to detection of distribution to Debian / Ubuntu
 
 IAM=$(whoami)
 DATE=$(date)
 PATH=$PATH:/usr/sbin
+ACTION=$1
+GUI=$2
 
 function die()
 {
@@ -98,8 +102,8 @@ function checkdeps()
 			echo -e "[-] Checking for $dep ..."
 			if  rpm -q $dep > /dev/null 2>&1
 			then
-				echo -e "    $dep Okay"
-			else
+				echo -e "    $dep Okay
+"			else
 				DEPSOK=1
 				echo -e "[!] ERROR: Package $dep is not installed."
 				missdeps="$missdeps $dep"
@@ -142,11 +146,13 @@ function checkdeps()
 ###########################################################
 # Don't Panic! 
 # This may be Okay if you expect it not to be found.
-# cxtracker likely isn't included as part of your distro's
-# package manager. Go grab it from www.openfpc.org/downloads
+# cxtracker likely isn't included as part of your Operating System's
+# package manager. Go grab it from www.openfpc.org/downloads.
 # Without cxtracker OpenFPC will function, but you loose 
 # the ability to search flow/connection data.
-# All PCAP capture and extraction capabilities will still function.
+#
+# All full packet capture and extraction capabilities will 
+# still function without cxtracker.
 # -Leon
 ###########################################################
 "
@@ -161,27 +167,25 @@ function doinstall()
 	if [ "$DISTRO" == "DEBIAN" ]
 	then
 		PERL_LIB_DIR="/usr/local/lib/site_perl"
-    OFPC_LIB_DIR="$PERL_LIB_DIR/OFPC"
+    	OFPC_LIB_DIR="$PERL_LIB_DIR/OFPC"
 	elif [ "$DISTRO" == "REDHAT" ]
 	then
 		PERL_LIB_DIR="/usr/local/share/perl5"
-    OFPC_LIB_DIR="$PERL_LIB_DIR/OFPC"
+    	OFPC_LIB_DIR="$PERL_LIB_DIR/OFPC"
 	fi
-
 
 
 	##################################
 	# Check for Dirs
-
 	# Check for, and create if required a /etc/openfpc dir
-        if [ -d $CONF_DIR ] 
+    if [ -d $CONF_DIR ] 
 	then
 		echo -e " -  Found existing config dir $CONF_DIR "
 	else
 		mkdir $CONF_DIR || die "[!] Unable to mkdir $CONF_DIR"
 	fi
 
-	# Check the perl_lib_dir is in the perl path
+	# Check the perl_lib_dir is in the Perl path
 	if  perl -V | grep "$PERL_LIB_DIR" > /dev/null
 	then
 		echo " -  Installing modules to $PERL_LIB_DIR"
@@ -189,8 +193,8 @@ function doinstall()
 		die "[!] Perl include path problem. Cant find $PERL_LIB_DIR in Perl's @INC (perl -V to check)"
 	fi	
 
-	# Check four our inclide dir	
-        if [ -d $OFPC_LIB_DIR ] 
+	# Check four our include dir	
+    if [ -d $OFPC_LIB_DIR ] 
 	then
 		echo -e " -  $OFPC_LIB_DIR exists"
 	else
@@ -200,12 +204,15 @@ function doinstall()
 	# Check for init dir
 	[ -d $INIT_DIR ] || die "[!] Cannot find init.d directory $INIT_DIR. Something bad must have happened."
 
-	if [ -d $WWW_DIR ] 
-	then
-		echo -e " *  Found $WWW_DIR"
-	else
-		mkdir --parent $WWW_DIR || die "[!] Unable to mkdir $WWW_DIR"
-	fi
+	# Splitting GUI apart from main program
+	#if [ -d $WWW_DIR ] 
+	#then
+	#	echo -e " *  Found $WWW_DIR"
+	#else
+	#	mkdir --parent $WWW_DIR || die "[!] Unable to mkdir $WWW_DIR"
+	#fi
+
+	# XXXCGI
 	if [ -d $CGI_DIR ] 
 	then
 		echo -e " *  Found $CGI_DIR"
@@ -247,53 +254,52 @@ function doinstall()
 	done
 
 	###### WWW files #####
-
-
-	for file in $GUI_FILES
-	do
-		echo -e " -  Installing $file"
-		cp -r www/$file $WWW_DIR/$file
-	done
+	# I'm separating the GUI out from the main program.
+	# 
+	# for file in $GUI_FILES
+	# do
+	#	echo -e " -  Installing $file"
+	#	cp -r www/$file $WWW_DIR/$file
+	# done
 
 	###### CGI files #####
-
+	# CGI isn't for the GUI, it's to enable external tools to request data via an API
 	for file in $CGI_FILES
 	do
 		echo -e " -  Installing $file"
 		cp cgi-bin/$file $CGI_DIR/$file
 	done
 
-
 	###### init #######
 
-        for file in $INIT_SCRIPTS
-        do
+    for file in $INIT_SCRIPTS
+    do
 		echo -e " -  Installing $INIT_DIR/$file"
 		cp etc/init.d/$file $INIT_DIR/$file
-        done
+    done
 
 
-	##### Distro specific postinst stuff
+	##### Distribution specific post installation stuff
 
 	if [ "$DISTRO" == "DEBIAN" ]
 	then
 		#################################
-		# Enable website
+		# Enable API cgi-bin
 
 		if [ -d /etc/apache2/sites-available ]
 		then
-			echo -e "[*] Enabling and restarting Apache2"	
+			echo -e "[*] Enabling OpenFPC HTTP API and restarting Apache2"	
 			# Add openfpc config in apache
-			cp etc/openfpc.apache2.conf /etc/apache2/sites-available/
-			a2ensite openfpc.apache2.conf
+			cp etc/openfpc.cgi.apache2.conf /etc/apache2/sites-available/
+			a2ensite openfpc.cgi.apache2.conf
 			service apache2 reload
 		else
 			echo -e "[!] Cant find apache conf dir. Won't enable web UI"
 		fi
-		echo "[*] Updating init config with update-rc.d"
 
 		#################################
 		# Init scripts
+		echo "[*] Updating init config with update-rc.d"
 
 		for file in $INIT_SCRIPTS
 		do
@@ -308,8 +314,8 @@ function doinstall()
 
 	elif [ "$DISTRO" == "REDHAT" ]
 	then
-		echo "[*] Performing a RedHat init Install"
-		echo "[-] RedHat install un-tested. YMMV"
+		echo "[*] Performing a RedHat Install"
+		echo "[-] RedHat install is un-tested by me, I don't use use: Your millage may vary."
 		PERL_LIB_DIR="/usr/local/share/perl5"
 
 		#################################
@@ -317,9 +323,9 @@ function doinstall()
 
 		if [ -d /etc/httpd/conf.d ]
 		then
-			echo -e "[*] Enabling and restarting httpd"	
+			echo -e "[*] Enabling OpenFPC HTTP API and restarting Apache2"	
 			# Add openfpc config in apache
-			cp etc/openfpc.apache2.conf /etc/httpd/conf.d
+			cp etc/openfpc.cgi.apache2.conf /etc/httpd/conf.d
 			/etc/init.d/httpd restart
 		else
 			echo -e "[!] Cant find apache conf dir. Won't enable web UI"
@@ -327,7 +333,7 @@ function doinstall()
 
 	fi
 
-        # Disable basic auth now that we have GUI based acl
+    # Disable basic auth now that we have GUI based acl
 	#if [ -f /etc/openfpc/apache2.passwd ] 
 	#then
 	#	echo " -   Skipping basic auth passwd. File exists"
@@ -380,10 +386,10 @@ function remove()
 	echo -e "[*] Disabling OpenFPC GUI"
 	if [ -f /etc/apache2/sites-available/openfpc.apache2.site ]
 	then	
-		a2dissite openfpc.apache2.conf
+		a2dissite openfpc.cgi.apache2.conf
 		service apache2 reload
 	fi
-	[ -f /etc/apache2/sites-available/openfpc.apache2.conf ] && rm /etc/apache2/sites-available/openfpc.apache2.conf
+	[ -f /etc/apache2/sites-available/openfpc.cgi.apache2.conf ] && rm /etc/apache2/sites-available/openfpc.cgi.apache2.conf
 
 
 	echo -e "[*] Removing openfpc-progs ..."
@@ -486,7 +492,8 @@ function installstatus()
 		SUCCESS=0
 
 	fi
-	
+
+	echo "- Init scripts"
 	for file in $INIT_SCRIPTS
 	do
 		if [ -f $INIT_DIR/$file ]
@@ -497,7 +504,8 @@ function installstatus()
 			SUCCESS=0
 		fi	
 	done
-	
+
+	echo -e "- Perl modules"	
 	for file in $PERL_MODULES
 	do
 		if [ -f $OFPC_LIB_DIR/$file ]
@@ -508,14 +516,38 @@ function installstatus()
 			SUCCESS=0
 		fi	
 	done
+	echo -e "- Program Files"
+	for file in $PROG_FILES
+	do
+		if [ -f $PROG_DIR/$file ]
+		then
+			echo -e "  Yes $PROG_DIR/$file Exists"
+		else
+			echo -e "  No  $PROG_DIR/$file does not exist"
+			SUCCESS=0
+		fi	
+	done
+
+	echo -e "- Dependencies "
+	for file in $REQUIRED_BINS
+	do
+		which $file > /dev/null
+		if [ $? -ne 0 ] 
+		then
+			echo -e "  No  Application $file is not installed"
+			SUCCESS=0
+		else
+			echo -e "  Yes Application $file is installed"
+		fi	
+	done
 
 	echo 
 	if [ $SUCCESS == 1 ] 
 	then
 	
-		echo -e "  Installation Okay"
+		echo -e "  Installation looks Okay"
 	else
-		echo -e "  OpenFPC is not installed correctly"
+		echo -e "  OpenFPC is not installed correctly. Check the above for missing things."
 	fi
 	echo
 }
@@ -538,39 +570,54 @@ then
 
 	if [ "$DISTRO" == "AUTO" ] 
 	then
-		die "[*] Unable to detect distro. Set manually"
+		die "[*] Unable to detect distribution. Please set it manually in the install script. Variable: DISTRO=<>"
 	fi
 
 	echo -e "[*] Detected distribution as $DISTRO\n"
 fi
 
 case $1 in  
-        install)
+    install)
 		checkdeps
-                doinstall
-        ;;
-        forceinstall)
-                doinstall
-        ;;
-        remove)
-                remove
-        ;;
-        status)
-                installstatus
-        ;;
+        doinstall
+    ;;
+    forceinstall)
+    	doinstall
+    ;;
+    remove)
+    	remove
+    ;;
+    status)
+    	installstatus
+    ;;
 	reinstall)
-		echo [*] Running REINSTALL remove
+		echo [*] Running reinstall remove
 		remove
-		echo [*] Running REINSTALL install
+		echo [*] Running reinstall install
 		doinstall
 	;;
      *)
-                echo -e " install   	- Install the system"
-                echo -e " forceinstall  - Install the system without checking for deps"
-                echo -e " remove     	- Remove the system"
-                echo -e " status     	- Check install status"
-                echo -e " reinstall  	- Re-install system"
-		echo -e "\n Example:"
-		echo -e " $ sudo ./openfpc-install install"
-        ;;
+        echo -e "
+[*] openfpc-install usage:
+    $ openfpc-install <action> <gui>
+
+    Where <action> is one of the below: 
+    install       - Install OpenFPC
+    forceinstall  - Install OpenFPC without checking for dependencies
+    remove        - Uninstall OpenFPC 
+    status        - Check installation status
+    reinstall     - Re-install OpenFPC (remove then install in one command)
+    <gui>         - Add 'gui' to the end of the command to also
+	                take <action> on OpenFPC GUI as well.
+[*] Examples: 
+    Install OpenFPC 		
+    $ sudo ./openfpc-install install
+
+    Install OpenFPC and OpenFPC GUI
+    $ sudo ./openfpc-install gui
+
+    Remove OpenFPC
+    $ sudo ./openfpc-install remove
+"	
+    ;;
 esac

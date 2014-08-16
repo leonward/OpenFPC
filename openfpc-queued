@@ -48,6 +48,7 @@ use OFPC::CXDB;
 my $help;
 my %route: shared =();
 my $configfile=0;
+my $debug=OFPC::Common::wantdebug();
 
 =head 2 showhelp
 	Show a simple help message.
@@ -65,7 +66,6 @@ sub showhelp{
    --config  or -c <file>	Config file  
    --help    or -h		Show help
    --verbose or -v		Verbose logging
-   --debug  	 		Show debug data
   
 EOF
 }
@@ -88,14 +88,9 @@ GetOptions (
 	'c|conf=s' => \$configfile,
 	'd|daemon' => \$daemon,
 	'h|help' => \$help,
-	'debug' => \$debug,
 	'v|verbose' => \$verbose,
 	'vdebug' => \$vdebug,
         );
-
-if ($debug) { 
-	wlog("DEBUG Enabled - environment variable OFPCDEBUG\n");
-}
 
 if ($vdebug) {
 	$debug=1;
