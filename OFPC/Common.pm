@@ -221,7 +221,7 @@ sub getstatus{
 		success => 0,
 		nodelist => [],
 	);
-
+	my $debug=wantdebug();
 	# Supported types for text format conversion are 
 		# e = time epoch
 		# t = text
@@ -229,6 +229,7 @@ sub getstatus{
 		# s = space (bytes)
 		# p = %a
 
+	my $ltz=DateTime::TimeZone->new( name => 'local' )->name();
 	my %s = (   
 		success => {
 			val => 0,
@@ -331,6 +332,11 @@ sub getstatus{
 			text => "Newest session in storage      ",
 			type => "e",
 		},
+		nodetz => {
+			val => 0,
+			text => "Node Timezone                  ",
+			type => "t",
+		},
 	);
 
 	unless ($config{'PROXY'}) { 	# Process as a node. Don't check proxy specific stuff like comms
@@ -425,6 +431,7 @@ sub getstatus{
 			    while ( my @row = $sth->fetchrow_array ) {
   					$s{'firstctx'}{'val'} = $row[0];
 			    }
+			    $s{'firstctx'}{'val'} = OFPC::Parse::norm_time($s{'firstctx'}{'val'},"UTC");
 			    wlog("DEBUG: Oldest connection in session DB is $s{'firstctx'}{'val'}\n") if $debug;
 
 			    # Get Newest session time
@@ -433,7 +440,8 @@ sub getstatus{
 			    while ( my @row = $sth->fetchrow_array ) {
   					$s{'lastctx'}{'val'} = $row[0];
 			    }
-			    wlog("DEBUG: Newest connection in session DB is $s{'firstctx'}{'val'}\n") if $debug;
+			    $s{'lastctx'}{'val'} = OFPC::Parse::norm_time($s{'lastctx'}{'val'},"UTC");
+			    wlog("DEBUG: Newest connection in session DB is $s{'lastctx'}{'val'}\n") if $debug;
 
 			    $dbh->disconnect or wlog("Unable to disconnect from DB $DBI::errstr");
 			    if (opendir(SESSION_DIR,$config{'SESSION_DIR'}) ) { 
@@ -447,6 +455,8 @@ sub getstatus{
 		} else {
 			wlog("DEBUG: Session data disabled on this node");
 		}
+
+		$s{'nodetz'}{'val'}=$ltz;
 
 		# Check we are providing back some valid data
 		if ( $s{'ld1'}{'val'} and $s{'nodename'}{'val'} ) {
@@ -820,7 +830,8 @@ sub prepfile{
 	    	$prep{'md5'} = $result->{'md5'};
 	    	$prep{'size'} = $result->{'size'};
 		} else {
-	    	$prep{'message'} = $result->{'message'};
+	    	$prep{'message'} = $result->{'err'};
+#	    	$prep{'message'} = $result->{'message'};
 		}
         
 		my $reportfilename=mkreport(0,$request,\%prep);
@@ -944,13 +955,13 @@ sub donode{
 	# Do we have a single timestamp or pair of them?
 	# Single= event sometime in the middle of a session
 	# stime/etime = a search time window to look for data over
-       
+    print Dumper $request;    
 	my @pcaproster=();
 	if ( $request->{'stime'} and $request->{'etime'} ) {
             @pcaproster=bufferRange($request->{'stime'}, $request->{'etime'});
 	} else  {
             # Event, single look over roster
-            @pcaproster=findBuffers($request->{'timestamp'}, 2);
+            @pcaproster=findBuffers($request->{'timestamp'}, 1);
 	}
         
 	# If we don't get any pcap files, there is no point in doExtract
@@ -962,17 +973,19 @@ sub donode{
         
 	wlog("DEBUG: PCAP roster ($pcapcount files in total) for extract is: @pcaproster\n") if $debug;
         
-	(my $filename, my $size, my $md5) = doExtract($bpf,\@pcaproster,$request->{'tempfile'});
+	(my $filename, my $size, my $md5, my $err) = doExtract($bpf,\@pcaproster,$request->{'tempfile'});
         
 	if ($filename) {
             $result{'filename'} = $filename;
             $result{'success'} = 1;
-	    $result{'message'} = "Success";
-	    $result{'md5'} = $md5;
-	    $result{'size'} = $size;
+	    	$result{'message'} = "Success";
+	    	$result{'md5'} = $md5;
+	    	$result{'size'} = $size;
+	    	$result{'err'} = $err;
 	    wlog("NODE : Request: $request->{'rid'} User: $request->{'user'} Result: $filename, $size, $md5");   
 	} else {
-            wlog("NODE : Request: $request->{'rid'} User: $request->{'user'} Result: Problem performing doExtract $filename, $size, $md5");   
+	    	$result{'err'} = $err;
+            wlog("NODE : Request: $request->{'rid'} User: $request->{'user'} Result: Problem performing doExtract $err.");   
 	}
 	
 	# Create extraction Metadata file
@@ -1135,7 +1148,7 @@ sub findBuffers {
     my %timeHash=();
     my @timestampArray=();
 	my @pcaps;
-
+	my $debug=wantdebug();
 	wlog("DEBUG: WARNING vdebug not enabled to inspect pcap filename selection\n") if ($debug and not $vdebug);
 
 	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-$config{'NODENAME'}.pcap.*`;
@@ -1149,13 +1162,14 @@ sub findBuffers {
         $targetTimeStamp=$targetTimeStamp-0.5;                  # Remove risk of TARGET conflict with file timestamp.   
         push(@timestampArray, $targetTimeStamp);                # Add target timestamp to an array of all file timestamps
         $timeHash{$targetTimeStamp} = "TARGET";                 # Method to identify our target timestamp in the hash
+        wlog("DEBUG: Requested timestamp is $targetTimeStamp " . localtime $targetTimeStamp);
 
         foreach my $pcap (@pcaps) {
-		my $splitstring="$config{'NODENAME'}\.pcap\.";
-                (my $fileprefix, my $timestamp)  = split(/$splitstring/,$pcap);
-                print " - Adding file $pcap with timestamp $timestamp (" . localtime($timestamp) . ") to hash of timestamps \n" if $vdebug;
-                $timeHash{$timestamp} = $pcap;
-                push(@timestampArray,$timestamp);
+			my $splitstring="$config{'NODENAME'}\.pcap\.";
+            (my $fileprefix, my $timestamp)  = split(/$splitstring/,$pcap);
+            print " - Adding file $pcap with timestamp $timestamp (" . localtime($timestamp) . ") to hash of timestamps \n" if $vdebug;
+            $timeHash{$timestamp} = $pcap;
+            push(@timestampArray,$timestamp);
         }
 
         my $location=0;
@@ -1193,8 +1207,8 @@ sub findBuffers {
         }
 
         if ($vdebug) {
-		my @tmptarget=split(/\./, $timeHash{$timestampArray[$location]});
-		my $tts=pop(@tmptarget);
+			my @tmptarget=split(/\./, $timeHash{$timestampArray[$location]});
+			my $tts=pop(@tmptarget);
               #  wlog(" - Target PCAP filename is $timeHash{$timestampArray[$location]} : $tts ( " . localtime($tts) . ")\n");
                 wlog(" - Target PCAP filename is $timeHash{$timestampArray[$location]} : $tts ( " . localtime($tts) . ")\n") if $tts;
         }
@@ -1202,6 +1216,8 @@ sub findBuffers {
         # Find what pcap files are eachway of target timestamp
         my $precount=$numberOfFiles;
         my $postcount=$numberOfFiles;
+        wlog("DEBUG: Precount value (number of files before target is  :$precount") if $debug;
+        wlog("DEBUG: Postcount value (number of files before target is :$postcount") if $debug;
         unless ( $timeHash{$timestampArray[$location]} eq "TARGET" ) {
                 push(@TARGET_PCAPS,$timeHash{$timestampArray[$location]});
         } else {
@@ -1243,7 +1259,7 @@ sub findBuffers {
 	Pass me a bpf, list of pcaps(ref), and a filename and it returns a filesize and a MD5 of the extracted file
 	e.g.
 	doExtract($bpf, \@array_of_files, $requested_filename);
-	return($filename,$filesize,$md5);
+	return($filename,$filesize,$md5,$errormessage);
 
 	Note, doExtract also expected a few globals to exist.
 		$tempdir
@@ -1258,7 +1274,7 @@ sub doExtract{
 	my $mergefile=shift;
 	my @filelist=@{$filelistref};
 	my $tempdir=tempdir(CLEANUP => 1);
-	
+	my $err;	
     my @outputpcaps=();
     wlog("DEBUG: Doing Extraction with BPF $bpf into tempdir $tempdir\n") if ($debug);
 
@@ -1267,27 +1283,27 @@ sub doExtract{
 	if ($tdrc) {
 	    wlog("ERROR: Problem with tcpdump reading $filelist[0]. Got tcpdump error code $tdrc.");
 	    wlog("ERROR: Hint: This must work $config{'TCPDUMP'} -r $filelist[0] -c 1 -w /dev/null") if $debug;
-	    return(0,0,0);
+	    return(0,0,0,"Got tcpdump error code $tdrc");
 	}
 	
-        foreach (@filelist){
+    foreach (@filelist){
 		my $splitstring="$config{'NODENAME'}\.pcap\.";
-                (my $pcappath, my $pcapid)=split(/$splitstring/, $_);
-                chomp $_;
-                my $filename="$tempdir/$mergefile-$pcapid.pcap";
-                push(@outputpcaps,$filename);
+        (my $pcappath, my $pcapid)=split(/$splitstring/, $_);
+        chomp $_;
+        my $filename="$tempdir/$mergefile-$pcapid.pcap";
+        push(@outputpcaps,$filename);
 		
 		my $exec="$config{'TCPDUMP'} -r $_ -w $filename $bpf > /dev/null 2>&1";
-                $exec="$config{'TCPDUMP'} -r $_ -w $filename $bpf" if ($vdebug) ; # Show tcpdump o/p if debug is on
+        $exec="$config{'TCPDUMP'} -r $_ -w $filename $bpf" if ($vdebug) ; # Show tcpdump o/p if debug is on
                 
 		wlog("DEBUG: Exec was: $exec\n") if ($vdebug);
-                `$exec`;
+            `$exec`;
         }
 
         # Now that we have some pcaps, lets concatinate them into a single file
         unless ( -d "$tempdir" ) {
-                die("Tempdir $tempdir not found!")
-	}
+        	die("Tempdir $tempdir not found!")
+		}
 
         wlog("EXTR : Merge command is \"$config{'MERGECAP'} -w $config{'SAVEDIR'}/$mergefile  @outputpcaps\"") if $debug;
 
@@ -1307,7 +1323,7 @@ sub doExtract{
         # Clean up temp files that have been merged...
 	File::Temp::cleanup() unless ($vdebug);
 
-	return($mergefile,$filesize,$md5);
+	return($mergefile,$filesize,$md5,$err);
 }
 
 =head2 mkreport

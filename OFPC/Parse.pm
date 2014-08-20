@@ -83,6 +83,7 @@ sub norm_time{
 
 	if ($debug) {
 		print "Input TS : $ts\n";
+		print "Target TZ $ttz\n";
 		print "Input epoch  : $ie \n";
 		print "Output epoch : $oe \n";
 		my $delta = $ie-$oe;

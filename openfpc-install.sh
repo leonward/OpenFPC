@@ -174,6 +174,11 @@ function doinstall()
     	OFPC_LIB_DIR="$PERL_LIB_DIR/OFPC"
 	fi
 
+	# Unbuntu apparmor prevents tcpdump from reading and writing to files outside of $HOME.
+	# this breaks openfpc.
+	echo "[*] Disabling apparmor profile for tcpdump"
+	sudo ln -s /etc/apparmor.d/usr.sbin.tcpdump /etc/apparmor.d/disable/
+	sudo /etc/init.d/apparmor restart
 
 	##################################
 	# Check for Dirs

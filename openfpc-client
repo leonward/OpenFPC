@@ -372,6 +372,7 @@ sub displayStatus{
 		'ld15',
 		'sessionlag',
 		'sessioncount',
+		'nodetz',
 		);
 	my $bar="=====================================\n";
 
@@ -400,7 +401,7 @@ sub displayStatus{
 			} elsif ($s->{$n}{$_}{'type'} eq 'e') {									
 				#  epoch timestamp format
 				print "   - $s->{$n}{$_}{'text'} : \t $s->{$n}{$_}{'val'} ";
-				print "(". localtime($s->{$n}{$_}{'val'}) . " UTC)\n";
+				print "(". localtime($s->{$n}{$_}{'val'}) . " $ltz)\n";
 			}
    		}
     }  
@@ -602,6 +603,7 @@ unless ($sock) {
 	displayResult($cmdargs{'gui'});
 	exit 1;
 }
+print Dumper $r2 if $debug;
 
 print "DEBUG: Connected to $config{'server'}\n" if ($debug);
 %result=OFPC::Request::request($sock,$r2);
