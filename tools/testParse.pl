@@ -17,7 +17,10 @@ my $verbose=0;
 my $oneline=0;
 my $manual=0;
 my $quiet=0;
+my $mtype=0;
 my $help;
+my $r;
+$r->{'tz'}{'val'} = "UTC";
 
 my %logs=(
 	SnortSyslog => [ 
@@ -72,8 +75,8 @@ my %logs=(
 		"2013-12-30 14:18:41   192.168.42.98:60224  ->  192.168.42.107:22     (  6)   [SAPFR|SAPF]",
 	],
 	ofpc_search => [
-		"  2   2014-01-10 08:22:32      192.168.42.1    1900   239.255.255.250    1900      17      0      0",
-    	"  3   2014-01-10 08:24:14      192.168.42.1     138    192.168.42.255     138      17      0      0",
+		"  2   2014-01-10 12:00:00      192.168.42.1    1900   239.255.255.250    1900      17      0      0",
+    	"  3   2014-01-10 13:00:00      192.168.42.1     138    192.168.42.255     138      17      0      0",
     	"4   2014-01-10 08:24:14      192.168.42.1     138    192.168.42.255     138      17      0      0",
 	],
 
@@ -98,18 +101,7 @@ sub checkParse{
                 'etime' => 0,
 	);
 
-#	while (1) {
-#		%tmpdata=OFPC::Parse::OFPC1Event($logline); if ($tmpdata{'parsed'} ) { last; }
-#		%tmpdata=OFPC::Parse::SF49IPS($logline); if ($tmpdata{'parsed'} ) { last; }
-#		%tmpdata=OFPC::Parse::Exim4($logline); if ($tmpdata{'parsed'} ) { last; }
-#		%tmpdata=OFPC::Parse::SnortSyslog($logline); if ($tmpdata{'parsed'} ) { last; }
-#		%tmpdata=OFPC::Parse::SnortFast($logline); if ($tmpdata{'parsed'} ) { last; }
-#		%tmpdata=OFPC::Parse::pradslog($logline); if ($tmpdata{'parsed'} ) { last; }
-#		%tmpdata=OFPC::Parse::nftracker($logline); if ($tmpdata{'parsed'} ) { last; }
-#		last;
-#	}
-
-	my $p=OFPC::Parse::parselog($logline);
+	my $p=OFPC::Parse::parselog($logline, $r);
 	if ($p->{'parsed'}) {
 		print ": Detected and parsed as $p->{'type'}\n" unless ($quiet);
 		return($p);
@@ -143,12 +135,18 @@ sub showhelp{
 		-o or --oneline    Paste your event into an interactive prompt
 		-m or --manual	   Only parse with the hard-coded parser
 		-q or --quiet	   Only output if there is an error
-		-h or --help	   This message\n\n";
+		-t or --type       Only process this logtype
+		-h or --help	   This message
+		-tz                Timezone (default UTC)
+		\n\n";
+
 }
 
 GetOptions (    'o|oneline' => \$oneline,
 		'm|manual' => \$manual,
 		'v|verbose' => \$verbose,
+		't|type=s' => \$mtype,
+		'tz=s' => \$r->{'tz'}{'val'},
 		'q|quiet' => \$quiet,
 		'h|help' => \$help,
 	);
@@ -159,10 +157,28 @@ if ($help) {
 }
 
 unless ($oneline) {
-	print "* Autodetect type\n" unless ($quiet);
-	foreach my $type (keys(%logs)) {		# For every log type
-		foreach(@{$logs{$type}}) {		# For each log line of that type
-			print "- Testing $type";
+	unless ($mtype) {
+
+		print "* Autodetect type\n" unless ($quiet);
+		foreach my $type (keys(%logs)) {		# For every log type
+			foreach(@{$logs{$type}}) {		# For each log line of that type
+				print "- Testing $type";
+				my $result=checkParse($_);
+				if ($result->{'parsed'}){
+					if ($verbose) {
+						print "\n";
+							displayEvent($result) if ($verbose);
+					}
+				} else {
+					print "ERROR: Unable to Parse something!!!\n";
+					exit(1)
+				}
+			}
+		}
+	} else { 
+		print "Working only on type $mtype\n";
+		foreach(@{$logs{$mtype}}) {		# For each log line of that type
+			print "- Testing $mtype";
 			my $result=checkParse($_);
 			if ($result->{'parsed'}){
 				if ($verbose) {
@@ -170,7 +186,7 @@ unless ($oneline) {
 					displayEvent($result) if ($verbose);
 				}
 			} else {
-				print "ERROR: Unable to Parse something!!!\n";
+				print "ERROR: Unable to Parse $mtype!!!\n";
 				exit(1)
 			}
 		}

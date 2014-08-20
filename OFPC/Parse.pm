@@ -25,6 +25,11 @@ use strict;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
 require Exporter;
 use Date::Parse;
+#use Date::Manip;
+use DateTime;
+use Time::Piece;
+use POSIX qw(strftime);
+
 #use OFPC::Common;
 
 @EXPORT = qw(ALL);
@@ -41,18 +46,64 @@ sub wantdebug{
 	return($debug); 
 }
 
+sub norm_time{
+	# 1) Take any old strange timestamp and convert it to epoch with the target timezone specified in $ttz
+	# 2) Use localtime, to convert bad epoch TS into a string we can feed into datetime (with the correct TZ)
+	# 3) Convert the dt object into the local correct TZ and therefore correct epoch now available
+	
+	my $ts=shift;		# Weird timestamp
+	my $ttz=shift;		# Target timezone
+	my $ltz=DateTime::TimeZone->new( name => 'local' )->name();	# Local timezone
+	my $debug=wantdebug();
+
+	# If ttz isn't set, assume it is from the local tz
+	unless ($ttz) {
+		$ttz = $ltz;
+		print "\nTimezone for timestamp $ts not set. Defaulting to local tz ($ltz)\n" if $debug;
+	}
+
+	# Convert strange timestamp into an epoch value with the TZ in the wrong TZ
+	my $ie=toEpoch($ts);
+	my $blt=localtime($ie);
+	# convert this epoch with the wrong TZ into a string we can use and predict
+	my $tc=Time::Piece->strptime($blt, "%a %b %e %H:%M:%S %Y");
+
+	# Use that sting to create a new DT object with the TZ set to where the timestamp was taken
+	my $sdt=DateTime->new(
+		year => $tc->year,
+		month => $tc->mon,
+		day => $tc->day_of_month,
+		hour => $tc->hour,
+		minute => $tc->minute,
+		second => $tc->second,
+		time_zone => $ttz,
+	);	
+
+	my $oe=$sdt->epoch;
+
+	if ($debug) {
+		print "Input TS : $ts\n";
+		print "Input epoch  : $ie \n";
+		print "Output epoch : $oe \n";
+		my $delta = $ie-$oe;
+		print "Delta between input and output is $delta seconds\n";
+	}
+
+	return($oe);
+}
 
 =head2 norm_time
         Take a timestamp, and convert it into epoch.
-	This is basically a wrapper for str2time function provided by Date::Time with
-	an ability to catch values that are already epoch.
+        This is basically a wrapper for str2time function provided by Date::Time with
+        an ability to catch values that are already epoch.
 =cut
 
-sub norm_time($) {
-        # Pass me some time format, and ill give you an epoch value
-        my $ts=shift;
-        my $epoch;
+sub toEpoch {
+    # Pass me some time format, and ill give you an epoch value
+    my $ts=shift;
+    my $z=shift;
 
+        my $epoch;
         unless ( $ts =~ /^\d{1,10}$/ ) { 
                 $epoch=str2time($ts);
                 return($epoch);
@@ -62,8 +113,10 @@ sub norm_time($) {
 }
 
 sub parselog{
-        # Recieve a logline, and return a ref to a hash that contains its data if valid
+        # Receive a logline, and return a ref to a hash that contains its data if valid
+
         my $logline=shift;
+        my $r=shift;
 		my $debug=wantdebug();
         if ($debug) { print "\nParsing the logline :$logline\n"; }
         my %eventdata = (
@@ -72,31 +125,36 @@ sub parselog{
 
         # Work through a list of file-parsers until we get a hit        
         while (1) {
-                %eventdata=OFPC::Parse::OFPC1Event($logline); if ($eventdata{'parsed'} ) { last; }
-                %eventdata=OFPC::Parse::SF49IPS($logline); if ($eventdata{'parsed'} ) { last; }
-                %eventdata=OFPC::Parse::Exim4($logline); if ($eventdata{'parsed'} ) { last; }
-                %eventdata=OFPC::Parse::SnortSyslog($logline); if ($eventdata{'parsed'} ) { last; }
-                %eventdata=OFPC::Parse::SnortFast($logline); if ($eventdata{'parsed'} ) { last; }
-                %eventdata=OFPC::Parse::pradslog($logline); if ($eventdata{'parsed'} ) { last; }
-                %eventdata=OFPC::Parse::nftracker($logline); if ($eventdata{'parsed'} ) { last; }
-                %eventdata=OFPC::Parse::cxsearch($logline); if ($eventdata{'parsed'} ) { last; }
-                %eventdata=OFPC::Parse::ofpc_search($logline); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OFPC::Parse::OFPC1Event($logline,$r->{'tz'}{'val'}); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OFPC::Parse::SF49IPS($logline,$r->{'tz'}{'val'}); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OFPC::Parse::Exim4($logline,$r->{'tz'}{'val'}); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OFPC::Parse::SnortSyslog($logline,$r->{'tz'}{'val'}); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OFPC::Parse::SnortFast($logline,$r->{'tz'}{'val'}); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OFPC::Parse::pradslog($logline,$r->{'tz'}{'val'}); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OFPC::Parse::nftracker($logline,$r->{'tz'}{'val'}); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OFPC::Parse::cxsearch($logline,$r->{'tz'}{'val'}); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OFPC::Parse::ofpc_search($logline, $r->{'tz'}{'val'}); if ($eventdata{'parsed'} ) { last; }
 
                 return(\%eventdata);
         }   
  
+        #my $dt=DateTime->from_epoch(epoch => $eventdata{'timestamp'}, time_zone => $r->{'tz'}{'val'});
+        #print "Datetime local time is " . $dt->hms . " in $r->{'tz'}{'val'}\n";
+
+
         if ($debug) {
                 print "   ---Decoded Event from parselog---\n" .
                 	   "   Parsed: $eventdata{'parsed'}\n" .
                        "   Type: $eventdata{'type'}\n" .
-                       "   Timestamp: $eventdata{'timestamp'} (" . localtime($eventdata{'timestamp'}) . ")\n" .
-		       "   stime: $eventdata{'stime'} \n" .
-		       "   etime: $eventdata{'etime'} \n" .
+                       "   Log Timezone:  $r->{'tz'}{'val'} \n" .
+                       "   Timestamp: $eventdata{'timestamp'} (" . localtime($eventdata{'timestamp'}) . "$r->{'tz'}{'val'})\n" .
+		               "   stime: $eventdata{'stime'} \n" .
+		               "   etime: $eventdata{'etime'} \n" .
                        "   SIP: $eventdata{'sip'}\n" .
                        "   DIP: $eventdata{'dip'}\n" .
                        "   SPT: $eventdata{'spt'}\n" .
                        "   DPT: $eventdata{'dpt'}\n" .
-		       "   Device: $eventdata{'dev'}\n" .
+		               "   Device: $eventdata{'dev'}\n" .
                        "   Protocol: $eventdata{'proto'}\n" .
                        "   Message: $eventdata{'msg'}\n" ;
         }   
@@ -271,11 +329,12 @@ sub Exim4{
 		);
 
 	my $logline=shift;
+	my $logtz=shift;
 
 	# Sample 2010-04-05 10:23:12 1NyiWV-0002IK-QJ <= lodgersau3@nattydreadtours.com H=(ABTS-AP-dynamic-117.149.169.122.airtelbroadband.in) [122.169.149.117] P=esmtp S=2056 id=000d01cad4a1$ab5a3780$6400a8c0@lodgersau3
 
 	if ($logline =~ m/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/) {
-		$event{'timestamp'}=norm_time($1);
+		$event{'timestamp'}=norm_time($1,$logtz);
 	}
 
 	# Get direction of email, inbound is <= outbound is =>
@@ -326,7 +385,7 @@ sub SnortSyslog{
 
 	#Apr 11 14:03:45 rancid snort: [1:13923:3] SMTP MailEnable SMTP HELO command denial of service attempt [Classification: Attempted Denial of Service] [Priority: 2]: {TCP} 122.166.99.139:2135 -> 80.68.89.43:25
 	# Apr 11 08:53:16 rancid snort: [1:254:7] DNS SPOOF query response with TTL of 1 min. and no authority [Classification: Potentially Bad Traffic] [Priority: 2]: {UDP} 80.68.80.24:53 -> 80.68.89.43:50331 	
-# May  3 15:16:30 rancid snort: [1:13923:3] SMTP MailEnable SMTP HELO command denial of service attempt [Classification: Attempted Denial of Service] [Priority: 2]: {TCP} 213.138.226.169:2690 -> 80.68.89.43:25
+	# May  3 15:16:30 rancid snort: [1:13923:3] SMTP MailEnable SMTP HELO command denial of service attempt [Classification: Attempted Denial of Service] [Priority: 2]: {TCP} 213.138.226.169:2690 -> 80.68.89.43:25
 
 	my $logline=shift;
 
@@ -409,7 +468,7 @@ sub SnortFast{
 
 	if ($logline =~ m/^\s*(\d+\/\d+-\d\d-\d\d:\d\d)/ ) { 
 		my $tempdate=$1;
-		# I have been shown two different format timestamps from
+		# I have seen two different format timestamps from
 		# Barnyard, both are different from the Snort Fast output.
 		# This is #1
 		# Barnyard "fast" output uses - as a delimiter between month/year. This is a PITA
@@ -423,7 +482,7 @@ sub SnortFast{
 	if ($logline =~ m/^\s*(\d+\/\d+\/\d+-\d+:\d+)/ ) { 
 		my $tempdate=$1;
 
-		# This is the second timestamp format I have been shown to 
+		# This is the second timestamp format I have been seen 
 		# come from Barnyard. It's also not standard to str2time 
 		# cant parse it. It also has \d\d years!!!!
 
@@ -608,12 +667,39 @@ sub cxsearch{
 	return(%e);
 }
 
+
+#sub nt{
+#
+#	my $i=shift;	# input hash
+#	my $ts = 0;		# timestamp
+#	my $stz = "local";
+#	my $dtz = "local";
+#	my $dtf = "%h";		# for now 
+#	my $stf = "Y-%m-%d %k:%H:%S";		# for now
+#
+#	if (defined $i->{ts}) {$ts = $i->{ts}; }
+#	if (defined $i->{stz}) {$stz = 	$i->{stz}; }
+#	if (defined $i->{dtz}) {$dtz = 	$i->{dtz}; }
+#	if (defined $i->{dtf}) {$dtf = 	$i->{dtf}; }
+#	if (defined $i->{stf}) {
+#		$stf = 	$i->{dsf}; 
+#	} else {
+#			# don't know what format it is...
+#			my $nts = time2str($ts);
+#			print "New Nts is $nts\n";
+#	}
+
+
+
+#}
+
 =head2 ofpc_search
 	OpenFPC connection search via the queue daemon
 =cut
 
 sub ofpc_search{
 	my $logline=shift;
+	my $logtz=shift;
 	my %e=initevent();
 	$e{'type'} = "ofpc_search";
 	my $debug=wantdebug();
@@ -625,10 +711,10 @@ sub ofpc_search{
 
 	(@d)=split(/\s+/,$logline);
 
-
-	print "TIME $d[1]  and $d[2] and $d[3]\n";
-	$e{'timestamp'}=norm_time("$d[1] $d[2]");
-
+	$e{'timestamp'}=norm_time("$d[1] $d[2]", $logtz);
+	my %th=(
+		ts => "$d[1] $d[2]",
+	);
 	$e{'sip'} = $d[3];
 	$e{'spt'} = $d[4];	
 	$e{'dip'} = $d[5];	

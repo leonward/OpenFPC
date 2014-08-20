@@ -17,6 +17,13 @@ function die
 	echo $1
 	exit 1
 }
+if [ $1 ] ; then
+
+	echo "Deploying to $1"
+	TDEV=$1
+else 
+	echo "Deploying to $TDEV"
+fi
 
 if [ $VERBOSE == 1 ] ; then
 	echo "* Running in verbose mode"

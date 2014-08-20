@@ -53,12 +53,21 @@ sub cx_search{
 
 	($t)=getresults($dbname, $dbuser, $dbpass, $q);
 
-	my @cols = ("Time", "Source IP", "sPort", "Destination", "dPort", "Proto", "src_bytes", "dst_bytes", "total_bytes"); 
-	my @format = (22,   18,           8,       18,            8,      8,        14,          14,          14);
+	# Format data types (@dtype)
+	# "port" = Port number
+	# "ip" = IP address
+	# 'udt'	 = UTC date/time timestamp from mysql - will need to be converted into users local tz to make sense
+	# 'bytes' = volume of data in bytes
+	# 'protocol' = Protocol number, e.g. 17
+
+	my @cols = ("Start Time", "Source IP", "sPort", "Destination", "dPort", "Proto", "src_bytes", "dst_bytes", "total_bytes"); 
+	my @format = (22, 18,           8,       18,            8,      8,        14,          14,          14);
+	my @dtype = ("udt", "ip", "port", "ip", "port","protocol","bytes", "bytes","bytes");
 	$t->{'title'} = "Custom Search";
 	$t->{'type'} = "search";
 	$t->{'cols'} = [ @cols ];
 	$t->{'format'} = [ @format ];
+	$t->{'dtype'} = [ @dtype ];
 	$t->{'stime'} = $r->{'stime'};
 	$t->{'etime'} = $r->{'etime'};
 	$t->{'nodename'} = $config{'NODENAME'};
@@ -97,7 +106,8 @@ sub buildQuery {
 	            FROM session IGNORE INDEX (p_key) WHERE ];
 
 	if ( $r->{'stime'} =~ /^\d+$/) {
-	   $QUERY = $QUERY . "unix_timestamp(start_time) between $r->{'stime'} and $r->{'etime'} ";
+		# Note: Remember that sessions are stored in UTC, regardless of what TZ the local system is in
+	   $QUERY = $QUERY . "unix_timestamp(CONVERT_TZ(`start_time`, '+00:00', \@\@session.time_zone)) between $r->{'stime'} and $r->{'etime'} ";
 
 	}
 
@@ -128,10 +138,10 @@ sub buildQuery {
 
 	if (defined $LIMIT && $LIMIT =~ /^([\d])+$/) {
 	  print "Limit: $LIMIT\n" if $debug;
-	  $QUERY = $QUERY . qq[ORDER BY start_time LIMIT $LIMIT ];
+	  $QUERY = $QUERY . qq[ORDER BY start_time DESC LIMIT $LIMIT];
 	} else {
 	  print "Limit: $DLIMIT\n" if $debug;
-	  $QUERY = $QUERY . qq[ORDER BY start_time LIMIT $DLIMIT ];
+	  $QUERY = $QUERY . qq[ORDER BY start_time DESC LIMIT $DLIMIT];
 	}
 
 	print "\nmysql> $QUERY;\n\n" if $debug;
@@ -230,11 +240,12 @@ sub getctxsummary{
 			"     : Table = $type \n" .
 			"     : Start time = $stime (" . localtime($stime) . ")\n" .
 			"     : End time   = $stime (" . localtime($etime) . ")\n" ;
+
 	}
 
 	# If stime/etime are not specified, use a default value of one hour
 	unless ($stime and $etime) {
-		print "DEBUG: No time set, instead using default time window of 1 hour\n" if ($debug);
+		wlog("DEBUG: No time set, instead using default time window of 1 hour") if ($debug);
 		$etime = time();
 		$stime = $etime-3600;
 		print "     : Start time: $stime (" . localtime($stime) . ")\n" if $debug;
@@ -258,14 +269,15 @@ sub getctxsummary{
 			$t->{'cols'} = [ @cols ];
 			$t->{'len'} = 15;
 		}
-		# THIS ONE
 		case "top_source_ip_by_volume" {
+			# DEFAULT
+			# UPDATED	
 			($t)=getresults(
 				$dbname,
 				$dbuser,
 				$dbpass, 
 				"SELECT inet_ntoa(src_ip) AS source_ip, SUM(dst_bytes+src_bytes) AS bytes FROM session \
-					where unix_timestamp(start_time) between $stime and $etime \
+					where unix_timestamp(CONVERT_TZ(`start_time`, '+00:00', \@\@session.time_zone)) between $stime and $etime \
 					GROUP BY source_ip ORDER BY bytes DESC LIMIT $limit");
 			my @cols = ("Source IP", "Bytes"); 
 			$t->{'title'} = "Top Source IPs by Traffic Volume";

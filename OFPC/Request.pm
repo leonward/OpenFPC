@@ -54,6 +54,9 @@ sub wantdebug{
 =cut
 
 sub mkreqv2{
+
+	# pre-populate with correct timezone for where the request is being made
+	my $ltz=DateTime::TimeZone->new( name => 'local' )->name();
 	my %reqv2=(
 		user=>{
 			text => "Username",
@@ -158,6 +161,11 @@ sub mkreqv2{
 		limit => {
 			text => "Results limit",
 			val => 20,
+			requred => 0,
+		},
+		tz => {
+			text => "Time Zone",
+			val => $ltz,
 			requred => 0,
 		},
 	);
@@ -504,7 +512,6 @@ sub mkhash{
 	my $pass=shift;
 	my ($digest,$hash);
 
-	print "User is $user, pass is $pass\'";
 	die("ERROR: Can't make a hash without user and pass set") unless ($user and $pass);
 	
 	$digest = Digest::SHA->new(1);

@@ -32,13 +32,18 @@ use Digest::MD5(qw(md5_hex));
 use Digest::SHA;
 use Term::ReadKey;
 use JSON::PP;
+use DateTime;
+use Time::Piece;
 
 my $now=time();
+my $ltz=DateTime::TimeZone->new( name => 'local' )->name();
+
 my $openfpcver="0.8";
 my (%config);
 my $password=0;
 my $debug=OFPC::Request::wantdebug();
 my $r2=OFPC::Request::mkreqv2();
+my $stz="America/New_York";
 
 # Hint: "ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp timestamp:1274864808 msg:Some freeform text";
 my %cmdargs=( user => 0,
@@ -56,6 +61,7 @@ my %cmdargs=( user => 0,
 		sumtype =>0,
 		last => 0,
 		hash => 0,
+		utc => 0,
 		);
 
 my %result=(
@@ -121,10 +127,62 @@ sub showhelp{
   --eachway <count>                      Expand timestamp over extra files
   --stime                                Start timestamp
   --etime                                End timestamp
+  --utc                                  Don't convert time to UTC from local TZ (already UTC)
 
 EOF
 }
 
+sub convertTime($$$$$){
+	# Convert ts from somewhere else to local TZ for local display
+	#  If	
+	my $ts=shift;		# time to convert
+	my $stz=shift;		# time zone to convert from
+	my $dtz=shift;		# dest timezone to convert to
+	my $stf=shift;		# source time format
+	my $otf=shift;		# Output time format 
+	my $ltz=DateTime::TimeZone->new( name => 'local' )->name();	# Local timezone
+	my $debug=OFPC::Request::wantdebug();
+
+		print "Timestamp is $ts
+		#stz is $stz
+		#dtz is $dtz
+		#stf if $stf
+		#otf is $otf\n" if $debug;
+	# Use Time::Piece to convert the format of the timestamp into an object we can build a DateTime object from.
+	# $of for epoch is "%s"
+	# $of for ofpc search table output is " %Y-%m-%d %k:%H:%S" 
+
+	if ($dtz eq 'local') {
+		$dtz=$ltz;
+	}	
+
+	if ($stz eq 'local') {
+		$stz=$ltz;
+	}
+
+	my $tc=0;
+	$tc=Time::Piece->strptime("$ts", $stf);
+	my $sdt=DateTime->new(
+		year => $tc->year,
+		month => $tc->mon,
+		day => $tc->day_of_month,
+		hour => $tc->hour,
+		minute => $tc->minute,
+		second => $tc->second,
+		time_zone => $stz,
+	);
+
+	my $ddt = $sdt->clone;
+	$ddt->set_time_zone($dtz);
+	my $nts= $ddt->strftime($otf);
+
+	print "\nDEBUG: Converting '$ts' from $stz to $dtz.\n" if $debug;
+	print "DEBUG: " . $sdt->hour . " o'clock in $stz\n" if $debug;
+	print "DEUBG: " . $ddt->hour . " o'clock in $dtz\n" if $debug;
+	print "\n--------" . $ddt->strftime('%s') . "--------\n" if $debug;
+	return $nts;		# return new timestamp
+
+}
 
 =head2 readrcfile
 	Read in an optional rc file found in a couple of default locations.
@@ -196,6 +254,8 @@ sub convbytes{
 	return("$bytes $units");
 }
 
+
+
 sub bar{
 	my $l=1;
 	my $i=0;
@@ -215,7 +275,8 @@ sub displayTable{
 	my $t=decode_json($tj);
 	my $len=15;				# Default length 
 							#in case the table doesn't set it
-
+	print "DEBUG: Table hash:\n" if $debug;
+	print Dumper $t if $debug;
 	if (defined $t->{'len'}) {
 		$len=$t->{'len'};
 	}
@@ -232,18 +293,18 @@ sub displayTable{
 	bar($blen,"=");	
 	print " $t->{'title'}\n";
 	bar($blen,"=");	
-	print " Start: " . localtime($t->{'stime'}) . "\n";
-	print " End  : " . localtime($t->{'etime'}) . "\n";
+	print " Start: " . localtime($t->{'stime'}) . " ($ltz)\n";
+	print " End  : " . localtime($t->{'etime'}) . " ($ltz)\n";
 	print " Node : $t->{'nodename'}\n"							if (defined $t->{'nodename'});
 	print " Rows : $t->{'size'}\n";
 	bar($blen,"=");	
 
-	# Colum heads. Line number is added after
+	# Column heads. Line number is added after
 	printf ("%5s", "Row");
 
 	my $fc=0;
 	foreach (@{$t->{'cols'}}) {
-		if (defined $t->{'format'}[$fc]) {		# IF format is defined in the table, use it for output
+		if (defined $t->{'format'}[$fc]) {		# If format is defined in the table, use it for output
 			my $l=$t->{'format'}[$fc];			
 			printf ("%${l}s", $_);	
 		} else {	
@@ -257,15 +318,32 @@ sub displayTable{
 	my $table=$t->{'table'};
 	while ($i < $t->{'size'}) {
 		printf("%5s",$i);			# Line number at the start
-		my $fc=0;				# Counter for format
+		my $fc=0;					# Counter for format field count
 
-		foreach (@{$t->{'table'}{$i}}) {
+		foreach my $field (@{$t->{'table'}{$i}}) {
+			# if the data needs converting to be displayed correctly, it should be called out in dtype
+			if (defined $t->{'dtype'}[$fc]) {
+				switch ($t->{'dtype'}[$fc]) {
+					case "udt" {
+						# Convert UTC Datetime time string into the users localtime
+#						$field = to_local_time($field, "%Y-%m-%d %T","America/New_York");
+#						$field = to_local_time($field, "%Y-%m-%d %T","UTC", "%F %k:%H:%S");
+						$field = convertTime($field, "UTC", "local", "%Y-%m-%d %T", "%F %k:%H:%S");
+					} case "protocol" {
+						switch ($field) {
+							case ("17"){$field = "udp";}
+							case ("6") {$field = "tcp";}
+							case ("1") {$field = "icmp";}
+						}
+					}
+				}
+			}	
 			if (defined $t->{'format'}[$fc]) {		# IF format is defined in the table, use it for output
 				my $l=$t->{'format'}[$fc];			
-				printf ("%${l}s", $_);
+				printf ("%${l}s", $field);
 			} else {								# Use the default column format length
 				#print "FORMAT $t->{'format'}[$fc]:";
-				printf ("%${len}s", $_);
+				printf ("%${len}s", $field);
 			}
 			$fc++;
 		} 
@@ -345,50 +423,13 @@ sub displayResult{
 				 	"Queue Position: $result{'position'} \n".
 					"Remote File   : $result{'filename'}\n" .
 					"Result        : $result{'message'}\n";
-			} elsif ($r2->{'action'}{'val'} eq "status" ) {
-				print 	"####################################\n" .
-					" OpenFPC Node name   :  $result{'nodename'}\n".
-					" OpenFPC Node Type   :  $result{'ofpctype'} \n".
-					" OpenFPC Version     :  $result{'version'} \n".
-					" Oldest Packet       :  $result{'firstpacket'} (" . localtime($result{'firstpacket'}) .")\n";
-
-					if ($result{'firstctx'}) {
-						print " Oldest Session      :  $result{'firstctx'} (" . localtime($result{'firstctx'}) .")\n";
-					} else {
-						print " Oldest Session      :  DISABLED\n";
-					}
-
-				print " Packet utilization  :  $result{'packetspace'}\% \n" .
-					" Session utilization :  $result{'sessionspace'}\% \n" .
-					" Session DB Size     :  $result{'sessioncount'} rows \n" .
-					" Session lag         :  $result{'sessionlag'} files \n" .
-					" Storage utilization :  $result{'savespace'}\% \n" .
-					" Packet space used   :  $result{'packetused'} (" . convbytes($result{'packetused'}) . ")\n" .
-					" Session space used  :  $result{'sessionused'} (" . convbytes($result{'sessionused'}) . ")\n" .
-					" Storage used        :  $result{'saveused'} (" . convbytes($result{'saveused'}) . ")\n" .
-					" Load avg 1          :  $result{'ld1'} \n" .
-					" Load avg 5          :  $result{'ld5'} \n" .
-					" Load avg 15         :  $result{'ld15'} \n" .
-					" Errors              :  $result{'message'} \n";
-			} elsif ($r2->{'action'}{'val'} eq "summary") {
-				print 	"#####################################\n" .
-					" Summary Table       :  $r2->{'sumtype'}{'val'}\n" .
-					" Time Range          :  " . localtime($r2->{'stime'}{'val'}) . " -> " . localtime($r2->{'etime'}{'val'}) . "\n" .
-					"#####################################\n";
-				my $table=$result{'table'};
-
-                                foreach my $foo (@$table) {
-                                	foreach (@$foo) {
-                                		printf '%15s', "$_";
-                                	}
-                                }
 			} else {
 				die("Results: Unknown action: $r2->{'action'}{'val'}\nSorry I don't know how to display this data.");
 			}
 		} else {	
-			# GUI firendly output
+			# GUI friendly output
 			# Provide output that is easy to parse
-			# result=0   	Fail
+			# result=0  Fail
 			# result=1	success
 			# result,action,filename,size,md5,expected_md5,position,message
 
@@ -439,6 +480,7 @@ GetOptions (    'u|user=s' => \$cmdargs{'user'},
 		'l|last=s' => \$cmdargs{'last'},
 		'H|hash' => \$cmdargs{'hash'},
 		'limit=s' => \$cmdargs{'limit'},
+		'utc' => \$cmdargs{'utc'},
     );
 
 
@@ -457,8 +499,6 @@ $r2->{'comment'}->{'val'} 		= $cmdargs{'comment'}   if $cmdargs{'comment'};
 $r2->{'device'}->{'val'} 		= $cmdargs{'device'}	if $cmdargs{'device'};
 $r2->{'filetype'}->{'val'} 		= "ZIP"					if $cmdargs{'zip'};
 $r2->{'bpf'}->{'val'}			= $cmdargs{'bpf'}		if $cmdargs{'bpf'};
-$r2->{'stime'}->{'val'} 		= $cmdargs{'stime'} 	if ($cmdargs{'stime'});
-$r2->{'etime'}->{'val'}			= $cmdargs{'etime'} 	if ($cmdargs{'etime'});
 $r2->{'sumtype'}->{'val'}		= $cmdargs{'sumtype'}   if ($cmdargs{'sumtype'});
 $r2->{'save'}->{'val'}			= $cmdargs{'save'}   	if ($cmdargs{'save'});
 $r2->{'limit'}->{'val'}			= $cmdargs{'limit'}   	if ($cmdargs{'limit'});
@@ -468,9 +508,14 @@ $r2->{'dip'}->{'val'}			= $cmdargs{'dip'}   	if ($cmdargs{'dip'});
 $r2->{'dpt'}->{'val'}			= $cmdargs{'dpt'}   	if ($cmdargs{'dpt'});
 $r2->{'spt'}->{'val'}			= $cmdargs{'spt'}   	if ($cmdargs{'spt'});
 $r2->{'proto'}->{'val'}			= $cmdargs{'proto'}   	if ($cmdargs{'proto'});
+
+# Time related args. OFPC now likes to receive 
 $r2->{'timestamp'}->{'val'}		= $cmdargs{'timestamp'} if ($cmdargs{'timestamp'});
+$r2->{'stime'}->{'val'} 		= $cmdargs{'stime'} 	if ($cmdargs{'stime'});
+$r2->{'etime'}->{'val'}			= $cmdargs{'etime'} 	if ($cmdargs{'etime'});
 
 if ($cmdargs{'last'}) {
+	# Convert time constraints specified into UTC
 	$r2->{'etime'}->{'val'} = $now;
 	$r2->{'stime'}->{'val'} = $now - $cmdargs{'last'};
 }
@@ -486,7 +531,12 @@ if ($cmdargs{'help'}) {
 	showhelp;
 	exit 1;
 }
-
+if ($debug) {
+	print "DEBUG: Time: Local time zone detected as $ltz\n";
+	print "DEBUG: Time: it's " . localtime() . " in $ltz\n";
+	my $dt = DateTime->now(time_zone => 'UTC');
+	print "DEBUG: Time: it's ", $dt->strftime('%a %b %d %T %Y') . " in UTC\n";
+}
 
 # Check we have enough constraints to make an extraction with.
 if ($r2->{'action'}{'val'} =~ m/(fetch|store)/)  {
@@ -494,11 +544,11 @@ if ($r2->{'action'}{'val'} =~ m/(fetch|store)/)  {
 		unless ($cmdargs{'gui'} )  {
 			showhelp;
 		} else {
-			$result{'message'} = "Insufficient Constraints added. Please add some session identifiers";
+			$result{'message'} = "Insufficient constraints added. Please add some session identifiers.";
 			displayResult($cmdargs{'gui'});
 			exit 1;
 		}
-		print "Error: This action requres a request line or session identifiers\n\n";
+		print "Error: This action requires a request line or session identifiers.\n\n";
 		exit;
 	}
 } elsif ($r2->{'action'}{'val'} eq "status" ) {

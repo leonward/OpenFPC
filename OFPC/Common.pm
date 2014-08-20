@@ -111,11 +111,11 @@ sub wlog{
         my $msg =  shift;
         chomp $msg;
         my $gmtime=gmtime();
-	my $logdata = "$config{'NODENAME'} " .  $msg;
+		my $logdata = "$config{'NODENAME'} " .  $msg;
         if ($daemon == 0) {
             print "$gmtime GMT: $logdata\n" ;
         }
-	syslog("info",$logdata);
+		syslog("info",$logdata);
 }
 
 =head2 getrequestid
@@ -536,9 +536,6 @@ sub backgroundtasks($){
 
 =head2 decoderequest
 	Take the OFPC request JSON, and provide a hash(ref) to the decoded data.
-	Example of a OFPC request:
-	ofpc||fetch||||/tmp/foo.pcap||||auto||ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp time:1274864808 msg:Some freeform text||Some comment text
-	ofpc||summary||||||||||||||top_sip_by_volume
 =cut
 
 sub decoderequest($){
@@ -584,14 +581,13 @@ sub decoderequest($){
     	return(\%request);
     } 
 	# Copy values from the client JSON request into the server request hash.
-	
 	$request{'user'}		=	$r->{'user'}{'val'};
 	$request{'action'}		=	$r->{'action'}{'val'}; 			# Action (store,status,fetch,summary,etc)
 	$request{'device'} 		=	$r->{'device'}{'val'};			# Device to request from i.e openfpc-node
 	$request{'filename'} 	= 	$r->{'filename'}{'val'};		# Filename to save file as 
 	$request{'filetype'} 	= 	$r->{'filetype'}{'val'};		# Filetype zip or pcap?
 	$request{'logtype'} 	= 	$r->{'logtype'}{'val'};			# Type of log being processed
-	$request{'logline'}		= 	$r->{'logline'}{'val'};			# The log-line (including one made from session identifiers
+	$request{'logline'}		= 	$r->{'logline'}{'val'};			# The log-line (including one made from session identifiers # KILL
 	$request{'comment'} 	= 	$r->{'comment'}{'val'};			# User comments
 	$request{'sumtype'}		= 	$r->{'sumtype'}{'val'}; 		# Type of connection summary
 	$request{'limit'}		= 	$r->{'limit'}{'val'}; 		# Type of connection summary
@@ -626,7 +622,7 @@ sub decoderequest($){
 			wlog("DEBUG: Found logline requested as $r->{'logline'}{'val'}\n") if $debug;
 
 			# Check logline is valid
-			my ($eventdata)=OFPC::Parse::parselog($request{'logline'});
+			my ($eventdata)=OFPC::Parse::parselog($r->{'logline'}{'val'}, $r);
 
 			unless ($eventdata->{'parsed'}) {
 				wlog("ERROR: Cannot parse logline");
