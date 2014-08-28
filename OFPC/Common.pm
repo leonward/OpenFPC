@@ -1630,13 +1630,17 @@ sub comms{
 							} elsif ($request->{'action'} eq "status") {
 		                            
 		                        wlog ("COMMS: $client_ip Recieved Status Request");
-		                        my $s=OFPC::Common::getstatus($request);
-		                        my $sj = encode_json($s);
-		                        # print Dumper $s;
-		                        wlog("DEBUG: Status msg sent to client \n") if $debug;	
-		                        print $client "STATUS: $sj";
-			                    shutdown($client,2);
-		                           
+		                        if ($config{'PROXY'}) {
+		                        	wlog("Proxy Status request");
+		                        } else {
+			                        my $s=OFPC::Common::getstatus($request);
+			                        my $sj = encode_json($s);
+			                        # print Dumper $s;
+		    	                    wlog("DEBUG: Status msg sent to client \n") if $debug;	
+		        	                print $client "STATUS: $sj";
+			        	            shutdown($client,2);
+			        	        }
+
 							} elsif ($request->{'action'} eq "summary") {
 		                            
 		                        wlog("COMMS: $client_ip: RID: $request->{'rid'} getting summary data\n");
