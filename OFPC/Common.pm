@@ -337,6 +337,11 @@ sub getstatus{
 			text => "Node Timezone                  ",
 			type => "t",
 		},
+		localtime => {
+			val => 0,
+			text => "Local time on node             ",
+			type => "e",
+		},
 	);
 
 	unless ($config{'PROXY'}) { 	# Process as a node. Don't check proxy specific stuff like comms
@@ -407,6 +412,7 @@ sub getstatus{
 			$s{'ld5'}{'val'} = $2;
 			$s{'ld15'}{'val'} = $3;
 		}
+		$s{'localtime'}{'val'} = time();
 
 		# Get session DB data
 		#################################

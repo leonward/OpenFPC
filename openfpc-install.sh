@@ -558,12 +558,12 @@ function installstatus()
 }
 
 echo -e "
-**************************************************************************
+ *************************************************************************
  *  OpenFPC installer - Leon Ward (leon@openfpc.org) v$openfpcver
-    A set if scripts to help manage and find data in a large network traffic
-    archive. 
+ *  A set if scripts to help manage and find data in a large network traffic
+ *  archive. 
 
-    - http://www.openfpc.org 
+ *  http://www.openfpc.org 
 "
 	
 
