@@ -138,7 +138,12 @@ sub checkbpf{
                 wlog("DEBUG: BPF Failed input validation, bad chars in $bpf");
                 return(0);
         }
-        # To check BPF is valid, open a pcap for reading.
+        # To check BPF is valid, open a pcap for reading. This only works on a Node where there is a pcap file
+        # Just return succes if we are a proxy
+        if ($config{'PROXY'}) {
+        	wlog("Not validating BPF on a proxy node") if $debug;
+        	return(1);
+        }
         my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-$config{'NODENAME'}.pcap.*`;
         if (@pcaptemp) {
                 my $p=shift(@pcaptemp);
@@ -220,6 +225,7 @@ sub getstatus{
 		proxy => 0,
 		success => 0,
 		nodelist => [],
+		message => "None",
 	);
 	my $debug=wantdebug();
 	# Supported types for text format conversion are 
@@ -469,19 +475,53 @@ sub getstatus{
 			$s{'success'}{'val'} = 1; 	
 		}
 
+		# Put the node status hash into a container that can scale for multiple nodes
+		$sc{'nodename'} = $config{'NODENAME'};
+		push (@{$sc{'nodelist'}},$config{'NODENAME'});
+		$sc{'success'} = $s{'success'};
+		$sc{$config{'NODENAME'}} = \%s;
+
 	} else {
-		wlog("Recieved PROXY STATUS request - Not implemented");
-		$s{'message'}{'val'} = "Proxy status not implemented yet";
-		$s{'ofpctype'}{'val'} = "PROXY";
+		$sc{'message'} = "Proxy status not implemented yet";
+		$sc{'ofpctype'} = "NODE";
+		$sc{'nodename'} = $config{'NODENAME'};
+		print "XXX NOdename is $config{'NODENAME'}\n";
+		#$sc{'ofpctype'} = "PROXY";
+		$sc{'proxy'} = 1;
+		$sc{'success'} = 1;
+		# XXX
+		my $rt=readroutes();
+		my $b;
+		my $scr=\%sc;		# Convert sc into a ref
+		foreach (keys %$rt) {
+			wlog("Proxy making status request to node $rt->{$_}{'name'}");
+			my $rn=$rt->{$_}{'name'};
+
+			#push (@{$sc{'nodelist'}},$config{'NODENAME'});
+			push (@{$sc{'nodelist'}},$rt->{$_}{'name'});
+
+ 			my $r2=OFPC::Request::mkreqv2();
+    		my $nodesock = IO::Socket::INET->new(
+                                PeerAddr => $rt->{$_}{'ip'}, 
+                                PeerPort => $rt->{$_}{'port'}, 
+                                Proto => 'tcp',
+                                );
+    		if ($nodesock) {
+    			wlog("Connected to node $rt->{$_}{'name'}");
+	    	 	$r2->{'user'}{'val'} =  $rt->{$_}{'user'}; 
+    			$r2->{'password'}{'val'} = OFPC::Request::mkhash($rt->{$_}{'user'},$rt->{$_}{'password'}); 
+    			$r2->{'action'}{'val'} = "status";
+
+    			my %s=OFPC::Request::request($nodesock,$r2);
+    			my $sr = \%s;
+    			# Add the data from the status data back from the node to the container hash
+    			$scr->{$rt->{$_}{'name'}} = $sr->{$rt->{$_}{'name'}};
+    		} else {
+    			wlog("Unable to Connect to node $rt->{$_}{'name'}");
+    		}
+		}
 	}
-
-	# Put the node status hash into a container that can scale for multiple nodes
-
-	$sc{'nodename'} = $config{'NODENAME'};
-	push (@{$sc{'nodelist'}},$config{'NODENAME'});
-	$sc{'success'} = $s{'success'};
-	$sc{$config{'NODENAME'}} = \%s;
-
+	print Dumper \%sc;
 	return(\%sc);
 }
 
@@ -514,7 +554,6 @@ sub trimsessiondb(){
 	$dbh->disconnect or wlog("Unable to disconnect from DB $DBI::errstr");
 	return($trimtime);
 }
-
 
 =head2 backgroundtasks
 	Perform regular tasks every X seconds.
@@ -1628,18 +1667,14 @@ sub comms{
 		                            }
 		                            
 							} elsif ($request->{'action'} eq "status") {
+		    	                wlog("DEBUG: Got status request") if $debug;	
 		                            
-		                        wlog ("COMMS: $client_ip Recieved Status Request");
-		                        if ($config{'PROXY'}) {
-		                        	wlog("Proxy Status request");
-		                        } else {
-			                        my $s=OFPC::Common::getstatus($request);
-			                        my $sj = encode_json($s);
-			                        # print Dumper $s;
-		    	                    wlog("DEBUG: Status msg sent to client \n") if $debug;	
-		        	                print $client "STATUS: $sj";
-			        	            shutdown($client,2);
-			        	        }
+			                    my $s=OFPC::Common::getstatus($request);
+			                    my $sj = encode_json($s);
+			                    # print Dumper $s;
+		    	                wlog("DEBUG: Status msg sent to client") if $debug;	
+		        	            print $client "STATUS: $sj";
+			        	        shutdown($client,2);
 
 							} elsif ($request->{'action'} eq "summary") {
 		                            
@@ -1793,27 +1828,32 @@ sub runq {
 =cut
 
 sub readroutes{
+	my $debug=wantdebug();
+	my %rt;						# Route table
+
+
     wlog("ROUTE: Reading route data from file: $config{'NODEROUTE'}");
     if ($config{'NODEROUTE'}) {
 	
-	open NODEROUTE, '<', $config{'NODEROUTE'} or die "Unable to open node route file $config{'NODEROUTE'} \n";
-	wlog("ROUTE: Reading route file $config{'NODEROUTE'}");
+		open NODEROUTE, '<', $config{'NODEROUTE'} or die "Unable to open node route file $config{'NODEROUTE'} \n";
+		wlog("ROUTE: Reading route file $config{'NODEROUTE'}");
 	
-	while(<NODEROUTE>) {
-	    chomp $_;
-	    unless ($_ =~ /^[# \$\n]/) {
-	    	if ( (my $key, my $value) = split /=/, $_ ) {
-	    		$route{$key} = $value;	
-			wlog("ROUTE: Adding route for $key as $value") if $debug;
+		while(<NODEROUTE>) {
+		    chomp $_;
+	    	unless ($_ =~ /^[# \$\n]/) {
+	    		if ( (my $key, my $value) = split /=/, $_ ) {
+		   	 		$route{$key} = $value;	
+					wlog("ROUTE: Adding route for $key as $value");
+					($rt{$key}{'ip'}, $rt{$key}{'port'}, $rt{$key}{'user'}, $rt{$key}{'password'}) = split/:/, $value;
+					$rt{$key}{'name'} = $key;
+	    		}
 	    	}
-	    }
-	}
-	
+		}
     	close NODEROUTE;
-	
     } else {
-	die("No route file defined\n");
+		die("No route file defined\n");
     }
+    return(\%rt);
 }
 
 =head readpasswd

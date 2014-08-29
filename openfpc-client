@@ -383,11 +383,14 @@ sub displayStatus{
 		print "DEBUG: Dumping status hash\n";
 		print Dumper $s;
 	}
-
+	#my $foo = undef;
     foreach my $n (@{$s->{'nodelist'}}) {
+    	unless (defined $s->{$n}{'nodename'}{'val'}) {
+    		print "  - No status for $s->{'nodename'} \n";
+    		next;
+    	}
     	print $bar;
     	print " * Node: $n\n";
-
 		foreach(@d) {
 			if ($s->{$n}{$_}{'type'} eq 'p') {										
 				# Percentage output
@@ -604,14 +607,15 @@ unless ($sock) {
 	displayResult($cmdargs{'gui'});
 	exit 1;
 }
-print Dumper $r2 if $debug;
+#print Dumper $r2 if $debug;
 
 print "DEBUG: Connected to $config{'server'}\n" if ($debug);
 %result=OFPC::Request::request($sock,$r2);
 
 print "DEBUG: Sent Request\n" if ($debug);
 close($sock);
-
+print "Result is\n";
+#print Dumper \%result;
 unless ($result{'success'}) {
 	print "OFPC Request Failed: $result{'message'}\n";
 	exit 1;

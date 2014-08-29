@@ -292,9 +292,7 @@ sub request{
 	my $event=0;
 	my ($protover);
 	my $protover="OFPC-v2";		# For future use.
-
-	print "DEBUG: Debug enabled in reqest\n" if ($debug);
-
+	# print Dumper $r;
 	# Selecting buffer device related to event src isn't dont yet.
 	if ($debug) {
 		foreach(keys %$r) {
