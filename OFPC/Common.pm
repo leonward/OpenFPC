@@ -491,6 +491,12 @@ sub getstatus{
 			    }
 			} else {
 				wlog("DEBUG: Unable to connect to DB for stats info");
+				$s{'sessioncount'}{'val'} = "Unable to connect to session DB";
+				$s{'firstctx'}{'val'} = "Unable to connect to session DB";
+				$s{'lastctx'}{'val'} = "Unable to connect to session DB";
+				$s{'sessioncount'}{'type'} = "t";
+				$s{'firstctx'}{'type'} = "t";
+				$s{'lastctx'}{'type'} = "t";
 			}
 		} else {
 			wlog("DEBUG: Session data disabled on this node");
