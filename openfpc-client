@@ -355,15 +355,16 @@ sub displayTable{
 
 sub displayStatus{
 	my $s=shift;
-	my @d=(
+	my @nodedata=(
 		'ofpctype',
+		'description',
 		'packetspace',
-		'packetpacptotal',
 		'sessionspace',
 		'savespace',
 		'saveused',
-		'packetused',
 		'sessionused',
+		'packetused',
+		'packetpacptotal',
 		'localtime',
 		'lastctx',
 		'firstctx',
@@ -374,7 +375,14 @@ sub displayStatus{
 		'sessionlag',
 		'sessioncount',
 		'nodetz',
-		);
+		);		# List of data to dispaly for a normal node
+	my @proxydata=(
+		'ofpctype',
+		'description',
+		'downnodes',
+		'upnodes');		#List of data to display for a proxy node
+	my @d=();
+
 	my $bar="=====================================\n";
 
 	print $bar;
@@ -383,14 +391,26 @@ sub displayStatus{
 		print "DEBUG: Dumping status hash\n";
 		print Dumper $s;
 	}
-	#my $foo = undef;
+
     foreach my $n (@{$s->{'nodelist'}}) {
     	unless (defined $s->{$n}{'nodename'}{'val'}) {
-    		print "  - No status for $s->{'nodename'} \n";
+    		print " * Node: $n \n";
+    		print "   - No status came back from node '$n'\n";
     		next;
     	}
     	print $bar;
-    	print " * Node: $n\n";
+    	# Decide on the dataset to display based on node type
+
+    	if ($s->{$n}{'ofpctype'}{'val'} eq "NODE") {
+    		@d = @nodedata;
+	    	print " * Node: $n\n";
+	   	} elsif ($s->{$n}{'ofpctype'}{'val'} eq "PROXY") {
+	   		@d = @proxydata;
+	    	print " * Proxy: $n\n";
+	   	} else {
+	   		print "Error don't know what this node type is \n";
+	   	}	
+
 		foreach(@d) {
 			if ($s->{$n}{$_}{'type'} eq 'p') {										
 				# Percentage output
@@ -406,6 +426,8 @@ sub displayStatus{
 				#  epoch timestamp format
 				print "   - $s->{$n}{$_}{'text'} : \t $s->{$n}{$_}{'val'} ";
 				print "(". localtime($s->{$n}{$_}{'val'}) . " $ltz)\n";
+			} else {
+				print "Don't know how to display datatype: $s->{$n}{$_}{'type'}\n";
 			}
    		}
     }  
@@ -614,8 +636,6 @@ print "DEBUG: Connected to $config{'server'}\n" if ($debug);
 
 print "DEBUG: Sent Request\n" if ($debug);
 close($sock);
-print "Result is\n";
-#print Dumper \%result;
 unless ($result{'success'}) {
 	print "OFPC Request Failed: $result{'message'}\n";
 	exit 1;

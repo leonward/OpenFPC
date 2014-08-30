@@ -33,12 +33,14 @@ sub wantdebug{
 =cut
 
 sub cx_search{
-	my $dbname=shift;
-	my $dbuser=shift;
-	my $dbpass=shift;
+	# Expects $config to be a global - read from the openfpc config file
 	my $r=shift;
+	my $dbname=$config{'SESSION_DB_NAME'};
+	my $dbuser=$config{'SESSION_DB_USER'};
+	my $dbpass=$config{'SESSION_DB_PASS'};
 	my $debug=wantdebug();
 	my $t;
+	my $sc;	# Search container
 
 	unless ($r->{'stime'} and $r->{'etime'}) {
 		print "DEBUG: No time set, instead using default time window of 1 hour\n" if ($debug);
@@ -48,30 +50,76 @@ sub cx_search{
 		print "     : End time  : $r->{'etime'} (" . localtime($r->{'etime'}) . ")\n" if $debug;
 	}
 
-	my $q=buildQuery($r);
-	print "DEBUG: Query is $q\n" if $debug;
+	unless ($config{'PROXY'}) {
 
-	($t)=getresults($dbname, $dbuser, $dbpass, $q);
+		my $q=buildQuery($r);
+		print "DEBUG: Query is $q\n" if $debug;
 
-	# Format data types (@dtype)
-	# "port" = Port number
-	# "ip" = IP address
-	# 'udt'	 = UTC date/time timestamp from mysql - will need to be converted into users local tz to make sense
-	# 'bytes' = volume of data in bytes
-	# 'protocol' = Protocol number, e.g. 17
+		($t)=getresults($dbname, $dbuser, $dbpass, $q);
+		print Dumper $t;
+		# Format data types (@dtype)
+		# "port" = Port number
+		# "ip" = IP address
+		# 'udt'	 = UTC date/time timestamp from mysql - will need to be converted into users local tz to make sense
+		# 'bytes' = volume of data in bytes
+		# 'protocol' = Protocol number, e.g. 17
 
-	my @cols = ("Start Time", "Source IP", "sPort", "Destination", "dPort", "Proto", "src_bytes", "dst_bytes", "total_bytes"); 
-	my @format = (22, 18,           8,       18,            8,      8,        14,          14,          14);
-	my @dtype = ("udt", "ip", "port", "ip", "port","protocol","bytes", "bytes","bytes");
-	$t->{'title'} = "Custom Search";
-	$t->{'type'} = "search";
-	$t->{'cols'} = [ @cols ];
-	$t->{'format'} = [ @format ];
-	$t->{'dtype'} = [ @dtype ];
-	$t->{'stime'} = $r->{'stime'};
-	$t->{'etime'} = $r->{'etime'};
-	$t->{'nodename'} = $config{'NODENAME'};
+		my @cols = ("Start Time", "Source IP", "sPort", "Destination", "dPort", "Proto", "Src Bytes", "Dst Bytes", "Total Bytes", "Node Name"); 
+		my @format = (22, 18,           8,       18,            8,      8,        14,          14,          14, 20);
+		my @dtype = ("udt", "ip", "port", "ip", "port","protocol","bytes", "bytes","bytes","text");
+		$t->{'title'} = "Custom Search";
+		$t->{'type'} = "search";
+		$t->{'cols'} = [ @cols ];
+		$t->{'format'} = [ @format ];
+		$t->{'dtype'} = [ @dtype ];
+		$t->{'stime'} = $r->{'stime'};
+		$t->{'etime'} = $r->{'etime'};
+		$t->{'nodename'} = $config{'NODENAME'};
+
+		# Put the search results hash into a container that can contain multiple results 
+		push (@{$t->{'nodelist'}},$config{'NODENAME'});
+
+	} else {
+		wlog("Proxy session search");
+		my $rt=OFPC::Common::readroutes();
+		my $sc;
+		foreach (keys %$rt) {
+			wlog("Proxy making status request to node $rt->{$_}{'name'}");
+			my $rn=$rt->{$_}{'name'};
+
+			#push (@{$sc{'nodelist'}},$config{'NODENAME'});
+			push (@{$t->{'nodelist'}},$rt->{$_}{'name'});
+
+ 			my $r2=OFPC::Request::mkreqv2();
+    		my $nodesock = IO::Socket::INET->new(
+                                PeerAddr => $rt->{$_}{'ip'}, 
+                                PeerPort => $rt->{$_}{'port'}, 
+                                Proto => 'tcp',
+                                );
+    		if ($nodesock) {
+    			wlog("Connected to node $rt->{$_}{'name'}");
+	    	 	$r2->{'user'}{'val'} =  $rt->{$_}{'user'}; 
+    			$r2->{'password'}{'val'} = OFPC::Request::mkhash($rt->{$_}{'user'},$rt->{$_}{'password'}); 
+    			$r2->{'action'}{'val'} = "search";
+
+    			my %s=OFPC::Request::request($nodesock,$r2);
+    			my $sr=\%s;
+    			print Dumper $sr;
+    			# Save search and session to proxy DB
+
+    			$sc->{$rt->{$_}{'name'}} = $sr;
+
+    			# Add the data from the status data back from the node to the container hash
+    			#$scr->{$rt->{$_}{'name'}} = $sr->{$rt->{$_}{'name'}};
+    			wlog("Dumping sc table");
+   			print Dumper $sc;
+    		} else {
+    			wlog("Unable to Connect to node $rt->{$_}{'name'}");
+    		}
+		}
+	}
 	return($t);
+	
 }
 
 
@@ -464,7 +512,7 @@ sub getctxsummary{
 =head2 getresults
 	Get results from a query.
 	Takes $dbname, $dbuser, $dbpass, SQL qeery
-	Returns (@table, $error) 
+	Returns ($table, $error) 
 =cut
 
 sub getresults{
@@ -498,6 +546,7 @@ sub getresults{
            		my @row;
            		my $rnum=0;
              	while ( @row = $query->fetchrow_array ) {
+					push @row, $config{'NODENAME'};
 	           		$t{'table'}{$rnum} = [ @row ];			# Add row to hash
              		$rnum++;
 					if ($debug){
@@ -506,10 +555,12 @@ sub getresults{
 							print " | ";
 						}
 
-					print "\n";
-					print "Row $rnum";
-					#%t{$rnum} = @row;
+						print "\n";
+						print "Row $rnum";
+						#%t{$rnum} = @row;
 					}
+					# Add the nodename to the row
+					# XXX
 					push @results, [@row];		# Add this row to the Results AoA
 				}
 				$t{'size'}=$rnum;

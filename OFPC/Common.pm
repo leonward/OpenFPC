@@ -228,6 +228,7 @@ sub getstatus{
 		message => "None",
 	);
 	my $debug=wantdebug();
+	wlog("STATU: Getting node status data") if $debug;
 	# Supported types for text format conversion are 
 		# e = time epoch
 		# t = text
@@ -252,6 +253,11 @@ sub getstatus{
 			val => 0,
 			text => "Node Name                      ",
 			type => "t",
+		},
+		description => {
+				val => $config{'DESCRIPTION'},
+				text => "Description                ",
+				type => "t",
 		},
 		firstpacket => {
 			val => 0,
@@ -348,6 +354,11 @@ sub getstatus{
 			text => "Local time on node             ",
 			type => "e",
 		},
+		ltz => {
+			val => 0,
+			text => "Local time on node             ",
+			type => "e",
+		},
 	);
 
 	unless ($config{'PROXY'}) { 	# Process as a node. Don't check proxy specific stuff like comms
@@ -356,11 +367,13 @@ sub getstatus{
 		# Get timestamp of oldest pcap buffer
 		unless (opendir(DIR,$config{'BUFFER_PATH'}) ) {
 			$s{'message'}{'val'} = "Unable to open buffer path $config{'BUFFER_PATH'}";
+			wlog("STATU: Error, unable to open buffer path $config{'BUFFER_PATH'}");
 			return \%s;
 		} 
 		my @files=readdir(DIR);
 		unless (@files) {
 			$s{'message'}{'val'}= "Unable to open buffer path $config{'BUFFER_PATH'}";
+			wlog("STATU: Error, unable to open buffer path $config{'BUFFER_PATH'}");
 			return \%s;
 		}
 		@files=sort(@files);
@@ -372,13 +385,14 @@ sub getstatus{
 		foreach (@files) {
 			if ($_  =~ /$config{'NODENAME'}\.pcap/) {
 				$oldestfile=$_;
-				wlog("DEBUG: Oldest PCAP file is $oldestfile") if $debug;
+				wlog("STATU: DEBUG: Oldest PCAP file is $oldestfile") if $debug;
 				last;
 			}
 		}
 
 		if ( $oldestfile =~ /$config{'NODENAME'}\.pcap\.([0-9]+)/ ) {
 			$s{'firstpacket'}{'val'} = $1;
+			wlog("STATU: DEBUG: First packet is $oldestfile") if $debug;
 		}
 
 		# Get disk space info
@@ -386,13 +400,27 @@ sub getstatus{
 		my $packetref=df("$config{'BUFFER_PATH'}");
 		$s{'packetspace'}{'val'} = $packetref->{'per'};
 		$s{'packetused'}{'val'} = $packetref->{'used'};
-		wlog("DEBUG: Packet used is $packetref->{'used'} \n") if $debug;
+		wlog("STATU: DEBUG: Packet used is $packetref->{'used'} \n") if $debug;
 
 		if ($config{'ENABLE_SESSION'}) {
 			my $sessionref=df("$config{'SESSION_DIR'}");
-			$s{'sessionspace'}{'val'} = $sessionref->{'per'};
-			$s{'sessionused'}{'val'} = $sessionref->{'used'};
+			wlog("SATU: DEBUG: Session dir is $config{'SESSION_DIR'}");
+			if (defined $sessionref) {
+				print Dumper $sessionref;
+				$s{'sessionspace'}{'val'} = $sessionref->{'per'};
+				$s{'sessionused'}{'val'} = $sessionref->{'used'};
+				wlog("STATU: DEBUG: Session storage space used is $sessionref->{'used'}");
+				wlog("STATU: DEBUG: Session storage space pct is $sessionref->{'per'}");
+			} else {
+				wlog("STATU: ERROR: Unable to access session storage dir to gather stats $config{'SESSION_DIR'}");
+				$s{'sessionspace'}{'val'} = "Error: Unable to access session dir $config{'SESSION_DIR'}";
+				$s{'sessionused'}{'val'} = "Error: Unable to access session dir $config{'SESSION_DIR'}";
+				$s{'sessionspace'}{'type'} = "t";
+				$s{'sessionused'}{'type'} = "t";
+			}
 		} else {
+			$s{'sessionspace'}{'type'} = "t";
+			$s{'sessionused'}{'type'} = "t";
 			$s{'sessionspace'}{'val'} = "Disabled";
 			$s{'sessionused'}{'val'} = "Disabled";
 		}
@@ -401,13 +429,13 @@ sub getstatus{
 		################################
 		my $ps=`du -hsc $config{'BUFFER_PATH'}/openfpc-$config{'NODENAME'}\.pcap* |grep total`;
 		(my $pso)=split(/\s/,$ps);
-		wlog ("pso is '$pso'") if $debug;
+		wlog ("STATU: DEBUG: Packet Space Overall (pso) is '$pso'") if $debug;
 		$s{'packetpacptotal'}{'val'} = $pso;
 
 		my $saveref=df("$config{'SAVEDIR'}");
 		$s{'savespace'}{'val'} = $saveref->{'per'};
 		$s{'saveused'}{'val'} = $saveref->{'used'};
-		wlog("DEBUG: Savespace in $config{'SAVEDIR'} is $s{'savespace'}{'val'} \n") if $debug;
+		wlog("STATU: DEBUG: Savespace in $config{'SAVEDIR'} is $s{'savespace'}{'val'} \n") if $debug;
 	
 		# Grab uptime and load average data
 		####################################	
@@ -423,7 +451,7 @@ sub getstatus{
 		# Get session DB data
 		#################################
 		if ($config{'ENABLE_SESSION'}) {
-			wlog("DEBUG: Session data enabled on this node. Checking DB status") if $debug;
+			wlog("STATU: DEBUG: Session data enabled on this node. Checking DB status") if $debug;
 			if ( my $dbh= DBI->connect("dbi:mysql:database=$config{'SESSION_DB_NAME'};host=localhost",$config{'SESSION_DB_USER'},$config{'SESSION_DB_PASS'}) ) {
 			    
 			    # Get count of sessions in DB
@@ -433,9 +461,9 @@ sub getstatus{
 			        	$s{'sessioncount'}{'val'} = $row[0];
 					}
 			    } else {
-				    wlog("STATUS: ERROR: Unable to exec SQL command");
+				    wlog("STATU: ERROR: Unable to exec SQL command");
 			    }
-			    wlog("DEBUG: Session DB size is $s{'sessioncount'}{'val'} sessions\n") if $debug;
+			    wlog("STATU: DEBUG: Session DB size is $s{'sessioncount'}{'val'} sessions\n") if $debug;
 
 			    # Get Oldest session time
 			    $sth= $dbh->prepare("SELECT unix_timestamp(start_time) FROM session ORDER BY start_time LIMIT 1") or wlog("STATUS: ERROR: Unable to get oldest conenction $DBI::errstr");
@@ -444,7 +472,7 @@ sub getstatus{
   					$s{'firstctx'}{'val'} = $row[0];
 			    }
 			    $s{'firstctx'}{'val'} = OFPC::Parse::norm_time($s{'firstctx'}{'val'},"UTC");
-			    wlog("DEBUG: Oldest connection in session DB is $s{'firstctx'}{'val'}\n") if $debug;
+			    wlog("STATU: DEBUG: Oldest connection in session DB is $s{'firstctx'}{'val'}\n") if $debug;
 
 			    # Get Newest session time
 			    $sth= $dbh->prepare("SELECT unix_timestamp(start_time) FROM session ORDER BY start_time desc LIMIT 1") or wlog("STATUS: ERROR: Unable to get newest conenction $DBI::errstr");
@@ -453,7 +481,7 @@ sub getstatus{
   					$s{'lastctx'}{'val'} = $row[0];
 			    }
 			    $s{'lastctx'}{'val'} = OFPC::Parse::norm_time($s{'lastctx'}{'val'},"UTC");
-			    wlog("DEBUG: Newest connection in session DB is $s{'lastctx'}{'val'}\n") if $debug;
+			    wlog("STATU: DEBUG: Newest connection in session DB is $s{'lastctx'}{'val'}\n") if $debug;
 
 			    $dbh->disconnect or wlog("Unable to disconnect from DB $DBI::errstr");
 			    if (opendir(SESSION_DIR,$config{'SESSION_DIR'}) ) { 
@@ -467,7 +495,7 @@ sub getstatus{
 		} else {
 			wlog("DEBUG: Session data disabled on this node");
 		}
-
+		# Node TZ
 		$s{'nodetz'}{'val'}=$ltz;
 
 		# Check we are providing back some valid data
@@ -482,18 +510,61 @@ sub getstatus{
 		$sc{$config{'NODENAME'}} = \%s;
 
 	} else {
-		$sc{'message'} = "Proxy status not implemented yet";
-		$sc{'ofpctype'} = "NODE";
+
+		# This node is a proxy...
+		# Hash of status data we want the proxy to tell us about
+		# State of connections,
+		# DB size
+		# etc etc
+
+		my %ps = (   
+			success => {
+				val => 1,
+				text => "Request Status                 ",
+				type => "t",
+			},
+			nodename => {
+				val => $config{'NODENAME'},
+				text => "Node Name                      ",
+				type => "t",
+			},
+			description => {
+				val => $config{'DESCRIPTION'},
+				text => "Description                    ",
+				type => "t",
+			},
+			ofpctype => {
+				val => "PROXY",
+				text => "Node Type                      ",
+				type => "t",
+			},
+			upnodes => {
+				val => "",
+				text => "Nodes Up                       ",
+				type => "t",
+			},
+			downnodes => {
+				val => "",
+				text => "Nodes Down                     ",
+				type => "t",
+			},
+		);
+
+		$sc{'message'} = "None";
+		#$sc{'ofpctype'} = "Proxy";
 		$sc{'nodename'} = $config{'NODENAME'};
-		print "XXX NOdename is $config{'NODENAME'}\n";
-		#$sc{'ofpctype'} = "PROXY";
+		$sc{'ofpctype'} = "PROXY";
 		$sc{'proxy'} = 1;
 		$sc{'success'} = 1;
 		# XXX
 		my $rt=readroutes();
 		my $b;
-		my $scr=\%sc;		# Convert sc into a ref
+		my $scr=\%sc;		# Convert sc (status containter) into a ref
+		# Add the proxy node to the node list
+		push (@{$sc{'nodelist'}},$config{'NODENAME'});
+
 		foreach (keys %$rt) {
+
 			wlog("Proxy making status request to node $rt->{$_}{'name'}");
 			my $rn=$rt->{$_}{'name'};
 
@@ -513,13 +584,21 @@ sub getstatus{
     			$r2->{'action'}{'val'} = "status";
 
     			my %s=OFPC::Request::request($nodesock,$r2);
+    			# Add node to Live list
+    			$ps{'upnodes'}{'val'} = $ps{'upnodes'}{'val'} . $rt->{$_}{'name'} . " ";
     			my $sr = \%s;
     			# Add the data from the status data back from the node to the container hash
     			$scr->{$rt->{$_}{'name'}} = $sr->{$rt->{$_}{'name'}};
     		} else {
-    			wlog("Unable to Connect to node $rt->{$_}{'name'}");
+    			wlog("STATU: Unable to Connect to node $rt->{$_}{'name'}");
+    			wlog("STATU: DEBUG: Adding $rt->{$_}{'name'} to down nodes list") if $debug;
+
+    			$ps{'downnodes'}{'val'} = $ps{'downnodes'}{'val'} . $rt->{$_}{'name'} . " ";
     		}
 		}
+		# Add the proxy status data to the hash in the same was as we would a node
+		my $psr = \%ps;
+		$scr->{$config{'NODENAME'}} = $psr;
 	}
 	print Dumper \%sc;
 	return(\%sc);
@@ -1702,14 +1781,12 @@ sub comms{
 		                        }
 		                        wlog("COMMS: $client_ip: RID: $request->{'rid'} Table Sent. Closing connection\n");
 			                    shutdown($client,2);
+			                    
 							} elsif ($request->{'action'} eq "search") {
 								wlog("COMMS: $client_ip: RID: $request->{'rid'} Search Request\n");
 		                        wlog("COMMS: $client_ip: RID: $request->{'rid'} Stime=$request->{'stime'} Etime=$request->{'etime'}");
 
-		                        (my $t)=OFPC::CXDB::cx_search($config{'SESSION_DB_NAME'}, 
-												$config{'SESSION_DB_USER'}, 
-												$config{'SESSION_DB_PASS'},
-												$request);
+		                        (my $t)=OFPC::CXDB::cx_search($request);
 		                            
 		                        unless ($t->{'error'}) { 
 		                        	my $tj=encode_json($t);	
@@ -1866,8 +1943,8 @@ sub readroutes{
 =cut
 
 sub readpasswd{
-
     my $configfile=shift;
+	my $debug=wantdebug();
     
     open my $config, '<', $configfile or die "ERROR: Unable to open passwd file $configfile $!\n";
     while(<$config>) {

@@ -568,8 +568,7 @@ sub openfpccx2db{
 
 	$pidpath=$configs{$instance}{'PIDPATH'} if defined $configs{$instance}{'PIDPATH'};
 
-	my $daemonargs="--daemon --config $conf_dir/$instance " .
-			"> /tmp/openfpc-cx2db-$configs{$instance}{'NODENAME'}.log";
+	my $daemonargs="--daemon --config $conf_dir/$instance ";
 
 	# Get a PID, and check if it's runnings
 	my $pid=getPidFromFile("$pidpath/$pidfile");
@@ -591,6 +590,7 @@ sub openfpccx2db{
 					my $result=system("$daemoncmd $daemonargs");
 					if ($result) {
 						printf '%10s', "Failed\n";
+						print "[!] ERROR: Problem starting cx2db process. Check syslog for details\n" unless $quiet;
 					} else {
 						printf '%10s', "Done\n";
 						return(1);

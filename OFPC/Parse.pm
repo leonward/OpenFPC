@@ -25,12 +25,10 @@ use strict;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
 require Exporter;
 use Date::Parse;
-#use Date::Manip;
 use DateTime;
 use Time::Piece;
 use POSIX qw(strftime);
-
-#use OFPC::Common;
+use Sys::Syslog;
 
 @EXPORT = qw(ALL);
 $VERSION = '0.2';
@@ -45,6 +43,26 @@ sub wantdebug{
 	my $debug=$ENV{$var}; 
 	return($debug); 
 }
+
+=head2 wlog
+	Write the string passed to the function as a log
+	e.g. wlog("Something just went down");
+	Can't use the function from common because of variable dependencies 
+=cut
+                        
+sub wlog{
+        my $msg =  shift;
+        my $debug=wantdebug();
+        chomp $msg;
+        my $gmtime=gmtime();
+		my $logdata = "Unknown: " .  $msg;
+        if ($debug == 0) {
+            print "$gmtime GMT: $logdata\n" ;
+        }
+		syslog("info",$logdata);
+}
+
+
 
 sub norm_time{
 	# 1) Take any old strange timestamp and convert it to epoch with the target timezone specified in $ttz
@@ -82,12 +100,12 @@ sub norm_time{
 	my $oe=$sdt->epoch;
 
 	if ($debug) {
-		print "Input TS : $ts\n";
-		print "Target TZ $ttz\n";
-		print "Input epoch  : $ie \n";
-		print "Output epoch : $oe \n";
+#		print "Input TS : $ts\n";
+#		print "Target TZ $ttz\n";
+#		print "Input epoch  : $ie \n";
+#		print "Output epoch : $oe \n";
 		my $delta = $ie-$oe;
-		print "Delta between input and output is $delta seconds\n";
+		wlog("TIME : Local TZ:$ltz, Target TZ:$ttz, offset $delta");
 	}
 
 	return($oe);

@@ -7,6 +7,7 @@ use POSIX qw(setsid);
 use DateTime;
 use Getopt::Long qw/:config auto_version auto_help/;
 use DBI;
+use Sys::Syslog;
 
 =head1 NAME
 
@@ -119,12 +120,18 @@ unless ( -d "$SDIR" ) {
 unless ( -d "$FDIR" )  {
 	mkdir "$FDIR" or die("Unable to create failed instertion dir $FDIR");
 }
-
-warn "[*] Starting openfpc-cx2db.pl...\n" unless ($DAEMON);
-
+wlog("[*] Starting openfpc-cx2db.pl..."); 
+#my $dbh = DBI->connect($DBI,$DB_USERNAME,$DB_PASS, {AutoCommit => 0, RaiseError => 1}) or die "$DBI::errstr";
+unless (my $dbt = DBI->connect($DBI,$DB_USERNAME,$DB_PASS, {AutoCommit => 0, PrintError => 0,}) ) {
+  wlog("DB Test connection failed: $DBI::errstr");
+  exit(255);
+} else {
+  wlog("Test connection to DB succeeded. Logging sessions.");
+  $dbt->disconnect;
+}
 # Prepare to meet the world of Daemons
 if ( $DAEMON ) {
-   print "[*] Daemonizing...\n";
+   wlog("[*] Daemonizing...");
    chdir ("/") or die "chdir /: $!\n";
    open (STDIN, "/dev/null") or die "open /dev/null: $!\n";
    open (STDOUT, "> $LOGFILE") or die "open > $LOGFILE: $!\n";
@@ -141,6 +148,7 @@ if ( $DAEMON ) {
 }
 
 warn "[*] Connecting to database...\n";
+# HERE
 my $dbh = DBI->connect($DBI,$DB_USERNAME,$DB_PASS, {AutoCommit => 0, RaiseError => 1}) or die "$DBI::errstr";
 my $sth;
 # Make todays table, and initialize the session merged table
@@ -152,6 +160,22 @@ dir_watch();
 exit;
 
 =head1 FUNCTIONS
+
+=head2 wlog
+  Write the string passed to the function as a log
+  e.g. wlog("Something just went down");
+=cut
+                        
+sub wlog{
+        my $msg =  shift;
+        chomp $msg;
+        my $gmtime=gmtime();
+        my $logdata = "$CONFIG{'NODENAME'} " .  $msg;
+        unless ($DAEMON) {
+            print "$gmtime GMT: $logdata\n" ;
+        }
+    syslog("info",$logdata);
+}
 
 =head2 dir_watch
 
