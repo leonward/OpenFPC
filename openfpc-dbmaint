@@ -41,8 +41,8 @@ GUI_DB_NAME="gui"
 GUI_DB_USER="opnepfc"
 GUI_DB_PASS="openfpc"
 PROXY_DB_NAME="proxy_openfpc"
-PROXY_DB_USER="openfpc"
-PROXY_DB_PASSWORD="openfpc"
+PROXY_DB_USER="proxy_openfpc"
+PROXY_DB_PASSWORD="proxy_openfpc"
 
 function die
 {
@@ -130,7 +130,10 @@ function readconfig
 		[ -n "$ENABLE_SESSION" ] || die "ENABLE_SESSION not defined in $CONFIG"
 		[ -n "$NODENAME" ] || die "NODENAME not set in $CONFIG"
     [ -n "$PASSWD" ] || die "PASSWD file not set in $CONFIG"
-
+    [ "$PROXY_DB_USER" == "$SESSION_DB_USER" ] && die "PROXY_DB_USER and SESSION_DB_USER in $CONFIG must be unique, they can't both be $SESSION_DB_USER"
+    [ "$GUI_DB_USER" == "$SESSION_DB_USER" ] && die "GUI_DB_USER and SESSION_DB_USER in $CONFIG must be unique, they can't both be $SESSION_DB_USER"
+    [ "$GUI_DB_USER" == "$PROXY_DB_USER" ] && die "GUI_DB_USER and PROXY_DB_USER in $CONFIG  must be unique, they can't both be $GUI_DB_USER"
+      
     # check db names for invalid chars
     DBNAMES="$SESSION_DB_NAME $GUI_DB_NAME $PROXY_DB_NAME"
 
@@ -228,7 +231,10 @@ function create_proxy
   # Create new DB
   mysql -u$DBUSER -p$DBPASS -e "CREATE DATABASE $PROXY_DB_NAME;" > /dev/null 2>&1 || die "Unable to create DB $PROXY_DB_NAME - Did you enter the correct user/password?"
 
-    # Create new DB user
+  # Check if user already exists (maybe attached to another ofpc database)
+  mysql -u$DBUSER -p$DBPASS -B -N -e "use mysql; SELECT user FROM user" |grep -w $PROXY_DB_USER > /dev/null && die "User $PROXY_DB_USER already exists. This user must be unique."
+  # Create new DB user
+
   mysql -u$DBUSER -p$DBPASS -e "use 'mysql'; CREATE USER '$PROXY_DB_USER'@'localhost' IDENTIFIED BY '$PROXY_DB_PASS';"
   mysql -u$DBUSER -p$DBPASS -e "use $PROXY_DB_NAME; GRANT ALL PRIVILEGES ON $PROXY_DB_NAME.* TO '$PROXY_DB_USER'@'localhost';"
 
@@ -238,30 +244,28 @@ function create_proxy
   # Create tables
   SQL="CREATE TABLE search (
          id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-         search_id       INT UNSIGNED NOT NULL, 
          timestamp DATETIME,
          username VARCHAR(20),
-         description VARCHAR(100),
+         comment VARCHAR(100),
          search VARCHAR(500) 
          );"
   mysql -u$DBUSER -p$DBPASS $PROXY_DB_NAME -e "$SQL"
   SQL="CREATE TABLE IF NOT EXISTS session              \
         (                                                  \
-        id            INT                        NOT NULL, \
-        search_id     INT UNSIGNED        NOT NULL, \
+        id            INT NOT NULL AUTO_INCREMENT,\
+        search_id     INT UNSIGNED               NOT NULL, \
         start_time    DATETIME                   NOT NULL, \
         ip_proto      TINYINT UNSIGNED           NOT NULL, \
-        ip_version    TINYINT UNSIGNED           NOT NULL, \
+        ip_version    TINYINT UNSIGNED,                    \
         src_ip        DECIMAL(39,0) UNSIGNED,              \
         src_port      SMALLINT UNSIGNED,                   \
         dst_ip        DECIMAL(39,0) UNSIGNED,              \
         dst_port      SMALLINT UNSIGNED,                   \
-        src_pkts      INT UNSIGNED               NOT NULL, \
         src_bytes     INT UNSIGNED               NOT NULL, \
-        dst_pkts      INT UNSIGNED               NOT NULL, \
         dst_bytes     INT UNSIGNED               NOT NULL, \
-        node          CHAR(100),
-        PRIMARY KEY (id,search_id),                       \
+        total_bytes   INT UNSIGNED             NOT NULL, \
+        node_name     CHAR(100),                           \
+        PRIMARY KEY (id),                                  \
         INDEX src_ip (src_ip),                             \
         INDEX dst_ip (dst_ip),                             \
         INDEX dst_port (dst_port),                         \
@@ -298,6 +302,9 @@ function create_gui
 
     # Create new DB
     mysql -u$DBUSER -p$DBPASS -e "CREATE DATABASE $GUI_DB_NAME;" > /dev/null 2>&1 || die "Unable to create DB $GUI_DB_NAME - Did you enter the correct user/password?"
+
+    # Check if user already exists (maybe attached to another ofpc database)
+    mysql -u$DBUSER -p$DBPASS -B -N -e "use mysql; SELECT user FROM user" |grep -w $GUI_DB_USER > /dev/null && die "User $GUI_DB_USER already exists. This user must be unique."
 
     # Create new DB user
     mysql -u$DBUSER -p$DBPASS -e "use 'mysql'; CREATE USER '$GUI_DB_USER'@'localhost' IDENTIFIED BY '$GUI_DB_PASS';"
@@ -358,7 +365,10 @@ function create_session
 	# Create new DB	
 	mysql -u$DBUSER -p$DBPASS -e "CREATE DATABASE $SESSION_DB_NAME;" > /dev/null 2>&1 || die "Unable to create DB $SESSION_DB_NAME"
 
-	# Create new DB user
+  # Check if user already exists (maybe attached to another ofpc database)
+  mysql -u$DBUSER -p$DBPASS -B -N -e "use mysql; SELECT user FROM user" |grep -w $SESSION_DB_USER > /dev/null && die "User $SESSION_DB_USER already exists. This user must be unique."
+
+  # Create new DB user
 	mysql -u$DBUSER -p$DBPASS -e "use 'mysql'; CREATE USER '$SESSION_DB_USER'@'localhost' IDENTIFIED BY '$SESSION_DB_PASS';"
 	mysql -u$DBUSER -p$DBPASS -e "use $SESSION_DB_NAME; GRANT ALL PRIVILEGES ON $SESSION_DB_NAME.* TO '$SESSION_DB_USER'@'localhost';"
 	echo -e " -  Session DB Created"
@@ -432,6 +442,7 @@ case $1 in
     elif [ "$TYPE" == "proxy" ]
     then
       create_proxy
+      restartopenfpc
     else
       die "Invalid database type $TYPE. See usage"
     fi
