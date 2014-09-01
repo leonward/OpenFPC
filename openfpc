@@ -833,6 +833,7 @@ if ($thing) {
 					print " -  STATUS :               DISABLED\n"; 
 				}
 				print " -  PORT:                  $configs{$instance}{'OFPC_PORT'}\n"     if defined $configs{$instance}{'OFPC_PORT'};
+				print " -  PASSWORD FILE          $configs{$instance}{'PASSWD'}\n"        if defined $configs{$instance}{'PASSWD'};
 				unless ( $configs{$instance}{'PROXY'} == 1 ) {
 					print " -  INTERFACE:             $configs{$instance}{'INTERFACE'}\n" 	  if defined $configs{$instance}{'INTERFACE'};
 					print " -  FULL PACKET CAPTURE:   ENABLED\n"	  if defined $configs{$instance}{'BUFFER_PATH'};
