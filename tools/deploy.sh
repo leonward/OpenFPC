@@ -17,6 +17,30 @@ function die
 	echo $1
 	exit 1
 }
+
+function deploy
+{
+	echo -e "[*] Deploying to $1"
+	# Check that the target exists on the remote system 
+	if $(ssh $TUSER@$TDEV [ -d $TPATH ])
+		then
+			echo "- Target path $TPATH found on target device $TDEV"
+		else
+			die "Cant find target path $TPATH on target device $TDEV, won't continue"
+	fi
+
+	for d in $DIRS;
+	do
+		echo "- Copying $d"
+		scp -r $d $TUSER@$TDEV:$TPATH/
+	done
+
+	for f in $FILES;
+	do
+		scp $f $TUSER@$TDEV:$TPATH/
+	done
+}
+
 if [ $1 ] ; then
 
 	echo "Deploying to $1"
@@ -40,23 +64,9 @@ do
 	[ -e "$i" ] || die "! Cant find $i this script should be run from the openfpc top dir."
 done
 
-
-# Check that the target exists on the remote system 
-if $(ssh $TUSER@$TDEV [ -d $TPATH ])
-	then
-		echo "- Target path $TPATH found on target device $TDEV"
-	else
-		die "Cant find target path $TPATH on target device $TDEV, won't continue"
-fi
-
-for d in $DIRS;
+for i in $@
 do
-	echo "- Copying $d"
-	scp -r $d $TUSER@$TDEV:$TPATH/
-done
-
-for f in $FILES;
-do
-	scp $f $TUSER@$TDEV:$TPATH/
-done
+	echo "Deploying to $i"
+	deploy $i
+done 
 
