@@ -44,7 +44,6 @@ sub wantdebug{
 	my $var="OFPCDEBUG";
 
 	my $debug=$ENV{$var}; 
-	print "DEBUG: Enabling debug via shell variable $var\n" if $debug;
 	return($debug); 
 }
 
@@ -180,6 +179,7 @@ sub receivefile{
 	my $filetype=shift;	# Filetype
 	my $svrmd5=shift;	# MD5 of file from server
 	my $r=shift;	# Request hashref
+	#my $debug=0;
 	my $debug=wantdebug();
 	my %result={
 		success => 0,
@@ -443,7 +443,7 @@ sub request{
 				my $tj=<$socket>;
 				my $t;
 				if (decode_json($tj)) {
-					print "Decodedi JSON\n" if $debug;
+					print "Decoded JSON\n" if $debug;
 				} else {
 					print "Failed to decode JSON table data recieved\n" if $debug;
 				}

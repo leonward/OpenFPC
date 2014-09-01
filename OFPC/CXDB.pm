@@ -9,6 +9,9 @@ use OFPC::Common;
 use Data::Dumper;
 use DBI;
 use Switch;
+use POSIX qw(strftime);
+use JSON::PP;
+
 require Exporter;
 
 @EXPORT = qw(ALL);
@@ -55,6 +58,7 @@ sub cx_search{
 
 		my $q=buildQuery($r);
 		print "DEBUG: Query is $q\n" if $debug;
+		$t->{'query'} = $q;	# Save query made
 
 		($t)=getresults($dbname, $dbuser, $dbpass, $q);
 		print Dumper $t;
@@ -82,20 +86,43 @@ sub cx_search{
 
 	} else {
 		wlog("Proxy session search");
-		print "DB is $config{'PROXY_DB_NAME'}, user is $config{'PROXY_DB_USER'}, pass is $config{'PROXY_DB_PASS'}\n";
-		if (my $dbh= DBI->connect("dbi:mysql:
-				database=$config{'PROXY_DB_NAME'};
-				host=$config{'PROXY_DB_HOST'},
-				user=$config{'PROXY_DB_USER'},
-				pass=$config{'PROXY_DB_PASS'}")) {
+		my $rc=0; 		# Total record count back from all Nodes
+		# Grab some details about the query SQL made
+		my $q=buildQuery($r);
+		wlog("DEBUG: Query is $q") if $debug;
+	    
+	    my $dsn = "DBI:mysql:database=$config{'PROXY_DB_NAME'};
+	    					host=$config{'PROXY_DB_HOST'}";
 
+	    if (my $dbh = DBI->connect($dsn, $config{'PROXY_DB_USER'}, $config{'PROXY_DB_PASS'})) {
+	    	wlog("SEARCH: DEBUG: Proxy connected to DB $config{'PROXY_DB_NAME'}");
 			my $rt=OFPC::Common::readroutes();
-			# Connect to DB
+
+			# Connect to DB and save the details of the proxied search
+			my $now = strftime "%Y-%m-%d %H:%M:%S", localtime;
+			my $sql = "INSERT INTO search 
+				( timestamp, username, comment, search
+					) values (?,?,?,?)";
+  			my $sth = $dbh->prepare_cached($sql);
+      		$sth->execute($now, $r->{'user'},$r->{'comment'},$q);
+
+
+      		# Get last insert ID
+      		$sql = "SELECT id from search order by id desc limit 1";
+  			my $sth = $dbh->prepare_cached($sql);
+      		$sth->execute();
+      		my @row = $sth->fetchrow_array;
+      		my $sid=@row[0];
+      		wlog("PROXY: SEARCH: Saving search: Search_id: $sid, User: $r->{'user'}, Timestamp: $now, Comment: $r->{'comment'}");
+
 
 			my $sc;
 			foreach (keys %$rt) {
-				wlog("Proxy making status request to node $rt->{$_}{'name'}");
+
+				# Connect to each node to search
+
 				my $rn=$rt->{$_}{'name'};
+				wlog("PROXY: SEARCH: $rn: Searching node $rn");
 
 				#push (@{$sc{'nodelist'}},$config{'NODENAME'});
 				push (@{$t->{'nodelist'}},$rt->{$_}{'name'});
@@ -107,32 +134,68 @@ sub cx_search{
                                 Proto => 'tcp',
                                 );
     			if ($nodesock) {
-    				wlog("Connected to node $rt->{$_}{'name'}");
+    				wlog("PROXY: SEARCH: $rn: Connected to node $rt->{$_}{'name'}");
 	    		 	$r2->{'user'}{'val'} =  $rt->{$_}{'user'}; 
     				$r2->{'password'}{'val'} = OFPC::Request::mkhash($rt->{$_}{'user'},$rt->{$_}{'password'}); 
     				$r2->{'action'}{'val'} = "search";
+    				my %result=OFPC::Request::request($nodesock,$r2);
 
-    				my %s=OFPC::Request::request($nodesock,$r2);
-    				my $t=\%s;   	# Put the search hash into a href
-    				print "DATA BACK FROM External search is \n";
-    				print Dumper $t;
-    				print "--------------\n";
-    				wlog("SEARCH: DEBUG: Search Start Time : " . localtime($t->{'stime'}) . " ($ltz)\n") if $debug;
+					my $tj=$result{'table'};
+					if ($tj) {
+						my $t=decode_json($tj);
 
-    			# Save search and session to proxy DB
+	    				wlog("PROXY: SEARCH: $rn: DEBUG: Table size back from search is $t->{'size'} rows\n");
+	    				$rc=$rc+$t->{'size'};
+						my $i=0;
+						while ($i < $t->{'size'}) {
+							my @f = @{$t->{'table'}{$i}};  	# Assign table array to f to make this easier to read.
+							$i++;
 
-    			# Add the data from the status data back from the node to the container hash
-    				#$scr->{$rt->{$_}{'name'}} = $sr->{$rt->{$_}{'name'}};
+							# Save this session from the node to the proxy search database
+							my $sql = "INSERT INTO session 
+								( search_id, start_time, src_ip, src_port, dst_ip, dst_port, ip_proto, src_bytes, dst_bytes, total_bytes, node_name     
+								) values (?,?,?,?,?,?,?,?,?,?,?)";
+ 							my $sth = $dbh->prepare_cached($sql);
+    						$sth->execute($sid, $f[0], $f[1], $f[2], $f[3], $f[4], $f[5], $f[6], $f[7], $f[8], $f[9]);
+						}	
+						wlog("PROXY: SEARCH: $rn: Wrote $i results to db from node $rn");
+
+    				} else {
+    					wlog("PROXY: SEARCH: $rn: Error, no jason back from node $rt->{$_}{'name'}");
+    				}
+
 
 	    		} else {
-    				wlog("Unable to Connect to node $rt->{$_}{'name'}");
+    				wlog("PROXY: SEARCH: $rn: Unable to Connect to node $rt->{$_}{'name'}");
     			}
+    			wlog("PROXY: SEARCH: TOTAL: results from all nodes: $rc");
+
     		}
+
+    		# Now that the data is in the DB, we need to re-search this data set to build a json to send back 
+    		# to the original client
+	    	# Disconnect from  DB
+    		$sth->finish;
+			$dbh->disconnect;
+			# CLEAN THIS UP
+
+    		my $sql="SELECT start_time, src_ip, src_port, dst_ip, dst_port, src_bytes, dst_bytes, node_name, search_id from session where search_id=5";
+			(my $t)=getresults($config{'PROXY_DB_NAME'}, $config{'PROXY_DB_USER'}, $config{'PROXY_DB_PASS'}, $sql);
+			my @cols = ("Start Time", "Source IP", "sPort", "Destination", "dPort", "Proto", "Src Bytes", "Dst Bytes", "Total Bytes", "Node Name"); 
+			my @format = (22, 18,           8,       18,            8,      8,        14,          14,          14, 20);
+			my @dtype = ("udt", "ip", "port", "ip", "port","protocol","bytes", "bytes","bytes","text");
+			$t->{'title'} = "Proxy search over multiple nodes";
+			$t->{'type'} = "search";
+			$t->{'cols'} = [ @cols ];
+			$t->{'format'} = [ @format ];
+			$t->{'dtype'} = [ @dtype ];
+			$t->{'stime'} = $r->{'stime'};
+			$t->{'etime'} = $r->{'etime'};
+			$t->{'nodename'} = $config{'NODENAME'};
+			return($t);
 		} else {
-			wlog("Unable to connect to local proxt DB");
+			wlog("PROXY: SEARCH: Unable to connect to local proxy DB to save results $DBI::errstr");
 		}
-    	# Disconnect from  DB
-    		
 	}
 	return($t);
 	
@@ -163,9 +226,8 @@ sub buildQuery {
 	my $DST_PORT = $r->{'dpt'} if $r->{'dpt'};
 	my $PROTO = $r->{'proto'} if $r->{'proto'};
 	my $LIMIT = $r->{'limit'} if $r->{'limit'};	
-	print "We have $LIMIT\n";
 	my $QUERY = q();
-
+	wlog("QUERY: DEBUG: Building query") if $debug;
 	$QUERY = qq[SELECT start_time,INET_NTOA(src_ip),src_port,INET_NTOA(dst_ip),dst_port,ip_proto,src_bytes, dst_bytes,(src_bytes+dst_bytes) as total_bytes\
 	            FROM session IGNORE INDEX (p_key) WHERE ];
 
@@ -176,39 +238,38 @@ sub buildQuery {
 	}
 
 	if (defined $SRC_IP && $SRC_IP =~ /^([\d]{1,3}\.){3}[\d]{1,3}$/) {
-	  print "Source IP is: $SRC_IP\n" if $debug;
+	  wlog("QUERY: DEBUG: Adding Source IP is: $SRC_IP") if $debug;
 	  $QUERY = $QUERY . qq[AND INET_NTOA(src_ip)='$SRC_IP' ];
 	}
 
 	if (defined $SRC_PORT && $SRC_PORT =~ /^([\d]){1,5}$/) {
-	  print "Source Port is: $SRC_PORT\n" if $debug;
+	  wlog("QUEDY: DEBUG: Source Port is: $SRC_PORT\n") if $debug;
 	  $QUERY = $QUERY . qq[AND src_port='$SRC_PORT' ];
 	}
 
 	if (defined $DST_IP && $DST_IP =~ /^([\d]{1,3}\.){3}[\d]{1,3}$/) {
-	  print "Destination IP is: $DST_IP\n" if $debug;
+	  wlog("QUERY: DEBUG: Adding Destination IP: $DST_IP") if $debug;
 	  $QUERY = $QUERY . qq[AND INET_NTOA(dst_ip)='$DST_IP' ];
 	}
 
 	if (defined $DST_PORT && $DST_PORT =~ /^([\d]){1,5}$/) {
-	  print "Destination Port is: $DST_PORT\n" if $debug;
+	  wlog("QUERY: DEBUG: Adding Destination Port: $DST_PORT") if $debug;
 	  $QUERY = $QUERY . qq[AND dst_port='$DST_PORT' ];
 	}
 
 	if (defined $PROTO && $PROTO =~ /^([\d]){1,3}$/) {
-	  print "Protocol is: $PROTO\n" if $debug;
+	  wlog("QUERY: DEBUG: Protocol is: $PROTO") if $debug;
 	  $QUERY = $QUERY . qq[AND ip_proto='$PROTO' ];
 	}
 
 	if (defined $LIMIT && $LIMIT =~ /^([\d])+$/) {
-	  print "Limit: $LIMIT\n" if $debug;
+	  wlog("QUERY: DEBUG: Result Limit: $LIMIT") if $debug;
 	  $QUERY = $QUERY . qq[ORDER BY start_time DESC LIMIT $LIMIT];
 	} else {
-	  print "Limit: $DLIMIT\n" if $debug;
+	  wlog("QUERY: DEBUG: No limit specified. Using a default value of $DLIMIT") if $debug;
 	  $QUERY = $QUERY . qq[ORDER BY start_time DESC LIMIT $DLIMIT];
 	}
 
-	print "\nmysql> $QUERY;\n\n" if $debug;
 	return $QUERY;
 }
 
