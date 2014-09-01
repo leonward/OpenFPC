@@ -624,19 +624,18 @@ sub trimsessiondb(){
 
 	wlog("TRIM: Trimming Session DB from: $fc (" . localtime($fc) . ") to $fp (". localtime($fp) . ")") if $debug;
 
-	my $dbh= DBI->connect("dbi:mysql:database=$config{'SESSION_DB_NAME'};host=localhost",$config{'SESSION_DB_USER'},$config{'SESSION_DB_PASS'}) 
-		or wlog("DEBUG: Unable to connect to DB");
-
-	my $sth= $dbh->prepare("DELETE FROM session WHERE unix_timestamp(start_time) < $fp") 
-		or wlog("STATUS: ERROR: Unable to prep query $DBI::errstr");
-
-	if ($sth->execute()) {
-		$trimtime=$fp;
+	if (my $dbh= DBI->connect("dbi:mysql:database=$config{'SESSION_DB_NAME'};host=localhost",$config{'SESSION_DB_USER'},$config{'SESSION_DB_PASS'})) {
+		my $sth= $dbh->prepare("DELETE FROM session WHERE unix_timestamp(start_time) < $fp") 
+			or wlog("STATUS: ERROR: Unable to prep query $DBI::errstr");
+		if ($sth->execute()) {
+			$trimtime=$fp;
+		} else {
+		 	wlog("STATUS: ERROR: Unable to trim session DB");
+		}
+		$dbh->disconnect or wlog("Unable to disconnect from DB $DBI::errstr");
 	} else {
-		 wlog("STATUS: ERROR: Unable to trim session DB");
+		wlog("DEBUG: Unable to connect to Session DB - Won't try to trim sessions");
 	}
-
-	$dbh->disconnect or wlog("Unable to disconnect from DB $DBI::errstr");
 	return($trimtime);
 }
 

@@ -41,6 +41,7 @@ sub cx_search{
 	my $debug=wantdebug();
 	my $t;
 	my $sc;	# Search container
+	my $ltz=DateTime::TimeZone->new( name => 'local' )->name();
 
 	unless ($r->{'stime'} and $r->{'etime'}) {
 		print "DEBUG: No time set, instead using default time window of 1 hour\n" if ($debug);
@@ -81,42 +82,57 @@ sub cx_search{
 
 	} else {
 		wlog("Proxy session search");
-		my $rt=OFPC::Common::readroutes();
-		my $sc;
-		foreach (keys %$rt) {
-			wlog("Proxy making status request to node $rt->{$_}{'name'}");
-			my $rn=$rt->{$_}{'name'};
+		print "DB is $config{'PROXY_DB_NAME'}, user is $config{'PROXY_DB_USER'}, pass is $config{'PROXY_DB_PASS'}\n";
+		if (my $dbh= DBI->connect("dbi:mysql:
+				database=$config{'PROXY_DB_NAME'};
+				host=$config{'PROXY_DB_HOST'},
+				user=$config{'PROXY_DB_USER'},
+				pass=$config{'PROXY_DB_PASS'}")) {
 
-			#push (@{$sc{'nodelist'}},$config{'NODENAME'});
-			push (@{$t->{'nodelist'}},$rt->{$_}{'name'});
+			my $rt=OFPC::Common::readroutes();
+			# Connect to DB
 
- 			my $r2=OFPC::Request::mkreqv2();
-    		my $nodesock = IO::Socket::INET->new(
+			my $sc;
+			foreach (keys %$rt) {
+				wlog("Proxy making status request to node $rt->{$_}{'name'}");
+				my $rn=$rt->{$_}{'name'};
+
+				#push (@{$sc{'nodelist'}},$config{'NODENAME'});
+				push (@{$t->{'nodelist'}},$rt->{$_}{'name'});
+
+ 				my $r2=OFPC::Request::mkreqv2();
+    			my $nodesock = IO::Socket::INET->new(
                                 PeerAddr => $rt->{$_}{'ip'}, 
                                 PeerPort => $rt->{$_}{'port'}, 
                                 Proto => 'tcp',
                                 );
-    		if ($nodesock) {
-    			wlog("Connected to node $rt->{$_}{'name'}");
-	    	 	$r2->{'user'}{'val'} =  $rt->{$_}{'user'}; 
-    			$r2->{'password'}{'val'} = OFPC::Request::mkhash($rt->{$_}{'user'},$rt->{$_}{'password'}); 
-    			$r2->{'action'}{'val'} = "search";
+    			if ($nodesock) {
+    				wlog("Connected to node $rt->{$_}{'name'}");
+	    		 	$r2->{'user'}{'val'} =  $rt->{$_}{'user'}; 
+    				$r2->{'password'}{'val'} = OFPC::Request::mkhash($rt->{$_}{'user'},$rt->{$_}{'password'}); 
+    				$r2->{'action'}{'val'} = "search";
 
-    			my %s=OFPC::Request::request($nodesock,$r2);
-    			my $sr=\%s;
-    			print Dumper $sr;
+    				my %s=OFPC::Request::request($nodesock,$r2);
+    				my $t=\%s;   	# Put the search hash into a href
+    				print "DATA BACK FROM External search is \n";
+    				print Dumper $t;
+    				print "--------------\n";
+    				wlog("SEARCH: DEBUG: Search Start Time : " . localtime($t->{'stime'}) . " ($ltz)\n") if $debug;
+
     			# Save search and session to proxy DB
 
-    			$sc->{$rt->{$_}{'name'}} = $sr;
-
     			# Add the data from the status data back from the node to the container hash
-    			#$scr->{$rt->{$_}{'name'}} = $sr->{$rt->{$_}{'name'}};
-    			wlog("Dumping sc table");
-   			print Dumper $sc;
-    		} else {
-    			wlog("Unable to Connect to node $rt->{$_}{'name'}");
+    				#$scr->{$rt->{$_}{'name'}} = $sr->{$rt->{$_}{'name'}};
+
+	    		} else {
+    				wlog("Unable to Connect to node $rt->{$_}{'name'}");
+    			}
     		}
+		} else {
+			wlog("Unable to connect to local proxt DB");
 		}
+    	# Disconnect from  DB
+    		
 	}
 	return($t);
 	
