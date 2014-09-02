@@ -1792,7 +1792,7 @@ sub comms{
 		                        wlog("COMMS: $client_ip: RID: $request->{'rid'} Stime=$request->{'stime'} Etime=$request->{'etime'}");
 
 		                        (my $t)=OFPC::CXDB::cx_search($request);
-		                        print Dumper $t;
+		                        #print Dumper $t;
 
 		                        unless ($t->{'error'}) { 
 		                        	my $tj=encode_json($t);	

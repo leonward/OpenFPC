@@ -11,6 +11,7 @@ use DBI;
 use Switch;
 use POSIX qw(strftime);
 use JSON::PP;
+use Socket qw(inet_aton inet_ntoa);
 
 require Exporter;
 
@@ -58,7 +59,6 @@ sub cx_search{
 
 		my $q=buildQuery($r);
 		print "DEBUG: Query is $q\n" if $debug;
-		$t->{'query'} = $q;	# Save query made
 
 		($t)=getresults($dbname, $dbuser, $dbpass, $q);
 		print Dumper $t;
@@ -73,6 +73,7 @@ sub cx_search{
 		my @format = (22, 18,           8,       18,            8,      8,        14,          14,          14, 20);
 		my @dtype = ("udt", "ip", "port", "ip", "port","protocol","bytes", "bytes","bytes","text");
 		$t->{'title'} = "Custom Search";
+		$t->{'sql'} = $q;	# Save query made
 		$t->{'type'} = "search";
 		$t->{'cols'} = [ @cols ];
 		$t->{'format'} = [ @format ];
@@ -80,7 +81,7 @@ sub cx_search{
 		$t->{'stime'} = $r->{'stime'};
 		$t->{'etime'} = $r->{'etime'};
 		$t->{'nodename'} = $config{'NODENAME'};
-
+		print Dumper $t;
 		# Put the search results hash into a container that can contain multiple results 
 		push (@{$t->{'nodelist'}},$config{'NODENAME'});
 
@@ -150,7 +151,19 @@ sub cx_search{
 						while ($i < $t->{'size'}) {
 							my @f = @{$t->{'table'}{$i}};  	# Assign table array to f to make this easier to read.
 							$i++;
-
+							# Change Sip / Dip into numbers for storage.
+							# Socket aton returns a packed number. Need to unpack before saving to DB.
+							$f[1] = inet_aton($f[1]);
+							$f[1] = unpack('N', $f[1]);
+							$f[3] = inet_aton($f[3]);
+							$f[3] = unpack('N', $f[3]);
+						#	my $l=0;
+						#	foreach (@f) {
+						#		print "Loc $l: $f[$l]. ";
+						#		$l++;
+						#	}
+						#	print "\n";
+						#	print "GOT NTOA " . $f[1] . "convert to " . inet_aton($f[2]) . "!!\n";
 							# Save this session from the node to the proxy search database
 							my $sql = "INSERT INTO session 
 								( search_id, start_time, src_ip, src_port, dst_ip, dst_port, ip_proto, src_bytes, dst_bytes, total_bytes, node_name     
@@ -179,11 +192,11 @@ sub cx_search{
 			$dbh->disconnect;
 			# CLEAN THIS UP
 
-    		my $sql="SELECT start_time, src_ip, src_port, dst_ip, dst_port, src_bytes, dst_bytes, node_name, search_id from session where search_id=5";
+    		my $sql="SELECT start_time, inet_ntoa(src_ip), src_port, inet_ntoa(dst_ip), dst_port, ip_proto, src_bytes, dst_bytes, total_bytes, node_name, search_id from session where search_id=$sid order by start_time desc";
 			(my $t)=getresults($config{'PROXY_DB_NAME'}, $config{'PROXY_DB_USER'}, $config{'PROXY_DB_PASS'}, $sql);
-			my @cols = ("Start Time", "Source IP", "sPort", "Destination", "dPort", "Proto", "Src Bytes", "Dst Bytes", "Total Bytes", "Node Name"); 
-			my @format = (22, 18,           8,       18,            8,      8,        14,          14,          14, 20);
-			my @dtype = ("udt", "ip", "port", "ip", "port","protocol","bytes", "bytes","bytes","text");
+			my @cols = ("Start Time", "Source IP", "sPort", "Destination", "dPort", "Proto", "Src Bytes", "Dst Bytes", "Total Bytes", "Node Name", "Search", "Proxy"); 
+			my @format = (22, 18,           8,       18,            8,      8,        14,          14,          14, 10, 7, 10);
+			my @dtype = ("udt", "ip", "port", "ip", "port","protocol","bytes", "bytes","bytes","text","text");
 			$t->{'title'} = "Proxy search over multiple nodes";
 			$t->{'type'} = "search";
 			$t->{'cols'} = [ @cols ];
@@ -229,11 +242,12 @@ sub buildQuery {
 	my $QUERY = q();
 	wlog("QUERY: DEBUG: Building query") if $debug;
 	$QUERY = qq[SELECT start_time,INET_NTOA(src_ip),src_port,INET_NTOA(dst_ip),dst_port,ip_proto,src_bytes, dst_bytes,(src_bytes+dst_bytes) as total_bytes\
-	            FROM session IGNORE INDEX (p_key) WHERE ];
+	FROM session IGNORE INDEX (p_key) WHERE ];
 
 	if ( $r->{'stime'} =~ /^\d+$/) {
 		# Note: Remember that sessions are stored in UTC, regardless of what TZ the local system is in
-	   $QUERY = $QUERY . "unix_timestamp(CONVERT_TZ(`start_time`, '+00:00', \@\@session.time_zone)) between $r->{'stime'} and $r->{'etime'} ";
+	   $QUERY = $QUERY . "unix_timestamp(CONVERT_TZ(`start_time`, '+00:00', \@\@session.time_zone))  
+	between $r->{'stime'} and $r->{'etime'} ";
 
 	}
 

@@ -297,6 +297,7 @@ sub displayTable{
 	print " End  : " . localtime($t->{'etime'}) . " ($ltz)\n";
 	print " Node : $t->{'nodename'}\n"							if (defined $t->{'nodename'});
 	print " Rows : $t->{'size'}\n";
+	print " SQL  : $t->{'sql'}\n";
 	bar($blen,"=");	
 
 	# Column heads. Line number is added after
@@ -488,7 +489,7 @@ GetOptions (    'u|user=s' => \$cmdargs{'user'},
 		't|logtype=s' => \$cmdargs{'logtype'},
 		'e|logline=s' => \$cmdargs{'logline'},
 		'a|action=s' => \$cmdargs{'action'},
-		'p|password=s' => \$password,
+		'p|password=s' => \$cmdargs{'password'},
 		'm|comment=s' => \$cmdargs{'comment'},
 		'g|gui'	=> \$cmdargs{'gui'},
 		'z|zip' => \$cmdargs{'zip'},
