@@ -128,7 +128,11 @@ sub cx_search{
 				#push (@{$sc{'nodelist'}},$config{'NODENAME'});
 				push (@{$t->{'nodelist'}},$rt->{$_}{'name'});
 
- 				my $r2=OFPC::Request::mkreqv2();
+				my $r2=OFPC::Request::mkreqv2();
+				#print "R\n";
+				#print Dumper $r;
+				#print "R2\n";
+				#print Dumper $r2;
     			my $nodesock = IO::Socket::INET->new(
                                 PeerAddr => $rt->{$_}{'ip'}, 
                                 PeerPort => $rt->{$_}{'port'}, 
@@ -205,6 +209,7 @@ sub cx_search{
 			$t->{'stime'} = $r->{'stime'};
 			$t->{'etime'} = $r->{'etime'};
 			$t->{'nodename'} = $config{'NODENAME'};
+			$t->{'sql'} = buildQuery($r);
 			return($t);
 		} else {
 			wlog("PROXY: SEARCH: Unable to connect to local proxy DB to save results $DBI::errstr");

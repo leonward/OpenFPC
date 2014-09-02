@@ -261,7 +261,7 @@ sub receivefile{
 		$result{'message'} = "Success";
 	} else {
 		$result{'success'} = 0;
-		$result{'message'} = "md5sum mismatch between extracted and recieved file";
+		$result{'message'} = "md5sum mismatch between extracted and received file";
 	}
 	return(\%result);
 }
@@ -385,7 +385,7 @@ sub request{
 						return(%$sr);
 					}
 				} else {
-					print "ERROR: Recieved status response that didn't decode\n";
+					print "ERROR: Received status response that didn't decode\n";
 				}
 			} 
 			case /RESULTS/ {
@@ -402,7 +402,7 @@ sub request{
 				if ($data =~ /^PCAP:\s*(.*)/) {
 					$filetype="PCAP";
 					$result{'expected_md5'} = $1;
-					print "DEBUG: Expcting md5 of pcap to be $result{'expected_md5'}\n" if $debug;
+					print "DEBUG: Expecting md5 of pcap to be $result{'expected_md5'}\n" if $debug;
 				}
 				my $xfer=receivefile($socket,$filetype,$result{'expected_md5'},$r);
 				$result{'md5'} = $xfer->{'md5'};
@@ -417,7 +417,7 @@ sub request{
 				return %result;
 			} 
 			case /ZIP/ {
-				print "DEBUG: Incomming ZIP\n" if ($debug);
+				print "DEBUG: Incoming ZIP\n" if ($debug);
 				my $filetype;
 				if ($data =~ /^ZIP:\s*(.*)/) {
 					$filetype="ZIP";
@@ -438,14 +438,14 @@ sub request{
 			} 
 			case /TABLE/ {
 				my @table=();	
-				print "DEBUG: Incomming Table of data\n" if ($debug);
+				print "DEBUG: Incoming Table of data\n" if ($debug);
 				$result{'success'} = 1;
 				my $tj=<$socket>;
 				my $t;
 				if (decode_json($tj)) {
 					print "Decoded JSON\n" if $debug;
 				} else {
-					print "Failed to decode JSON table data recieved\n" if $debug;
+					print "Failed to decode JSON table data received\n" if $debug;
 				}
 
 				shutdown($socket,$2);
@@ -461,7 +461,7 @@ sub request{
 			case /QUEUED/ {
 				if ($data =~ /^QUEUED:*\s*(\d+)/) {
 					$result{'position'} = $1;
-					print "DEBUG: Request accepted. Queue postion $result{'position'}. Disconnecting\n" if ($debug);
+					print "DEBUG: Request accepted. Queue position $result{'position'}. Disconnecting\n" if ($debug);
 					shutdown($socket,2);
 					$result{'message'} = "In Queue";
 					$result{'success'} = 1;
@@ -469,7 +469,7 @@ sub request{
 				} else {
 					print "DEBUG: Request accepted. Queue position unknown. Disconnecting\n" if ($debug);
 					$result{'success'} = 1;
-					$result{'postion'} = "unknown";
+					$result{'position'} = "unknown";
 					shutdown($socket,2);
 					return %result;
 				}

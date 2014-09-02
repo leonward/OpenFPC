@@ -606,7 +606,7 @@ sub getstatus{
 		my $psr = \%ps;
 		$scr->{$config{'NODENAME'}} = $psr;
 	}
-	print Dumper \%sc;
+	print Dumper \%sc if $debug;
 	return(\%sc);
 }
 
@@ -1084,7 +1084,7 @@ sub donode{
 	# Do we have a single timestamp or pair of them?
 	# Single= event sometime in the middle of a session
 	# stime/etime = a search time window to look for data over
-    print Dumper $request;    
+    print Dumper $request if $debug;    
 	my @pcaproster=();
 	if ( $request->{'stime'} and $request->{'etime'} ) {
             @pcaproster=bufferRange($request->{'stime'}, $request->{'etime'});
@@ -1588,7 +1588,7 @@ sub comms{
 		filename => 0,
 		response => 0,
     );
-
+    my $debug=wantdebug();
     # Print banner to client
     print $client "OFPC READY\n";
     while (my $buf=<$client>) {
@@ -1672,7 +1672,7 @@ sub comms{
 		                wlog("DEBUG: $client_ip: REQ -> $reqcmd\n") if $debug;
 		                    
 		                my $request=OFPC::Common::decoderequest($reqcmd);
-
+		                print Dumper $request if $debug;
 		                if ($request->{'valid'} == 1) {	# Valid request then...		
 							# Generate a rid (request ID for this.... request!).
 							# Unless action is something we need to wait for, lets close connection
