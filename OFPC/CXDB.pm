@@ -47,12 +47,12 @@ sub cx_search{
 	my $sc;	# Search container
 	my $ltz=DateTime::TimeZone->new( name => 'local' )->name();
 
-	unless ($r->{'stime'} and $r->{'etime'}) {
+	unless ($r->{'stime'}{'val'} and $r->{'etime'}{'val'}) {
 		print "DEBUG: No time set, instead using default time window of 1 hour\n" if ($debug);
-		$r->{'etime'} = time();
-		$r->{'stime'} = $r->{'etime'}-3600;
-		print "     : Start time: $r->{'stime'} (" . localtime($r->{'stime'}) . ")\n" if $debug;
-		print "     : End time  : $r->{'etime'} (" . localtime($r->{'etime'}) . ")\n" if $debug;
+		$r->{'etime'}{'val'} = time();
+		$r->{'stime'}{'val'} = $r->{'etime'}{'val'}-3600;
+		print "     : Start time: $r->{'stime'}{'val'} (" . localtime($r->{'stime'}{'val'}) . ")\n" if $debug;
+		print "     : End time  : $r->{'etime'}{'val'} (" . localtime($r->{'etime'}{'val'}) . ")\n" if $debug;
 	}
 
 	unless ($config{'PROXY'}) {
@@ -61,7 +61,7 @@ sub cx_search{
 		print "DEBUG: Query is $q\n" if $debug;
 
 		($t)=getresults($dbname, $dbuser, $dbpass, $q);
-		print Dumper $t;
+		#print Dumper $t;
 		# Format data types (@dtype)
 		# "port" = Port number
 		# "ip" = IP address
@@ -78,10 +78,10 @@ sub cx_search{
 		$t->{'cols'} = [ @cols ];
 		$t->{'format'} = [ @format ];
 		$t->{'dtype'} = [ @dtype ];
-		$t->{'stime'} = $r->{'stime'};
-		$t->{'etime'} = $r->{'etime'};
+		$t->{'stime'} = $r->{'stime'}{'val'};
+		$t->{'etime'} = $r->{'etime'}{'val'};
 		$t->{'nodename'} = $config{'NODENAME'};
-		print Dumper $t;
+		#print Dumper $t;
 		# Put the search results hash into a container that can contain multiple results 
 		push (@{$t->{'nodelist'}},$config{'NODENAME'});
 
@@ -105,7 +105,7 @@ sub cx_search{
 				( timestamp, username, comment, search
 					) values (?,?,?,?)";
   			my $sth = $dbh->prepare_cached($sql);
-      		$sth->execute($now, $r->{'user'},$r->{'comment'},$q);
+      		$sth->execute($now, $r->{'user'}{'val'},$r->{'comment'}{'val'},$q);
 
 
       		# Get last insert ID
@@ -114,7 +114,7 @@ sub cx_search{
       		$sth->execute();
       		my @row = $sth->fetchrow_array;
       		my $sid=@row[0];
-      		wlog("PROXY: SEARCH: Saving search: Search_id: $sid, User: $r->{'user'}, Timestamp: $now, Comment: $r->{'comment'}");
+      		wlog("PROXY: SEARCH: Saving search: Search_id: $sid, User: $r->{'user'}{'val'}, Timestamp: $now, Comment: $r->{'comment'}{'val'}");
 
 
 			my $sc;
@@ -129,10 +129,7 @@ sub cx_search{
 				push (@{$t->{'nodelist'}},$rt->{$_}{'name'});
 
 				my $r2=OFPC::Request::mkreqv2();
-				#print "R\n";
-				#print Dumper $r;
-				#print "R2\n";
-				#print Dumper $r2;
+				$r2=$r;
     			my $nodesock = IO::Socket::INET->new(
                                 PeerAddr => $rt->{$_}{'ip'}, 
                                 PeerPort => $rt->{$_}{'port'}, 
@@ -161,13 +158,6 @@ sub cx_search{
 							$f[1] = unpack('N', $f[1]);
 							$f[3] = inet_aton($f[3]);
 							$f[3] = unpack('N', $f[3]);
-						#	my $l=0;
-						#	foreach (@f) {
-						#		print "Loc $l: $f[$l]. ";
-						#		$l++;
-						#	}
-						#	print "\n";
-						#	print "GOT NTOA " . $f[1] . "convert to " . inet_aton($f[2]) . "!!\n";
 							# Save this session from the node to the proxy search database
 							my $sql = "INSERT INTO session 
 								( search_id, start_time, src_ip, src_port, dst_ip, dst_port, ip_proto, src_bytes, dst_bytes, total_bytes, node_name     
@@ -206,8 +196,8 @@ sub cx_search{
 			$t->{'cols'} = [ @cols ];
 			$t->{'format'} = [ @format ];
 			$t->{'dtype'} = [ @dtype ];
-			$t->{'stime'} = $r->{'stime'};
-			$t->{'etime'} = $r->{'etime'};
+			$t->{'stime'} = $r->{'stime'}{'val'};
+			$t->{'etime'} = $r->{'etime'}{'val'};
 			$t->{'nodename'} = $config{'NODENAME'};
 			$t->{'sql'} = buildQuery($r);
 			return($t);
@@ -238,21 +228,21 @@ sub buildQuery {
 	my $weekago = $today - 7;
 	my $yesterday = $today->prev;
 	my $DLIMIT=100;
-	my $SRC_IP = $r->{'sip'} if $r->{'sip'};
-	my $DST_IP = $r->{'dip'} if $r->{'dip'};
-	my $SRC_PORT = $r->{'spt'} if $r->{'spt'};
-	my $DST_PORT = $r->{'dpt'} if $r->{'dpt'};
-	my $PROTO = $r->{'proto'} if $r->{'proto'};
-	my $LIMIT = $r->{'limit'} if $r->{'limit'};	
+	my $SRC_IP = $r->{'sip'}{'val'} if $r->{'sip'}{'val'};
+	my $DST_IP = $r->{'dip'}{'val'} if $r->{'dip'}{'val'};
+	my $SRC_PORT = $r->{'spt'}{'val'} if $r->{'spt'}{'val'};
+	my $DST_PORT = $r->{'dpt'}{'val'} if $r->{'dpt'}{'val'};
+	my $PROTO = $r->{'proto'}{'val'} if $r->{'proto'}{'val'};
+	my $LIMIT = $r->{'limit'}{'val'} if $r->{'limit'}{'val'};	
 	my $QUERY = q();
 	wlog("QUERY: DEBUG: Building query") if $debug;
 	$QUERY = qq[SELECT start_time,INET_NTOA(src_ip),src_port,INET_NTOA(dst_ip),dst_port,ip_proto,src_bytes, dst_bytes,(src_bytes+dst_bytes) as total_bytes\
 	FROM session IGNORE INDEX (p_key) WHERE ];
 
-	if ( $r->{'stime'} =~ /^\d+$/) {
+	if ( $r->{'stime'}{'val'} =~ /^\d+$/) {
 		# Note: Remember that sessions are stored in UTC, regardless of what TZ the local system is in
 	   $QUERY = $QUERY . "unix_timestamp(CONVERT_TZ(`start_time`, '+00:00', \@\@session.time_zone))  
-	between $r->{'stime'} and $r->{'etime'} ";
+	between $r->{'stime'}{'val'} and $r->{'etime'}{'val'} ";
 
 	}
 
@@ -646,13 +636,14 @@ sub getresults{
 	           		$t{'table'}{$rnum} = [ @row ];			# Add row to hash
              		$rnum++;
 					if ($debug){
-						foreach (@row) {
-							printf '%20s', "$_";
+						printf "%5s |", "$rnum";
+						my $drc=0;
+						while ($drc <= 5) {
+							printf '%15s', "$row[$drc]";
 							print " | ";
+							$drc++;
 						}
-
-						print "\n";
-						print "Row $rnum";
+						print "<SNIP to $drc fields>\n";
 						#%t{$rnum} = @row;
 					}
 					# Add the nodename to the row

@@ -50,7 +50,7 @@ my %cmdargs=( user => 0,
 	 	password => 0, 
 		server => "localhost",
 		port => "4242",
-		action => "fetch",
+		action => "None",
 		logtype => "auto",
 		filetype => "PCAP",
 		debug => 0,
@@ -75,25 +75,25 @@ my %result=(
 	);
 
 sub showhelp{
-	print <<EOF 
-  ./openfpc-client <options>
+
+	print "openfpc-client <options>
 
   --------   General   -------
-  -server or -s <openfpc server IP>      OpenFPC server to connect to
+  -server or -s <openfpc server IP>      The OpenFPC node to connect to
   -port or -o <TCP PORT>                 Port to connect to (default 4242)
   -user or -u <username>                 Username	
   -password or -p <password>             Password (if not supplied, it will be prompted for)
   -device                                Node name you would like the proxy to extract from
   -action or -a <action>                 Action to take. Can be one of the below:
-        status                           Get status of the OpenFPC Node
-        fetch                            Fetch PCAP of traffic that matches constraints
-        store                            Extract PCAP of traffic, and store it on the OpenFPC Node
-        summary                          Get a summary of traffic status
-        Search                           Search for traffic that matches constraints
+      status                                 Get status of the OpenFPC Node
+      fetch                                  Fetch PCAP of traffic that matches constraints
+      store                                  Extract PCAP of traffic, and store it on the OpenFPC Node
+      summary                                Get a summary of traffic status
+      search                                 Search for traffic that matches constraints
   -write or -w                           Output PCAP file to write to
   -quiet or -q                           Quiet. Only print saved filename||error
   -gui	or -g                            Output that's parseable via OpenFPC's gui (or other tool)
-  -comment or -m                         Comment for session
+  -comment or -m                         Comment for the extraction (will be stored with the output)
   -device                                OpenFPC Node to extract from (via OpenFPC-Proxy --server)
   -hash or -H                            Dont generate SHA1 from password. Assume it is a hash.
 
@@ -129,7 +129,15 @@ sub showhelp{
   --etime                                End timestamp
   --utc                                  Don't convert time to UTC from local TZ (already UTC)
 
-EOF
+  ----------* Examples *----------
+
+  \$ openfpc-client -a status                       # Gets status from a node
+  \$ openfpc-client -a fetch -dpt 53 --last 86400   # Fetch 24 hours of DNS traffic   
+  \$ openfpc-client -a search -dpt 110 -proto tcp   # Search for POP3 traffic in last hour 
+                                                   # (the default time period) 
+  \$ openfpc-client -a fetch -bpf \"tcp port 110\"    # Same as above but using bpf syntax
+
+";
 }
 
 sub convertTime($$$$$){
@@ -370,6 +378,7 @@ sub displayStatus{
 		'lastctx',
 		'firstctx',
 		'firstpacket',
+		'sessiontime',
 		'ld1',
 		'ld5',
 		'ld15',
@@ -413,22 +422,24 @@ sub displayStatus{
 	   	}	
 
 		foreach(@d) {
-			if ($s->{$n}{$_}{'type'} eq 'p') {										
-				# Percentage output
-				print "   - $s->{$n}{$_}{'text'} : \t $s->{$n}{$_}{'val'} %\n";
-			} elsif ($s->{$n}{$_}{'type'} eq 'b') {									
-				# Bytes / space output 
-				print "   - $s->{$n}{$_}{'text'} : \t $s->{$n}{$_}{'val'} ";
-				print "(" . convbytes($s->{$n}{$_}{'val'}) . ")\n"; 
-			} elsif ($s->{$n}{$_}{'type'} eq 't') {									
-				#  text / raw output
-				print "   - $s->{$n}{$_}{'text'} : \t $s->{$n}{$_}{'val'} \n";
-			} elsif ($s->{$n}{$_}{'type'} eq 'e') {									
-				#  epoch timestamp format
-				print "   - $s->{$n}{$_}{'text'} : \t $s->{$n}{$_}{'val'} ";
-				print "(". localtime($s->{$n}{$_}{'val'}) . " $ltz)\n";
-			} else {
-				print "Don't know how to display datatype: $s->{$n}{$_}{'type'}\n";
+			if (defined $s->{$n}{$_}) {
+				if ($s->{$n}{$_}{'type'} eq 'p') {										
+					# Percentage output
+					print "   - $s->{$n}{$_}{'text'} : \t $s->{$n}{$_}{'val'} %\n";
+				} elsif ($s->{$n}{$_}{'type'} eq 'b') {									
+					# Bytes / space output 
+					print "   - $s->{$n}{$_}{'text'} : \t $s->{$n}{$_}{'val'} ";
+					print "(" . convbytes($s->{$n}{$_}{'val'}) . ")\n"; 
+				} elsif ($s->{$n}{$_}{'type'} eq 't') {									
+					#  text / raw output
+					print "   - $s->{$n}{$_}{'text'} : \t $s->{$n}{$_}{'val'} \n";
+				} elsif ($s->{$n}{$_}{'type'} eq 'e') {									
+					#  epoch timestamp format
+					print "   - $s->{$n}{$_}{'text'} : \t $s->{$n}{$_}{'val'} ";
+					print "(". localtime($s->{$n}{$_}{'val'}) . " $ltz)\n";
+				} else {
+					print "Don't know how to display datatype: $s->{$n}{$_}{'type'}\n";
+				}
 			}
    		}
     }  
@@ -480,43 +491,42 @@ sub displayResult{
 my $tempref=readrcfile(\%cmdargs);
 %cmdargs=%$tempref;
 
-GetOptions (    'u|user=s' => \$cmdargs{'user'},
-		's|server=s' => \$cmdargs{'server'},
-		'o|port=s' => \$cmdargs{'port'},
-		'h|help' => \$cmdargs{'help'},
-		'q|quiet' => \$cmdargs{'quiet'},
-		'w|write=s'=> \$cmdargs{'filename'},
-		't|logtype=s' => \$cmdargs{'logtype'},
-		'e|logline=s' => \$cmdargs{'logline'},
-		'a|action=s' => \$cmdargs{'action'},
-		'p|password=s' => \$cmdargs{'password'},
-		'm|comment=s' => \$cmdargs{'comment'},
-		'g|gui'	=> \$cmdargs{'gui'},
-		'z|zip' => \$cmdargs{'zip'},
+GetOptions (    
+		'u|user=s' 		=> \$cmdargs{'user'},
+		's|server=s' 	=> \$cmdargs{'server'},
+		'o|port=s' 		=> \$cmdargs{'port'},
+		'h|help' 		=> \$cmdargs{'help'},
+		'q|quiet' 		=> \$cmdargs{'quiet'},
+		'w|write=s' 	=> \$cmdargs{'filename'},
+		't|logtype=s' 	=> \$cmdargs{'logtype'},
+		'e|logline|line=s' 	=> \$cmdargs{'logline'},
+		'a|action=s' 	=> \$cmdargs{'action'},
+		'p|password=s' 	=> \$cmdargs{'password'},
+		'm|comment=s' 	=> \$cmdargs{'comment'},
+		'g|gui'			=> \$cmdargs{'gui'},
+		'z|zip' 		=> \$cmdargs{'zip'},
 		'timestamp|t=s' => \$cmdargs{'timestamp'},
 		'src-addr|sip=s' => \$cmdargs{'sip'},
         'dst-addr|dip=s' => \$cmdargs{'dip'}, 
         'src-port|spt=s' => \$cmdargs{'spt'},
         'dst-port|dpt=s' => \$cmdargs{'dpt'},
-        'proto=s' => \$cmdargs{'proto'},
+        'proto=s' 		=> \$cmdargs{'proto'},
 		'node|device=s' => \$cmdargs{'device'},
-		'stime=s' =>  \$cmdargs{'stime'},
-		'etime=s' => \$cmdargs{'etime'},
-		'bpf=s' => \$cmdargs{'bpf'},
+		'stime=s'		=>  \$cmdargs{'stime'},
+		'etime=s' 		=> \$cmdargs{'etime'},
+		'bpf=s' 		=> \$cmdargs{'bpf'},
 		'sumtype|summary_type=s' => \$cmdargs{'sumtype'},
-		'save' => \$cmdargs{'dbsave'},
-		'l|last=s' => \$cmdargs{'last'},
-		'H|hash' => \$cmdargs{'hash'},
-		'limit=s' => \$cmdargs{'limit'},
-		'utc' => \$cmdargs{'utc'},
+		'save' 			=> \$cmdargs{'dbsave'},
+		'l|last=s' 		=> \$cmdargs{'last'},
+		'H|hash' 		=> \$cmdargs{'hash'},
+		'limit=s' 		=> \$cmdargs{'limit'},
+		'utc' 			=> \$cmdargs{'utc'},
     );
 
 
-# Need to tidy this up.
-$config{'server'} 	= $cmdargs{'server'}	if $cmdargs{'server'}; 
-$config{'port'} 	= $cmdargs{'port'}	if $cmdargs{'port'};
+$config{'server'} 				= $cmdargs{'server'}	if $cmdargs{'server'}; 
+$config{'port'} 				= $cmdargs{'port'}		if $cmdargs{'port'};
 
-########### rv2
 $r2->{'user'}->{'val'} 			= $cmdargs{'user'}		if $cmdargs{'user'};
 $r2->{'password'}->{'val'} 		= $cmdargs{'password'}	if $cmdargs{'password'};
 $r2->{'filename'}->{'val'} 		= $cmdargs{'filename'}	if $cmdargs{'filename'};
@@ -537,7 +547,6 @@ $r2->{'dpt'}->{'val'}			= $cmdargs{'dpt'}   	if ($cmdargs{'dpt'});
 $r2->{'spt'}->{'val'}			= $cmdargs{'spt'}   	if ($cmdargs{'spt'});
 $r2->{'proto'}->{'val'}			= $cmdargs{'proto'}   	if ($cmdargs{'proto'});
 
-# Time related args. OFPC now likes to receive 
 $r2->{'timestamp'}->{'val'}		= $cmdargs{'timestamp'} if ($cmdargs{'timestamp'});
 $r2->{'stime'}->{'val'} 		= $cmdargs{'stime'} 	if ($cmdargs{'stime'});
 $r2->{'etime'}->{'val'}			= $cmdargs{'etime'} 	if ($cmdargs{'etime'});
@@ -548,17 +557,15 @@ if ($cmdargs{'last'}) {
 	$r2->{'stime'}->{'val'} = $now - $cmdargs{'last'};
 }
 
-
 # Provide a banner and queue position if were not in GUI or quiet mode
 unless( ($cmdargs{'quiet'} or $cmdargs{'gui'})) {
-	print "\n   * openfpc-client $openfpcver * \n   Part of the OpenFPC project\n\n" ;
-#	$request{'showposition'} = 1;
+	print 	"\n". 
+			"   * openfpc-client $openfpcver * \n" .
+			"     Part of the OpenFPC project - www.openfpc.org \n\n" ;
 }
 
-if ($cmdargs{'help'}) {
-	showhelp;
-	exit 1;
-}
+showhelp() if $cmdargs{'help'};
+
 if ($debug) {
 	print "DEBUG: Time: Local time zone detected as $ltz\n";
 	print "DEBUG: Time: it's " . localtime() . " in $ltz\n";
@@ -570,7 +577,7 @@ if ($debug) {
 if ($r2->{'action'}{'val'} =~ m/(fetch|store)/)  {
 	unless ($r2->{'logline'}->{'val'} or ($cmdargs{'bpf'} or $cmdargs{'sip'} or $cmdargs{'dip'} or $cmdargs{'spt'} or $cmdargs{'dpt'} )) {
 		unless ($cmdargs{'gui'} )  {
-			showhelp;
+			showhelp();
 		} else {
 			$result{'message'} = "Insufficient constraints added. Please add some session identifiers.";
 			displayResult($cmdargs{'gui'});
@@ -586,7 +593,7 @@ if ($r2->{'action'}{'val'} =~ m/(fetch|store)/)  {
 } elsif ($r2->{'action'}{'val'} eq "search" ) {
 	print "DEBUG: Sending Search request" if ($debug);
 } else {
-	die("Action \'$r2->{'action'}{'val'}\' invalid, or not implemented yet");
+	die("Action must be one of \"status\" \"search\" \"fetch\" \"store\". Invalid input: \"$r2->{'action'}{'val'}\".\nSee --help for more information\n");
 }
 
 # If we are in GUI mode, PHP's escapecmd function could have broken out logline, lets unescape it

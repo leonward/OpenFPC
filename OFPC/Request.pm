@@ -77,6 +77,11 @@ sub mkreqv2{
 			val => 0,
 			required => 0,
 		},
+		rtime => {
+			text => "Request Time",
+			val => 0,
+			required => 0,
+		},
 		logtype => {
 			text => "Log Type",
 			val => 0,
@@ -84,7 +89,7 @@ sub mkreqv2{
 		},
 		filetype => {
 			text => "File type",
-			val => 0,
+			val => 'PCAP',
 			required => 0,
 		},
 		logline => {
@@ -167,6 +172,24 @@ sub mkreqv2{
 			val => $ltz,
 			requred => 0,
 		},
+		fail => {
+			text => "Error".
+			val => 0,
+			required => 0,
+		},
+		msg => {
+			text => "Feedback Message",
+			val => "",
+			required => 0,
+		},
+		metadata => {
+			nodeuser => 0,
+			nodepass => 0,
+			nodeport => 0,
+			nodepass => 0,
+			tempfile => 0,
+		},
+
 	);
 
 	return(\%reqv2);
@@ -189,6 +212,7 @@ sub receivefile{
 		filename => 0,
 		ext => 0,
 		filetype => 0,
+		rid => 0,
 	};
 	print "Debug enabled in Request::receivefile\n" if ($debug);
     print "Expecting MD5 for file is $svrmd5\n" if ($debug); 
