@@ -2,7 +2,7 @@
 
 # The master control program for starting and stopping OpenFPC instances.
 #########################################################################################
-# Copyright (C) 2013 Leon Ward 
+# Copyright (C) 2012 - 2014 Leon Ward 
 # openfpc - Part of the OpenFPC - (Full Packet Capture) project
 #
 # Contact: leon@rm-rf.co.uk
@@ -27,7 +27,7 @@ use warnings;
 use Getopt::Long;
 use Switch;
 use Data::Dumper;
-use File::Path qw(mkpath);
+use File::Path qw(mkpath make_path);
 
 my $openfpcver=0.8;
 my $conf_dir="/etc/openfpc";
@@ -483,12 +483,16 @@ sub openfpccxtracker{
 	my $pidfile="openfpc-cxtracker-$configs{$instance}{'NODENAME'}.pid";	
 	$pidpath=$configs{$instance}{'PIDPATH'} if defined $configs{$instance}{'PIDPATH'};
 	$sessiondir=$configs{$instance}{'SESSION_DIR'} if defined $configs{$instance}{'SESSION_DIR'};
+	die("DROP_USER Not defined") unless (defined $configs{$instance}{'DROP_USER'});
+
 
 	my $daemonargs="-i $configs{$instance}{'INTERFACE'} " .
 			"-d $sessiondir " .
 			"-p $pidfile " . 
 			"-P $pidpath " .
-			"-D > /tmp/openfpc-cxtracker-$configs{$instance}{'NODENAME'}";
+			"-u $configs{$instance}{'DROP_USER'} " .
+			"-g $configs{$instance}{'DROP_USER'} " .
+			"-D > /tmp/cxtracker.start.log 2>&1";
 
 	# Get a PID, and check if it's runnings
 	my $pid=getPidFromFile("$pidpath/$pidfile");
@@ -504,15 +508,16 @@ sub openfpccxtracker{
 				if (system("ifconfig $configs{$instance}{'INTERFACE'} up > /dev/null 2>&1")){
 					print " - WARNING unable to bring $configs{$instance}{'INTERFACE'} up\n" unless $quiet;
 				}
-				# Check if BUFFER_PATH exists and is writable
-				if ( ! -d  $configs{$instance}{'SESSION_DIR'}){
-					unless (mkpath($configs{$instance}{'SESSION_DIR'})) { 
+				# Check if SESSION_PATH exists and is writable by DROP_USER
+				if ( ! -d  $configs{$instance}{'SESSION_DIR'})  {
+					my $fp=$configs{$instance}{'SESSION_DIR'} . "/failed";
+					unless (make_path $fp, {owner=>$configs{$instance}{'DROP_USER'}, 
+											group=>$configs{$instance}{'DROP_USER'}}) { 
 						printf '%10s',"Failed\n";	
 						print " - Unable to create $configs{$instance}{'SESSION_DIR'}\n" unless $quiet;
-						return(0);
+						return(1);
 					}
 				}
-
 				if ( -x $daemoncmd ) {
 					print "DEBUG: Daemon start command is\n $daemoncmd $daemonargs\n" if $verbose;
 					my $result=system("$daemoncmd $daemonargs");
