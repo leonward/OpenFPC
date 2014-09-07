@@ -1,7 +1,7 @@
 #!/bin/bash 
 
 #########################################################################################
-# Copyright (C) 2014 Leon Ward 
+# Copyright (C) 2010 - 2014 Leon Ward 
 # install-openfpc.sh - Part of the OpenFPC - (Full Packet Capture) project
 #
 # Contact: leon@openfpc.org
@@ -75,7 +75,7 @@ function checkdeps()
 	missdeps=""
 	if [ "$DISTRO" == "DEBIAN" ] 
 	then
-		DEPS="apache2 daemonlogger tcpdump tshark libarchive-zip-perl libfilesys-df-perl libapache2-mod-php5 mysql-server php5-mysql libdbi-perl php5-mysql libterm-readkey-perl libdate-simple-perl libdigest-sha-perl libjson-pp-perl libdatetime-perl libswitch-perl libdatetime-format-strptime-perl" 
+		DEPS="apache2 daemonlogger tcpdump tshark libdatetime-perl libprivileges-drop-perl libarchive-zip-perl libfilesys-df-perl libapache2-mod-php5 mysql-server php5-mysql libdbi-perl php5-mysql libterm-readkey-perl libdate-simple-perl libdigest-sha-perl libjson-pp-perl libdatetime-perl libswitch-perl libdatetime-format-strptime-perl" 
 
 		# Check if some obvious dependencies are met	
 		for dep in $DEPS
@@ -375,7 +375,7 @@ function doinstall()
 
 function remove()
 {
-	echo -e "* Stopping Services..."
+	echo -e "[*] Stopping Services..."
 	chkroot
 	for file in $INIT_SCRIPTS
 	do
