@@ -1,7 +1,7 @@
 package OFPC::Common;
 
 #########################################################################################
-# Copyright (C) 2013 Leon Ward 
+# Copyright (C) 2011 - 2014 Leon Ward 
 # OFPC::Parse - Part of the OpenFPC - (Full Packet Capture) project
 #
 # Contact: leon@rm-rf.co.uk
@@ -422,12 +422,12 @@ sub getstatus{
 
 		if ($config{'ENABLE_SESSION'}) {
 			my $sessionref=df("$config{'SESSION_DIR'}");
-			wlog("SATU: DEBUG: Session dir is $config{'SESSION_DIR'}");
+			wlog("SATUS: DEBUG: Session dir is $config{'SESSION_DIR'}") if $debug;
 			if (defined $sessionref) {
 				$s{'sessionspace'}{'val'} = $sessionref->{'per'};
 				$s{'sessionused'}{'val'} = $sessionref->{'used'};
-				wlog("STATU: DEBUG: Session storage space used is $sessionref->{'used'}");
-				wlog("STATU: DEBUG: Session storage space pct is $sessionref->{'per'}");
+				wlog("STATU: DEBUG: Session storage space used is $sessionref->{'used'}") if $debug;
+				wlog("STATU: DEBUG: Session storage space pct is $sessionref->{'per'}") if $debug;
 			} else {
 				wlog("STATU: ERROR: Unable to access session storage dir to gather stats $config{'SESSION_DIR'}");
 				$s{'sessionspace'}{'val'} = "Error: Unable to access session dir $config{'SESSION_DIR'}";
@@ -645,10 +645,11 @@ sub getstatus{
 sub trimsessiondb(){
 
 	my $trimtime=0;		# New value of oldest ctx
+	wlog("TRIM: Waking up to trim session DB");
 	my $status=OFPC::Common::getstatus();
-
 	my $fc=$status->{$config{'NODENAME'}}{'firstctx'}{'val'};
 	my $fp=$status->{$config{'NODENAME'}}{'firstpacket'}{'val'};
+	my $debug=wantdebug();
 
 	wlog("TRIM: Trimming Session DB from: $fc (" . localtime($fc) . ") to $fp (". localtime($fp) . ")") if $debug;
 
@@ -849,7 +850,7 @@ sub decoderequest($){
 	# If no timestamp, stime or etime have been specified, set a default range to search
 	unless ($r->{'timestamp'}{'val'}) {
 		if ($r->{'stime'}{'val'} and $r->{'etime'}{'val'}) {
-			wlog("DECOD: stime and etime are set\n") if $debug;
+			wlog("DECOD: stime and etime are set in request as $r->{'stime'}{'val'} / $r->{'etime'}{'val'}\n") if $debug;
 		} else {
 			wlog("DECOD: Neither timestamp or stime/etime are set, setting timestamp to $now, it was $r->{'timestamp'}{'val'}\n") if $debug;
 			$gr->{'timestamp'}{'val'} = $now;
@@ -939,7 +940,6 @@ sub prepfile{
                     push (@nodefiles, $result->{'filename'});
 				} else {
                     $prep{'message'} = $result->{'message'};
-                    wlog("Error: $result->{'message'}");
 				}
             }
 		} else { 					# Route-able, do the proxy action 
@@ -982,7 +982,6 @@ sub prepfile{
 	    	$prep{'size'} = $result->{'size'};
 		} else {
 	    	$prep{'message'} = $result->{'message'};
-#	    	$prep{'message'} = $result->{'message'};
 			return(\%prep);
 		}
         
@@ -996,7 +995,7 @@ sub prepfile{
 		push(@nodefiles,$r->{'metadata'}{'tempfile'});
     }
    
-    # Now we have the file(s) we want to rtn to the client, lets zip or merge into a single pcap as requested
+    # Now we have the file(s) we want to rtn to the client, lets zip or merge into a single p cap as requested
     if ($multifile) {
 		if ( $prep{'filetype'} eq "PCAP" ) {
             # @nodefiles is a list of pcaps w/o a path, we need then with a path to merge
@@ -1086,6 +1085,7 @@ sub donode{
         md5 => 0,
         size => 0,
 	);
+	my $debug=wantdebug();
 
 	wlog "DEBUG: Doing Node action \n" if $debug;
 	# Unless we have been given a real bpf from the user, make our own
@@ -1109,13 +1109,17 @@ sub donode{
 	# stime/etime = a search time window to look for data over
     #print Dumper $request if $debug;    
 	my @pcaproster=();
-	if ( $r->{'stime'}{'val'} and $r->{'etime'}{'val'} ) {
+	if ( $r->{'stime'}{'val'} && $r->{'etime'}{'val'} ) {
+			wlog("NODE : Getting a bunch of pcap files between $r->{'stime'}{'val'} (" . localtime($r->{'stime'}{'val'}) . 
+				") and $r->{'etime'}{'val'} (" . localtime($r->{'etime'}{'val'}) . ")") if $debug;
             @pcaproster=bufferRange($r->{'stime'}{'val'}, $r->{'etime'}{'val'});
+
 	} else  {
+			wlog("NODE : Getting a bunch of pcap files around timestamp $r->{'timestamp'}{'val'}" . localtime($r->{'timestamp'}{'val'}) );
             # Event, single look over roster
             @pcaproster=findBuffers($r->{'timestamp'}{'val'}, 1);
 	}
-        
+
 	# If we don't get any pcap files, there is no point in doExtract
 	my $pcapcount=@pcaproster;
 	unless ($pcapcount) {
@@ -1123,7 +1127,7 @@ sub donode{
             return(\%result);
 	}
         
-	wlog("DEBUG: PCAP roster ($pcapcount files in total) for extract is: @pcaproster\n") if $debug;
+	wlog("DEBUG: Final PCAP roster ($pcapcount files in total) for extract is: @pcaproster\n") if $debug;
         
 	(my $filename, my $size, my $md5, my $err) = doExtract($bpf,\@pcaproster,$r->{'metadata'}{'tempfile'});
         
@@ -1239,18 +1243,21 @@ sub bufferRange {
 	my $startfile=0;
 	my $endfile=0;
 	my $bufferinfo=OFPC::Common::getBufferInfo();
+	my $debug=wantdebug;
 
 	wlog("DEBUG: Buffer Range mode") if $debug;
 
 	# Find first and last files/timestamps in case we are performing an out-of-bounds search
+	wlog("Getting First file in buffer range") if $debug;
 	my @starttmp=findBuffers($starttimestamp,0);
 	if (defined $starttmp[0] ) {
 		$startfile=$starttmp[0];
 	} else {
-		wlog("DEBUG: Startfile to early for buffer range. Using first file $bufferinfo->{'firstfilename'}\n");
+		wlog("DEBUG: starttimestamp to early for buffer range. Using first file $bufferinfo->{'firstfilename'}\n");
 		$startfile=$bufferinfo->{'firstfilename'};
 	}
         
+	wlog("Getting Last file in buffer range") if $debug;
 	my @endtmp=findBuffers($endtimestamp,0);
 	if (defined $endtmp[0] ) {
 		$endfile=$endtmp[0];
@@ -1258,27 +1265,27 @@ sub bufferRange {
 		wlog("DEBUG: Endfile to late for buffer range. Using last file $bufferinfo->{'lastfilename'}\n");
 		$endfile=$bufferinfo->{'lastfilename'};
 	}
-	wlog("Starting serach in $startfile ($starttimestamp)\n") if ($vdebug);
-	wlog("Ending   search in $endfile ($endtimestamp)\n") if ($vdebug);
+	wlog("DEBUG: Starting search in file $startfile ($starttimestamp)\n") if ($debug);
+	wlog("DEBUG: Ending   search in file $endfile ($endtimestamp)\n") if ($debug);
 	# Look for files between startfile and endfile if startfile is not the same as endfile
         
 	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-$config{'NODENAME'}.pcap.*`;
         
 	unless ($startfile eq $endfile) {
-        	foreach(@pcaptemp) {
-	                chomp $_;
-			if ($_ =~ /$startfile/) {
-				$include=1;
-			} elsif ($_ =~ /$endfile/ ) {
-				$include=0;
-			}
-	       	        push(@pcaps,$_) if ($include);
+        foreach(@pcaptemp) {
+	        chomp $_;
+		if ($_ =~ /$startfile/) {
+			$include=1;
+		} elsif ($_ =~ /$endfile/ ) {
+			$include=0;
+		}
+	        push(@pcaps,$_) if ($include);
 			if ($vdebug) {
-				wlog("VDBEUG: Including $_ \n") if ($include);
-				wlog("VDEBUG: NOT include $_ \n") unless ($include);
+				wlog("VDBEUG: +Include $_ \n") if ($include);
+				wlog("VDEBUG: -Include $_ \n") unless ($include);
 			}
 		}
-        } else {
+    } else {
 		# Add this single file to the @pcaps array
 		push(@pcaps,$startfile);	
 	}
@@ -1314,7 +1321,7 @@ sub findBuffers {
         $targetTimeStamp=$targetTimeStamp-0.5;                  # Remove risk of TARGET conflict with file timestamp.   
         push(@timestampArray, $targetTimeStamp);                # Add target timestamp to an array of all file timestamps
         $timeHash{$targetTimeStamp} = "TARGET";                 # Method to identify our target timestamp in the hash
-        wlog("DEBUG: Requested timestamp is $targetTimeStamp " . localtime $targetTimeStamp);
+        wlog("DEBUG: Requested timestamp is $targetTimeStamp " . localtime $targetTimeStamp) if $debug;
 
         foreach my $pcap (@pcaps) {
 			my $splitstring="$config{'NODENAME'}\.pcap\.";
@@ -1328,7 +1335,7 @@ sub findBuffers {
         my $count=0;
         if ($vdebug) {           			# Yes I do this twice, but it helps me debug timestamp pain!
                 print "-----------------Array----------------\n";
-                foreach (sort @timestampArray) {
+                foreach (sort {$a <=> $b} @timestampArray) {
                         print "DEBUG  $count";
                         print " - $_ $timeHash{$_}\n";
                         $count++;
@@ -1338,31 +1345,40 @@ sub findBuffers {
 
         $location=0;
         $count=0;
-        foreach (sort @timestampArray){                 # Sort our array of timetsamps (including
-               $count++;                               # our target timestamp)
-               print " + $count - $_ $timeHash{$_}\n" if ($debug and $vdebug);
-               if ( "$timeHash{$_}" eq "TARGET" ) {
-                        $location=$count - 1;
-                        if ($vdebug) {
-                                wlog("DEBUG: Got TARGET match of $_ in array location $count\n"); 
-                                wlog("DEBUG: Pcap file at previous to TARGET is in location $location -> filename $timeHash{$timestampArray[$location]} \n");
-                        }
-                        last;
-                } elsif ( "$_" == "$targetTimeStamp" ) {     # If the timestamp of the pcap file is identical to the timestamp
-                        $location=$count;               # we are looking for (corner case), store its place
-                        if ($vdebug) {
-                                print " - Got TIMESTAMP match of $_ in array location $count\n";
-                                print "   Pcap file associated with $_ is $timeHash{$timestampArray[$location]}\n";
-                        }
-                        last;
+        foreach (sort {$a <=> $b} @timestampArray){                 # Sort our array of timetsamps (including
+            $count++;                               # our target timestamp)
+            print " + $count - $_ $timeHash{$_}\n" if ($debug and $vdebug);
+            if ( "$timeHash{$_}" eq "TARGET" ) {
+            	# Problem is that the we're not finding the first file correctly when looking for something too old.
+                wlog("DEBUG: Got TARGET match of $_ in array location $count\n") if $debug; 
+                if ($count == 1) {
+                   	wlog("DEBUG: Count ($count), is already at the lowest location in the file list. won't go any lower.");
+                   	$location=$count;
+                } else {
+	                $location=$count - 1;
                 }
+                if ( defined $timeHash{$timestampArray[$location]} ) {
+	                if ($vdebug) {
+                        wlog("DEBUG: Pcap file at previous to TARGET is in location $location -> filename $timeHash{$timestampArray[$location]} \n");
+    	        	}
+    	        	last;
+    	        } else {
+    	            wlog("ERROR: Something went wrong, there should be a file at location $location), but there isn't one defined.");
+    	        }
+            } elsif ( "$_" == "$targetTimeStamp" ) {     # If the timestamp of the pcap file is identical to the timestamp
+                $location=$count;               	 # we are looking for (corner case), store its place
+                if ($vdebug) {
+                    print " - Got TIMESTAMP match of $_ in array location $count\n";
+                    print "   Pcap file associated with $_ is $timeHash{$timestampArray[$location]}\n";
+                }
+            	last;
+            }
         }
 
         if ($vdebug) {
 			my @tmptarget=split(/\./, $timeHash{$timestampArray[$location]});
 			my $tts=pop(@tmptarget);
-              #  wlog(" - Target PCAP filename is $timeHash{$timestampArray[$location]} : $tts ( " . localtime($tts) . ")\n");
-                wlog(" - Target PCAP filename is $timeHash{$timestampArray[$location]} : $tts ( " . localtime($tts) . ")\n") if $tts;
+            wlog(" - Target PCAP filename is $timeHash{$timestampArray[$location]} : $tts ( " . localtime($tts) . ")\n") if $tts;
         }
 
         # Find what pcap files are eachway of target timestamp
@@ -1402,6 +1418,8 @@ sub findBuffers {
                 }
                 $postcount--;
         }
+        my $pnum=@TARGET_PCAPS;
+        wlog("DEBUG: Returning of a total of $pnum pcap files") if $vdebug;
         return(@TARGET_PCAPS);
 }
 

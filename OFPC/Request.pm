@@ -30,6 +30,7 @@ use Digest::MD5(qw(md5_hex));
 use Digest::SHA;
 use JSON::PP;
 use Storable qw(dclone);
+use DateTime::TimeZone;
 
 @EXPORT = qw(ALL);
 $VERSION = '0.2';
@@ -45,6 +46,7 @@ sub wantdebug{
 
 	my $debug=$ENV{$var}; 
 	return($debug); 
+	return(1); 
 }
 
 =head2
@@ -183,6 +185,7 @@ sub mkreqv2{
 			required => 0,
 		},
 		metadata => {
+			nodeaddress => 0,
 			nodeuser => 0,
 			nodepass => 0,
 			nodeport => 0,
