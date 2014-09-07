@@ -1,7 +1,7 @@
 #!/usr/bin/perl -I.
 
 #########################################################################################
-# Copyright (C) 2011 Leon Ward 
+# Copyright (C) 2010 - 2014 Leon Ward 
 # openfpc-queued.pl - Part of the OpenFPC - (Full Packet Capture) project
 #
 # Contact: leon@rm-rf.co.uk
@@ -32,6 +32,7 @@ use POSIX qw(setsid);		# Required for daemon mode
 use Data::Dumper;
 use File::Temp(qw(tempdir));
 use DateTime;
+use Privileges::Drop;
 use OFPC::Config;
 use OFPC::Common;
 use OFPC::Parse;
@@ -117,19 +118,27 @@ if ($config{'PASSWD'}) {
 
 wlog("START: *********** OpenFPC $openfpcver **********");
 wlog("START: **    http://www.openfpc.org    **");
+wlog("START: Dropping Privileges to user $config{'DROP_USER'}\n");
+
+
+my $cuser=`whoami`;
+wlog("DEBUG: START: Started by user $cuser") if $debug;
+drop_privileges('openfpc');
+$cuser=`whoami`;
+wlog("START: Now running as user $cuser");
 
 my $numofusers=keys(%userlist);
 unless ($numofusers) {
    print("ERROR: $numofusers users defined in config file. You need to add some.\n");
    print("Shutting down....\n");
-   exit 1
+   exit(1);
 }
 
 if ($config{'PROXY'}) {
-        wlog("START: Starting OFPC Node \"$config{'NODENAME'}\" as an OpenFPC Proxy");
+        wlog("START: Starting OFPC Node \"$config{'NODENAME'}\" as a Proxy");
 	OFPC::Common::readroutes;
 } else {
-        wlog("START: Starting OFPC Node \"$config{'NODENAME'}\" as an OpenFPC Node");
+        wlog("START: Starting OFPC Node \"$config{'NODENAME'}\" as a Node");
 }
 
 # Print verbose config info if debug is enabled

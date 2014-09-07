@@ -552,9 +552,14 @@ $r2->{'stime'}->{'val'} 		= $cmdargs{'stime'} 	if ($cmdargs{'stime'});
 $r2->{'etime'}->{'val'}			= $cmdargs{'etime'} 	if ($cmdargs{'etime'});
 
 if ($cmdargs{'last'}) {
-	# Convert time constraints specified into UTC
+	# Convert last x into a start and end time
 	$r2->{'etime'}->{'val'} = $now;
 	$r2->{'stime'}->{'val'} = $now - $cmdargs{'last'};
+	if ($debug) {
+		print "DEBUG: --last $cmdargs{'last'} converted into:\n";
+		print "DEBUG: Start time $r2->{'stime'}{'val'} " . localtime($r2->{'stime'}{'val'}) . "\n";
+		print "DEBUG: End time   $r2->{'etime'}{'val'} " . localtime($r2->{'etime'}{'val'}) . "\n";
+	}
 }
 
 # Provide a banner and queue position if were not in GUI or quiet mode
