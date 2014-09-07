@@ -49,6 +49,9 @@ our $rid=0;		           # Master request ID. Unique for each instance.
 our %config=(
     CONFIGURED  => 0,
     NODENAME    => "NONAME",
+    DESCRIPTION => "",
+    NODE_ROUTE => 0,
+    BUFFER_PATH => 0,
     PROXY       => 0,
     SAVEDIR     => 0,
     LOGFILE     => "/tmp/openfpc-untitled.log",
@@ -56,8 +59,14 @@ our %config=(
     MERGECAP    => "/usr/bin/mergecap",
     PIDPATH     => "/var/run",
     KEEPFILES   => "0",
-    TASK_INTERVAL => 600,
+    TASK_INTERVAL => 600,       
     PASSWD	=> 0,
+    DROP_USER => "openfpc",
+    DROP_GROUP => "openfpc",
+    SESSION_DB_NAME => "ofpc_session_default",
+    SESSION_DB_USER => "openfpc",
+    SESSION_DB_PASS => "openfpc",
+    SESSION_DB_HOST => "localhost",
     );
 
 our %userlist=();  			# Global cache of users
