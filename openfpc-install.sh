@@ -35,8 +35,6 @@ PROG_FILES="openfpc-client openfpc-queued openfpc-cx2db openfpc openfpc-dbmaint 
 #GUI_FILES="css images includes index.php javascript login.php useradd.php"
 #WWW_DIR="/usr/share/openfpc/www"
 
-CGI_FILES="extract.cgi"
-CGI_DIR="/usr/share/openfpc/cgi-bin"
 PERL_MODULES="Parse.pm Request.pm CXDB.pm Common.pm Config.pm"
 INIT_SCRIPTS="openfpc-daemonlogger openfpc-cx2db openfpc-cxtracker openfpc-queued"
 INIT_DIR="/etc/init.d/" 
@@ -217,13 +215,6 @@ function doinstall()
 	#	mkdir --parent $WWW_DIR || die "[!] Unable to mkdir $WWW_DIR"
 	#fi
 
-	# XXXCGI
-	if [ -d $CGI_DIR ] 
-	then
-		echo -e " *  Found $CGI_DIR"
-	else
-		mkdir --parent $CGI_DIR || die "[!] Unable to mkdir $CGI_DIR"
-	fi
 
 	####################################
 	# Install files
@@ -267,14 +258,6 @@ function doinstall()
 	#	cp -r www/$file $WWW_DIR/$file
 	# done
 
-	###### CGI files #####
-	# CGI isn't for the GUI, it's to enable external tools to request data via an API
-	for file in $CGI_FILES
-	do
-		echo -e " -  Installing $file"
-		cp cgi-bin/$file $CGI_DIR/$file
-	done
-
 	###### init #######
 
     for file in $INIT_SCRIPTS
@@ -288,19 +271,6 @@ function doinstall()
 
 	if [ "$DISTRO" == "DEBIAN" ]
 	then
-		#################################
-		# Enable API cgi-bin
-
-		if [ -d /etc/apache2/sites-available ]
-		then
-			echo -e "[*] Enabling OpenFPC HTTP API and restarting Apache2"	
-			# Add openfpc config in apache
-			cp etc/openfpc.cgi.apache2.conf /etc/apache2/sites-available/
-			a2ensite openfpc.cgi.apache2.conf
-			service apache2 reload
-		else
-			echo -e "[!] Cant find apache conf dir. Won't enable web UI"
-		fi
 
 		#################################
 		# Init scripts
@@ -323,31 +293,8 @@ function doinstall()
 		echo "[-] RedHat install is un-tested by me, I don't use use: Your millage may vary."
 		PERL_LIB_DIR="/usr/local/share/perl5"
 
-		#################################
-		# Enable website
-
-		if [ -d /etc/httpd/conf.d ]
-		then
-			echo -e "[*] Enabling OpenFPC HTTP API and restarting Apache2"	
-			# Add openfpc config in apache
-			cp etc/openfpc.cgi.apache2.conf /etc/httpd/conf.d
-			/etc/init.d/httpd restart
-		else
-			echo -e "[!] Cant find apache conf dir. Won't enable web UI"
-		fi
 
 	fi
-
-    # Disable basic auth now that we have GUI based acl
-	#if [ -f /etc/openfpc/apache2.passwd ] 
-	#then
-	#	echo " -   Skipping basic auth passwd. File exists"
-	#else
-	#	echo -e "[-] -----------------------------------------------------"
-	#	echo "OpenFPC has a web UI. For now we use Basic Auth to secure it"
-	#	read -p "Username: " user
-	#	htpasswd -c /etc/openfpc/apache2.passwd $user
-	#fi
 
 	echo -e "
 --------------------------------------------------------------------------
@@ -364,12 +311,16 @@ function doinstall()
     $ sudo openfpc-password -a add -u admin \ 
 	-f /etc/openfpc/openfpc.passwd  
 
-2) If you want to use the OpenFPC GUI, you MUST create the GUI database
-    $ sudo ./openfpc-dbmaint create gui /etc/openfpc/openfpc-default.conf
- 3) Start OpenFPC
+ 3) Make a database for connection:
+    $ sudo openfpc-dbmaint create session /etc/openfpc/openfpc-default.conf
+ 4) Start OpenFPC
     $ sudo openfpc --action start
- 4) Decide if you want to enable session searching
-    See -> http://www.openfpc.org/documentation/enabling-session-capture
+ 5) Check status (authenticate with user/password set in step 2)
+	$ openfpc-client -a status --server localhost --port 4242
+ 6) Go extract files and search for sessions!
+    $ openfpc-client -a search -dpt 53 --last 600
+    $ openfpc-client -a  fetch -dpt 53 --last 600
+    $ openfpc-client --help
 "
 }
 

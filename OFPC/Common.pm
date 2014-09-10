@@ -727,15 +727,14 @@ sub decoderequest($){
 	$gr->{'metadata'}{'rid'} = OFPC::Common::getrequestid;
 	# Copy values from the client JSON request into the server request hash.
 	$gr->{'user'}{'val'}		=	$r->{'user'}{'val'};
-	$gr->{'action'}{'val'}		=	$r->{'action'}{'val'}; 			# Action (store,status,fetch,summary,etc)
+	$gr->{'action'}{'val'}		=	$r->{'action'}{'val'}; 			# Action (store,status,fetch,etc)
 	$gr->{'device'}{'val'} 		=	$r->{'device'}{'val'};			# Device to request from i.e openfpc-node
 	$gr->{'filename'}{'val'} 	= 	$r->{'filename'}{'val'};		# Filename to save file as 
 	$gr->{'filetype'}{'val'} 	= 	$r->{'filetype'}{'val'};		# Filetype zip or pcap?
 	$gr->{'logtype'}{'val'} 	= 	$r->{'logtype'}{'val'};			# Type of log being processed
 	$gr->{'logline'}{'val'}		= 	$r->{'logline'}{'val'};			# The log-line (including one made from session identifiers # KILL
 	$gr->{'comment'}{'val'} 	= 	$r->{'comment'}{'val'};			# User comments
-	$gr->{'sumtype'}{'val'}		= 	$r->{'sumtype'}{'val'}; 		# Type of connection summary
-	$gr->{'limit'}{'val'}		= 	$r->{'limit'}{'val'}; 			# Type of connection summary
+	$gr->{'limit'}{'val'}		= 	$r->{'limit'}{'val'}; 			# Limit number of connections
 
 	$gr->{'action'}{'val'} = lc $r->{'action'}->{'val'};				# Ensure action is lower case
 	wlog("DECOD: DEBUG: Received action $gr->{'action'}{'val'}") if ($debug);
@@ -818,11 +817,6 @@ sub decoderequest($){
 		wlog("DECOD: User $gr->{'user'}{'val'} assigned RID: $gr->{'metadata'}{'rid'} for action $gr->{'action'}{'val'}. Comment: $gr->{'comment'}{'val'} Filetype : $gr->{'filetype'}{'val'}");
 		$gr->{'valid'}{'val'} = 1 unless $gr->{'fail'}{'val'};
 
-	} elsif ($r->{'action'}{'val'} =~/summary/) {
-		wlog("DECOD: Summary request") if $debug;
-		$gr->{'stime'}{'val'} = $r->{'stime'}{'val'};
-		$gr->{'etime'}{'val'} = $r->{'etime'}{'val'};
-		$gr->{'valid'}{'val'} = 1;
 	} elsif ($r->{'action'}{'val'} =~/status/) {
 		wlog("DECOD: DEBUG: Status request") if ($debug);
 		$gr->{'valid'}{'val'} = 1;
@@ -1800,34 +1794,7 @@ sub comms{
 		    	                wlog("DEBUG: Status msg sent to client") if $debug;	
 		        	            print $client "STATUS: $sj";
 			        	        shutdown($client,2);
-
-							} elsif ($request->{'action'}{'val'} eq "summary") {
-		                            
-		                        wlog("COMMS: $client_ip: RID: $request->{'rid'} getting summary data\n");
-		                        wlog("COMMS: $client_ip: RID: $request->{'rid'} Stime=$request->{'stime'} Etime=$request->{'etime'}");
-		                            
-		                        #(my $success, my $message, my @table)=OFPC::CXDB::getctxsummary($config{'SESSION_DB_NAME'},  XXX
-		                        (my $t)=OFPC::CXDB::getctxsummary($config{'SESSION_DB_NAME'}, 
-								$config{'SESSION_DB_USER'}, 
-								$config{'SESSION_DB_PASS'},
-								$request->{'sumtype'},
-								$request->{'stime'},
-								$request->{'etime'},
-								$request->{'limit'});
-		                            
-		                        unless ($t->{'error'}) { 
-		                        	my $tj=encode_json($t);	
-									print $client "TABLE:\n";
-									wlog("DEBUG: Sending table JSON....\n") if ($debug);
-									print $client $tj . "\n";
-		                                    
-		                            print $client "\n";
-		                        } else {	
-									print $client "ERROR: $t->{'error'}\n";
-		                        }
-		                        wlog("COMMS: $client_ip: RID: $request->{'rid'} Table Sent. Closing connection\n");
-			                    shutdown($client,2);
-			                    
+										                    
 							} elsif ($request->{'action'}{'val'} eq "search") {
 								wlog("COMMS: $client_ip: RID: $request->{'metadata'}{'rid'} Search Request\n");
 		                        wlog("COMMS: $client_ip: RID: $request->{'metadata'}{'rid'} Start time=$request->{'stime'}{'val'} End time=$request->{'etime'}{'val'}");

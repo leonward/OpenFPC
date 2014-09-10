@@ -38,7 +38,7 @@ use Time::Piece;
 my $now=time();
 my $ltz=DateTime::TimeZone->new( name => 'local' )->name();
 
-my $openfpcver="0.8";
+my $openfpcver="0.9";
 my (%config);
 my $password=0;
 my $debug=OFPC::Request::wantdebug();
@@ -79,23 +79,21 @@ sub showhelp{
 	print "openfpc-client <options>
 
   --------   General   -------
-  -server or -s <openfpc server IP>      The OpenFPC node to connect to
-  -port or -o <TCP PORT>                 Port to connect to (default 4242)
-  -user or -u <username>                 Username	
+  -server   or -s <server address>       The OpenFPC node to connect to
+  -port     or -o <TCP PORT>             Port to connect to (default 4242)
+  -user     or -u <username>             Username	
   -password or -p <password>             Password (if not supplied, it will be prompted for)
   -device                                Node name you would like the proxy to extract from
-  -action or -a <action>                 Action to take. Can be one of the below:
+  -action   or -a <action>               Action to take. Can be one of the below:
       status                                 Get status of the OpenFPC Node
       fetch                                  Fetch PCAP of traffic that matches constraints
       store                                  Extract PCAP of traffic, and store it on the OpenFPC Node
-      summary                                Get a summary of traffic status
       search                                 Search for traffic that matches constraints
-  -write or -w                           Output PCAP file to write to
-  -quiet or -q                           Quiet. Only print saved filename||error
-  -gui	or -g                            Output that's parseable via OpenFPC's gui (or other tool)
-  -comment or -m                         Comment for the extraction (will be stored with the output)
-  -device                                OpenFPC Node to extract from (via OpenFPC-Proxy --server)
-  -hash or -H                            Dont generate SHA1 from password. Assume it is a hash.
+  -write    or -w                        Output PCAP file to write to
+  -quiet    or -q                        Quiet. Only print saved filename||error
+  -comment  or -m                        Comment for the extraction (will be stored with the output)
+  -node            <nodename>            OpenFPC Node Name to extract from (via OpenFPC-Proxy)
+  -hash     or -H                        Dont generate SHA1 from password. Assume it is a hash.
 
   -------- Traffic Constraints -------
   -bpf                                   Specify constraints with a BPF syntax
@@ -106,22 +104,7 @@ sub showhelp{
   -dst-port or -dpt <port>               Destination Port
   -vlan <vlan>                           VLAN (NOT DONE YET)
 
-  --------  Connction Summary  -------
-  -summtype or summary_type <table>      Connection Summary table can be one of:
-	    top_source_ip_by_connection		 
-	    top_source_ip_by_volume
-	    top_destination_ip_by_connection
-	    top_destination_ip_by_volume
-	    top_source_tcp_by_connection
-	    top_source_tcp_by_volume
-	    top_destination_tcp_by_connection
-	    top_destination_tcp_by_volume
-	    top_destination_udp_by_connection
-	    top_destination_udp_by_volume
-	    top_source_udp_by_connection
-	    top_source_udp_by_volume
-
-  -------- Time Constraints -------
+   -------- Time Constraints -------
   --last <seconds>                       Specify relative time range to now ($now) 
   --timestamp	<timestamp>              Event timestamp
   --eachway <count>                      Expand timestamp over extra files
@@ -133,9 +116,9 @@ sub showhelp{
 
   \$ openfpc-client -a status                       # Gets status from a node
   \$ openfpc-client -a fetch -dpt 53 --last 86400   # Fetch 24 hours of DNS traffic   
-  \$ openfpc-client -a search -dpt 110 -proto tcp   # Search for POP3 traffic in last hour 
-                                                   # (the default time period) 
-  \$ openfpc-client -a fetch -bpf \"tcp port 110\"    # Same as above but using bpf syntax
+  \$ openfpc-client -a search -dpt 110 -proto tcp   # Search for POP3 connections in last hour 
+                                                    # (the default time period) 
+  \$ openfpc-client -a fetch -bpf \"tcp port 110\"  # Same as above but using bpf syntax
 
 ";
 }
@@ -515,7 +498,6 @@ GetOptions (
 		'stime=s'		=>  \$cmdargs{'stime'},
 		'etime=s' 		=> \$cmdargs{'etime'},
 		'bpf=s' 		=> \$cmdargs{'bpf'},
-		'sumtype|summary_type=s' => \$cmdargs{'sumtype'},
 		'save' 			=> \$cmdargs{'dbsave'},
 		'l|last=s' 		=> \$cmdargs{'last'},
 		'H|hash' 		=> \$cmdargs{'hash'},
@@ -593,8 +575,6 @@ if ($r2->{'action'}{'val'} =~ m/(fetch|store)/)  {
 	}
 } elsif ($r2->{'action'}{'val'} eq "status" ) {
 	print "DEBUG: Sending status request\n" if ($debug);
-} elsif ($r2->{'action'}{'val'} eq "summary" ) {
-	print "DEBUG: Sending Summary request" if ($debug);
 } elsif ($r2->{'action'}{'val'} eq "search" ) {
 	print "DEBUG: Sending Search request" if ($debug);
 } else {
@@ -657,7 +637,7 @@ unless ($result{'success'}) {
 # Output result to console
 if ($r2->{'action'}{'val'} eq "status") {
 	displayStatus(\%result);
-} elsif ($r2->{'action'}{'val'} =~/(summary|search)/) {
+} elsif ($r2->{'action'}{'val'} =~/(search)/) {
 	displayTable(\%result);
 } else {
 	displayResult($cmdargs{'gui'});
