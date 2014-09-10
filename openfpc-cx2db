@@ -54,8 +54,8 @@ our $AUTOCOMMIT    = 0;
 my $SANCP_DB       = {};
 my %CONFIG         = ();
 my $starttime      = 0;
-my  $FDIR          = "$SDIR/failed";
-
+my $FDIR          = "$SDIR/failed";
+my $openfpcver     = "0.9";
 GetOptions(
    'dir=s'         => \$SDIR,
    'debug'         => \$DEBUG,
@@ -126,7 +126,6 @@ unless ( -d "$SDIR/failed" ) {
 
 # Create blank logfile for use by DROP_USER
 unless ( -e $LOGFILE ) {
-  print "LOG $LOGFILE no exist";
   system("touch $LOGFILE");
   system("chown $DROP_USER.$DROP_USER $LOGFILE");
 }
@@ -135,7 +134,7 @@ unless ( -e $LOGFILE ) {
 
 
 # If Failed subfolder doesn't exist, lets add it
-wlog("[*] Starting openfpc-cx2db.pl..."); 
+wlog("[*] Starting openfpc-cx2db.pl ver $openfpcver..."); 
 #my $dbh = DBI->connect($DBI,$DB_USERNAME,$DB_PASS, {AutoCommit => 0, RaiseError => 1}) or die "$DBI::errstr";
 unless (my $dbt = DBI->connect($DBI,$DB_USERNAME,$DB_PASS, {AutoCommit => 0, PrintError => 0,}) ) {
   wlog("DB Test connection failed: $DBI::errstr");

@@ -29,7 +29,7 @@ use Switch;
 use Data::Dumper;
 use File::Path qw(mkpath make_path remove_tree);
 
-my $openfpcver=0.8;
+my $openfpcver=0.9;
 my $conf_dir="/etc/openfpc";
 
 my ($quiet,$usertype,$verbose,$help);

@@ -43,6 +43,7 @@ GUI_DB_PASS="openfpc"
 PROXY_DB_NAME="proxy_openfpc"
 PROXY_DB_USER="proxy_openfpc"
 PROXY_DB_PASSWORD="proxy_openfpc"
+OPENFPCVER="0.9"
 
 function die
 {
@@ -390,7 +391,7 @@ function drop_session
 function showhelp
 {
     echo -e ""
-    echo -e "* openfpc-dbmaint "
+    echo -e "* openfpc-dbmaint version $OPENFPCVER"
     echo -e "  Create and maintain an OpenFPC databases"
     echo -e ""
     echo -e "  Usage:"
