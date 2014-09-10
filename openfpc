@@ -27,7 +27,7 @@ use warnings;
 use Getopt::Long;
 use Switch;
 use Data::Dumper;
-use File::Path qw(mkpath make_path);
+use File::Path qw(mkpath make_path remove_tree);
 
 my $openfpcver=0.8;
 my $conf_dir="/etc/openfpc";
@@ -47,8 +47,8 @@ my @daemonsNodeNoSession=("openfpc-daemonlogger", 	# Daemons we want to start in
 		"openfpc-queued");			# with ENABLE_SESSION=0
 
 my @daemonsProxy=("openfpc-queued"); 			# Daemons we want to start in OpenFPC proxy mode
-
-my %defaults=(  PIDPATH => "/var/run",
+my $debug=0;
+my %defaults=(  PIDPATH => "/var/run/",
 		DAEMONLOGGER_CMD => "/usr/bin/daemonlogger",
 		CXTRACKER_CMD => "/usr/bin/cxtracker" ,
 		OPENFPC_QUEUED_CMD => "/usr/bin/openfpc-queued",
@@ -56,6 +56,7 @@ my %defaults=(  PIDPATH => "/var/run",
 		BUFFER_DIR => "/var/tmp/openfpc/pcap",
 		CX2DB_CMD => "/usr/bin/openfpc-cx2db",
 		BPF_FILE => 0,
+		DROP_USER => "openfpc",
 		);
 
 ############################################
@@ -193,7 +194,10 @@ sub getPidFromFile($){
 			$pid=$_;	
 			chomp $pid;
 		}
+	} else {
+		print "getPidFromFile: Pidfile \"$filename\" not found \n" if $debug;
 	}
+	print "getPidFromFile PID is $pid\n" if $debug;
 	return($pid); 
 }
 
@@ -270,6 +274,54 @@ sub findcmd{
 	return(0);				
 }
 
+
+=head2 initpidpath
+	1) Make sure the pidpath exists
+	2) Make sure the pidpath is writable by DROP_USER
+	If all is good, Returns the name of the pidpath, if not, 0.
+=cut
+
+
+sub initpidfile{
+
+	my $i=shift;
+	my $pidpath="/var/run";
+	my %p=(
+		pidpath => 0,
+		queued => 0,
+		cxtracker => 0,
+		cx2db =>0,
+		daemonlogger =>0,
+		error => 0,
+		user => 0,
+		group => 0,
+
+		);
+	$pidpath=$configs{$i}{'PIDPATH'} if defined $configs{$i}{'PIDPATH'};
+	my $drop_user=$configs{$i}{'DROP_USER'} if defined $configs{$i}{'DROP_USER'};
+
+	die("No node name defined in config") unless defined ($configs{$i}{'NODENAME'});
+
+	$pidpath=$pidpath . "/openfpc-" . $configs{$i}{'NODENAME'};		# append nodename to pidpath so DROP_USER can access it.
+
+	unless(-d $pidpath){
+		unless ( make_path $pidpath, { owner=>$drop_user,
+							group=>$drop_user}) {
+			die("Failed to make path $pidpath");
+		}
+	}
+	$p{'pidpath'} = $pidpath;
+	$p{'queued'}= $pidpath . "/" . "openfpc-queued.pid";
+	$p{'cx2db'}= $pidpath . "/" . "openfpc-cx2db.pid";
+	$p{'cxtracker'}="openfpc-cxtracker.pid";
+	$p{'daemonlogger'}="openfpc-daemonlogger.pid";					# Doesn't want full path
+	$p{'user'} = $drop_user;
+	$p{'group'} = $drop_user;
+
+	return(\%p);
+}
+
+
 =head2 openfpcqueued
 	Start/Stop the OpenFPC Queue Daemon
 	- Leon 2010	
@@ -283,9 +335,10 @@ sub openfpcqueued{
 
 	my $daemonargs="-c $conf_dir/$instance --daemon";
 
-	$pidpath=$configs{$instance}{'PIDPATH'} if defined $configs{$instance}{'PIDPATH'};
-	my $pidfile= $pidpath . "/" . "openfpc-queued-" . $configs{$instance}{'NODENAME'} . ".pid";
 
+	my $p=initpidfile($instance);
+
+	my $pidfile=$p->{'queued'};
 	# Get a PID, and check if it's running
 	my $pid=getPidFromFile($pidfile);
 	my $running=isPidRunning($pid) if ($pid);
@@ -328,7 +381,6 @@ sub openfpcqueued{
 					print " - Cant find openfpc-queued. Check your conifg and OpenFPC install $daemoncmd!\n";
 				}	
 			}
-
 		} 
 		case "stop" {
 			printf '%-70s', "Stopping OpenFPC Queue Daemon ($configs{$instance}{'NODENAME'})... ";
@@ -343,6 +395,10 @@ sub openfpcqueued{
 			} else {
 				printf '%10s',"Not running\n";
 			}
+		}
+		case "restart" {
+			openfpcqueued("stop",$instance);
+			openfpcqueued("start",$instance);
 		} 
 		case "status" {
 			printf '%-70s', "OpenFPC Queue Daemon  ($configs{$instance}{'NODENAME'}):"; 
@@ -369,10 +425,13 @@ sub openfpcdaemonlogger{
 	
 	my $daemoncmd=findcmd("openfpc-daemonlogger",$instance);
 
-	my $pidpath=$defaults{'PIDPATH'};
-	$pidpath=$configs{$instance}{'PIDPATH'} if defined $configs{$instance}{'PIDPATH'};
+	my $p=initpidfile($instance);
 
-	my $pidfile="openfpc-daemonlogger-" . $configs{$instance}{'NODENAME'} . ".pid";
+	my $pidfile=$p->{'daemonlogger'};
+	# Get a PID, and check if it's running
+	my $pid=getPidFromFile("$p->{'pidpath'}/$pidfile");
+	my $running=isPidRunning($pid) if ($pid);
+
 	# Check we have a BPF file before rtying to use it
 	if ($configs{$instance}{'BPF_FILE'}) {
 		print "Using BPF\n" if $verbose;
@@ -388,17 +447,15 @@ sub openfpcdaemonlogger{
 			"-M $configs{$instance}{'PCAP_SPACE'} ".
 			"-s $configs{$instance}{'FILE_SIZE'} ".
 			"-p $pidfile " .
-			"-P $pidpath " .
-			"-n openfpc-$configs{$instance}{'NODENAME'}.pcap" .
+			"-P $p->{'pidpath'} " .
+			"-n openfpc-$configs{$instance}{'NODENAME'}.pcap " .
+			"-u $configs{$instance}{'DROP_USER'} " .
+			"-g $configs{$instance}{'DROP_USER'} " .
 			" 2>&1 " .
 			"| logger -t OFPC-DL-$configs{$instance}{'NODENAME'}";
 			#" >> /tmp/openfpc-dl-out 2>&1 ";
 			# Daemonlogger is verbose at startup, and we need to store the output to find 
 			# any problems if found. Throwing it to syslog.
-
-	# Get a PID, and check if it's runnings
-	my $pid=getPidFromFile("$pidpath/$pidfile");
-	my $running=isPidRunning($pid) if ($pid);
 
 	switch($action){
 		case "start" {
@@ -415,11 +472,21 @@ sub openfpcdaemonlogger{
 				}
 				# Check if BUFFER_PATH exists and is writable
 				if ( ! -d  $configs{$instance}{'BUFFER_PATH'}){
-					unless (mkpath($configs{$instance}{'BUFFER_PATH'})) { 
+					unless (make_path $configs{$instance}{'BUFFER_PATH'}, {owner=>$configs{$instance}{'DROP_USER'}, 
+								group=>$configs{$instance}{'DROP_USER'}}) {
 						printf '%10s',"Failed\n";	
 						print " - Unable to create $configs{$instance}{'BUFFER_PATH'}\n" unless $quiet;
 						return(0);
 					}
+				} else {
+					# Check path is writable as user
+					unless (make_path "$configs{$instance}{'BUFFER_PATH'}/test", {owner=>$configs{$instance}{'DROP_USER'}, 
+								group=>$configs{$instance}{'DROP_USER'}}) {
+						print "Error: $configs{$instance}{'BUFFER_PATH'} is not writable by user $configs{$instance}{'DROP_USER'}";
+					} else {
+						remove_tree "$configs{$instance}{'BUFFER_PATH'}/test";
+					}
+
 				}
 				my $cf = "$configs{$instance}{'BUFFER_PATH'}/openfpc-$configs{$instance}{'NODENAME'}.pcap.0";
 				print "\nDEBUG: Touching a canary file to check if DL needs to delete something at startup:$cf\n" if $verbose;
@@ -445,7 +512,6 @@ sub openfpcdaemonlogger{
 					return(0);
 				}	
 			}
-
 		} 
 		case "stop" {
 			printf '%-70s',  "Stopping Daemonlogger... ";
@@ -469,10 +535,15 @@ sub openfpcdaemonlogger{
 				printf '%10s', "Stopped\n";
 			}
 		} 
+		case "restart" {
+ 			openfpcdaemonlogger("stop",$instance);
+ 			sleep(1);
+ 			openfpcdaemonlogger("start",$instance);
+
+		}
 	}
 	return(0);
 }
-
 
 sub openfpccxtracker{
 	my $action=shift;
@@ -480,23 +551,25 @@ sub openfpccxtracker{
 	my $pidpath=$defaults{'PIDPATH'};
 	my $daemoncmd=findcmd("openfpc-cxtracker", $instance);
 	my $sessiondir=$defaults{'SESSION_DIR'};
-	my $pidfile="openfpc-cxtracker-$configs{$instance}{'NODENAME'}.pid";	
-	$pidpath=$configs{$instance}{'PIDPATH'} if defined $configs{$instance}{'PIDPATH'};
-	$sessiondir=$configs{$instance}{'SESSION_DIR'} if defined $configs{$instance}{'SESSION_DIR'};
-	die("DROP_USER Not defined") unless (defined $configs{$instance}{'DROP_USER'});
 
+	die("DROP_USER Not defined") unless (defined $configs{$instance}{'DROP_USER'});
+	$sessiondir=$configs{$instance}{'SESSION_DIR'} if defined $configs{$instance}{'SESSION_DIR'};
+
+
+	my $p=initpidfile($instance);
+
+	my $pidfile=$p->{'cxtracker'};
+	# Get a PID, and check if it's running
+	my $pid=getPidFromFile("$p->{'pidpath'}/$pidfile");
+	my $running=isPidRunning($pid) if ($pid);
 
 	my $daemonargs="-i $configs{$instance}{'INTERFACE'} " .
 			"-d $sessiondir " .
 			"-p $pidfile " . 
-			"-P $pidpath " .
+			"-P $p->{'pidpath'} " .
 			"-u $configs{$instance}{'DROP_USER'} " .
 			"-g $configs{$instance}{'DROP_USER'} " .
 			"-D > /tmp/cxtracker.start.log 2>&1";
-
-	# Get a PID, and check if it's runnings
-	my $pid=getPidFromFile("$pidpath/$pidfile");
-	my $running=isPidRunning($pid) if ($pid);
 
 	switch($action){
 		case "start" {
@@ -556,6 +629,10 @@ sub openfpccxtracker{
 				printf '%10s', "Stopped\n";
 			}
 		} 
+		case "restart" {
+ 			openfpccxtracker("stop",$instance);
+ 			openfpccxtracker("start",$instance);
+		}
 	}
 	return(0);
 }
@@ -569,15 +646,15 @@ sub openfpccx2db{
 	my $instance=shift;
 	my $pidpath=$defaults{'PIDPATH'};
 	my $daemoncmd=findcmd("openfpc-cx2db", $instance);;
-	my $pidfile="openfpc-cx2db-$configs{$instance}{'NODENAME'}.pid";	
 
-	$pidpath=$configs{$instance}{'PIDPATH'} if defined $configs{$instance}{'PIDPATH'};
+	my $p=initpidfile($instance);
+
+	my $pidfile=$p->{'cx2db'};
+	# Get a PID, and check if it's running
+	my $pid=getPidFromFile("$pidfile");
+	my $running=isPidRunning($pid) if ($pid);
 
 	my $daemonargs="--daemon --config $conf_dir/$instance ";
-
-	# Get a PID, and check if it's runnings
-	my $pid=getPidFromFile("$pidpath/$pidfile");
-	my $running=isPidRunning($pid) if ($pid);
 
 	switch($action){
 		case "start" {
@@ -591,6 +668,7 @@ sub openfpccx2db{
 					print " - Log path $configs{$instance}{'SESSION_DIR'} doesn't exist\n" unless $quiet;
 					return(0);
 				}
+				print "daemoncmd is $daemoncmd $daemonargs\n" if $debug;
 				if ( -x $daemoncmd ) {
 					my $result=system("$daemoncmd $daemonargs");
 					if ($result) {
@@ -628,6 +706,10 @@ sub openfpccx2db{
 			} else {
 				printf '%10s', "Stopped\n";
 			}
+		}
+		case "restart" {
+ 			openfpccx2db("stop",$instance);
+ 			openfpccx2db("start",$instance);
 		} 
 	}
 	return(0);
@@ -683,21 +765,24 @@ Part of the OpenFPC project http://www.openfpc.org
 	exit 0;
 }
 
-GetOptions (    'a|action=s' => \$action,		# Action to take
-		'v|verbose' => \$verbose,		# Verbose
-		't|thing=s' => \$thing,			# The thing we want to take action on
-		'q|quiet' => \$quiet,
-		'help' => \$help,
+GetOptions (    
+	'a|action=s' => \$action,		# Action to take
+	'v|verbose' => \$verbose,		# Verbose
+	't|thing=s' => \$thing,			# The thing we want to take action on
+	'q|quiet' => \$quiet,
+	'help' => \$help,
+	'debug' => \$debug,
 );
 
 &showhelp if ($help);
-unless ($action =~ /^(status|start|stop|debug)$/) {
+unless ($action =~ /^(status|start|stop|debug|restart)$/) {
 	print "Invalid action \"$action\". See --help\n";
 	exit(1);
 }
 
 # Check if we are root
 unless ($> == 0 || $< == 0) { die "You need root privs to run this tool.\n" }
+$verbose=1 if ($debug);
 
 # Read in a hash of all configs on the system
 
@@ -724,7 +809,7 @@ while(my $file=readdir $dh) {
 		                (my $key, my @value) = split /=/, $line;
 		                unless ($key eq "USER") {
 		                        $configs{$file}{$key} = join '=', @value;
-	       	         	}    
+	       	         	}
 	        	}
 		}
 		close(FILE);

@@ -8,6 +8,8 @@ use DateTime;
 use Getopt::Long qw/:config auto_version auto_help/;
 use DBI;
 use Sys::Syslog;
+use Privileges::Drop;
+use File::Path qw(mkpath make_path);
 
 =head1 NAME
 
@@ -46,17 +48,20 @@ our $DB_HOST       = "127.0.0.1";
 our $DB_PORT       = "3306";
 our $DB_USERNAME   = "openfpc";
 our $DB_PASS	   = "openfpc";
+our $DROP_USER   = "openfpc";
+
 our $AUTOCOMMIT    = 0;
 my $SANCP_DB       = {};
 my %CONFIG         = ();
 my $starttime      = 0;
+my  $FDIR          = "$SDIR/failed";
+
 GetOptions(
    'dir=s'         => \$SDIR,
    'debug'         => \$DEBUG,
    'daemon'        => \$DAEMON,
    'config=s'      => \$CONFFILE,
 );
-my  $FDIR          = "$SDIR/failed/";
 
 # Signal handlers
 use vars qw(%sources);
@@ -80,16 +85,18 @@ if ($CONFFILE) {
 			(my $key, my @value) = split /=/, $_; 
 			$CONFIG{$key} = join '=', @value;
 		}
-    }
+  }
 
     $HOSTNAME= $CONFIG{'NODENAME'} if (defined $CONFIG{'NODENAME'});
-    $PIDFILE = "/var/run/openfpc-cx2db-" . $CONFIG{'NODENAME'} . ".pid" if (defined $CONFIG{'NODENAME'});
+#    $PIDFILE = "/var/run/openfpc-cx2db-" . $CONFIG{'NODENAME'} . ".pid" if (defined $CONFIG{'NODENAME'});
+    $PIDFILE = "/var/run/openfpc-" . $CONFIG{'NODENAME'} . "/openfpc-cx2db.pid" if (defined $CONFIG{'NODENAME'});
     $DB_NAME = $CONFIG{'SESSION_DB_NAME'} if (defined $CONFIG{'SESSION_DB_NAME'});
     $DB_USERNAME = $CONFIG{'SESSION_DB_USER'} if (defined $CONFIG{'SESSION_DB_USER'});
     $DB_PASS = $CONFIG{'SESSION_DB_PASS'} if (defined $CONFIG{'SESSION_DB_PASS'});
     $SDIR = $CONFIG{'SESSION_DIR'} if (defined $CONFIG{'SESSION_DIR'});
+    $DROP_USER = $CONFIG{'DROP_USER'} if (defined $CONFIG{'DROP_USER'});
     $FDIR="$SDIR/failed";
-
+    $LOGFILE="/var/log/openfpc-cx2db-$CONFIG{'NODENAME'}.log" if (defined $CONFIG{'NODENAME'});
     close $CONFIG;
 } else {
     warn "[-] No config file specified. Using defaults.\n" if ($DEBUG);
@@ -104,22 +111,30 @@ if ($DEBUG) {
 			"    DB User    : $DB_USERNAME\n" .
 			"    DB Pass    : $DB_PASS\n" .
 			"    Session Dir: $SDIR\n" .
-			"    Failed Dir : $FDIR\n" ;
+			"    Failed Dir : $FDIR\n" . 
+      "    Drop user  : $DROP_USER\n" .
+      "    Log file   : $LOGFILE\n";
 }
 
-# Check that SDIR exists and is writable
-unless ( -d "$SDIR" ) {
-	mkdir "$SDIR" or die("Session dir $SDIR doesn't exist, and I failed to create it");
+# Check that SDIR exists, if not, create and own as DROP_USER 
+unless ( -d "$SDIR/failed" ) {
+  my $FDIR=$SDIR . "/failed";
+  make_path $FDIR, {owner=>$DROP_USER, 
+                      group=>$DROP_USER} or die("Session dir $SDIR doesn't exist, and I failed to create it");
 	warn "[-] Created session dir $SDIR\n";
-} else {
-	unless ( -w "$SDIR" ) {
-		die("Session directory $SDIR isn't writable");
-	}
 }
+
+# Create blank logfile for use by DROP_USER
+unless ( -e $LOGFILE ) {
+  print "LOG $LOGFILE no exist";
+  system("touch $LOGFILE");
+  system("chown $DROP_USER.$DROP_USER $LOGFILE");
+}
+
+
+
+
 # If Failed subfolder doesn't exist, lets add it
-unless ( -d "$FDIR" )  {
-	mkdir "$FDIR" or die("Unable to create failed instertion dir $FDIR");
-}
 wlog("[*] Starting openfpc-cx2db.pl..."); 
 #my $dbh = DBI->connect($DBI,$DB_USERNAME,$DB_PASS, {AutoCommit => 0, RaiseError => 1}) or die "$DBI::errstr";
 unless (my $dbt = DBI->connect($DBI,$DB_USERNAME,$DB_PASS, {AutoCommit => 0, PrintError => 0,}) ) {
@@ -138,7 +153,8 @@ if ( $DAEMON ) {
    defined (my $dpid = fork) or die "fork: $!\n";
    if ($dpid) {
       # Write PID file
-      open (PID, "> $PIDFILE") or die "open($PIDFILE): $!\n";
+      wlog("Using pid file $PIDFILE");
+      open (PID, "> $PIDFILE") or die "Unable to open($PIDFILE): $!\n";
       print PID $dpid, "\n";
       close (PID);
       exit 0;
@@ -146,6 +162,19 @@ if ( $DAEMON ) {
    setsid ();
    open (STDERR, ">&STDOUT");
 }
+
+# Drop privs to DROP_USER
+warn("Dropping Privileges to user $DROP_USER") if $DEBUG;
+my $cuser=`whoami`;
+warn("Process Started by user $cuser") if $DEBUG;
+drop_privileges($DROP_USER);
+$cuser=`whoami`;
+warn("Now running as user $cuser") if $DEBUG;
+
+unless ( -w "$SDIR" ) {
+  die("Error: Session directory $SDIR isn't writable as current user $cuser"); 
+}
+
 
 warn "[*] Connecting to database...\n";
 # HERE

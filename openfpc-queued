@@ -123,7 +123,7 @@ wlog("START: Dropping Privileges to user $config{'DROP_USER'}\n");
 
 my $cuser=`whoami`;
 wlog("DEBUG: START: Started by user $cuser") if $debug;
-drop_privileges('openfpc');
+drop_privileges($config{'DROP_USER'});
 $cuser=`whoami`;
 wlog("START: Now running as user $cuser");
 
@@ -176,7 +176,8 @@ if ($daemon) {
 	open (STDOUT, "> $config{'LOGFILE'}") or die "Can't open Log for STDOUT  $config{'LOGFILE'}: $!\n";
 	defined(my $pid = fork)   or die "Can't fork: $!";
 	if ($pid) {
-		open (PID, "> $config{'PIDPATH'}/openfpc-queued-$config{'NODENAME'}.pid") or die "Unable write to pid file $config{'PIDPATH'}/openfpc-queued-$config{'NODENAME'}.pid: $!\n";
+		my $pidfile=$config{'PIDPATH'} . "/openfpc-" . $config{'NODENAME'} . "/openfpc-queued.pid";
+		open (PID, "> $pidfile") or die("Unable write to pid file $pidfile\n");
       		print PID $pid, "\n";
       		close (PID);
 		exit 0;
