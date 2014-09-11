@@ -79,7 +79,10 @@ my %logs=(
     	"  3   2014-01-10 13:00:00      192.168.42.1     138    192.168.42.255     138      17      0      0",
     	"4   2014-01-10 08:24:14      192.168.42.1     138    192.168.42.255     138      17      0      0",
 	],
-
+	passive_dns_gl => [
+		"1410118731.439740||192.168.1.1||192.168.1.1||IN||id.l.google.com.||A||7.15.23.88||259||1",
+		"1410118748.301084||192.168.2.1||192.168.1.1||IN||something.co.uk.||A||7.2.2.6||600||1",
+	],
 );
 
 sub checkParse{
@@ -203,7 +206,7 @@ if ($oneline)  {
 		displayEvent($result) if $verbose;
 	} else {
 		print "[*] Manual Tests...\n";
-		my %tmpdata=OFPC::Parse::SnortSyslog($logline);
+		my %tmpdata=OFPC::Parse::passive_dns_1($logline);
 		displayEvent(\%tmpdata);
 	}
 }

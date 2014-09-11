@@ -7,7 +7,7 @@ TUSER=lward
 TDEV=192.168.42.10
 TPATH=/home/$USER/openfpc/
 PATHCHECK="openfpc-client README.md"
-DIRS="cgi-bin docs etc OFPC tools www"
+DIRS="restapi docs etc OFPC tools"
 FILES="openfpc-client openfpc-dbmaint openfpc-password openfpc  openfpc-cx2db  openfpc-install.sh openfpc-queued"
 
 VERBOSE=1
@@ -29,16 +29,18 @@ function deploy
 			die "Cant find target path $TPATH on target device $TDEV, won't continue"
 	fi
 
+	for f in $FILES;
+	do
+		scp $f $TUSER@$TDEV:$TPATH/
+	done
+	
 	for d in $DIRS;
 	do
 		echo "- Copying $d"
 		scp -r $d $TUSER@$TDEV:$TPATH/
 	done
 
-	for f in $FILES;
-	do
-		scp $f $TUSER@$TDEV:$TPATH/
-	done
+	
 }
 
 if [ $1 ] ; then
