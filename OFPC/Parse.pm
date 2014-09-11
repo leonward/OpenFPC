@@ -145,6 +145,7 @@ sub parselog{
         # Work through a list of file-parsers until we get a hit        
         while (1) {
                 %eventdata=OFPC::Parse::OFPC1Event($logline,$r->{'tz'}{'val'}); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OFPC::Parse::passive_dns_1($logline,$r->{'tz'}{'val'}); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=OFPC::Parse::SF49IPS($logline,$r->{'tz'}{'val'}); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=OFPC::Parse::Exim4($logline,$r->{'tz'}{'val'}); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=OFPC::Parse::SnortSyslog($logline,$r->{'tz'}{'val'}); if ($eventdata{'parsed'} ) { last; }
@@ -756,6 +757,43 @@ sub ofpc_search{
 	} 
 	return(%e);
 }
+=head passivedns
+	Output format of passivedns from
+	https://github.com/gamelinux/passivedns
+	Pulls out the session made from the requester to the IP resolved.
+	Doesn't work with CNAME, you'll have to grab the next lookup for it.
+	I expect 
+=cut
+sub passive_dns_1{
 
+	my $logline=shift;
+	my $logtz=shift;
+
+	my %e=initevent();
+	$e{'type'} = "passive_dns_1";
+	my $debug=wantdebug();
+	#kill whitespace at the start of the line
+	$logline =~ s/^\s+|\s+$//g;
+
+	(my @d)=split(/\|\|/,$logline);
+
+	foreach (@d) {
+		print "- $_\n";
+	}
+	my $t;
+	if ($d[0] =~ m/(^[0-9]+)/) {
+		$t = $1;
+	}
+
+	if ($d[5] eq "A") {
+		$e{'parsed'}=1;
+	}
+
+	$e{'timestamp'} = $t;
+	$e{'sip'} = $d[1];
+	$e{'dip'} = $d[6];
+
+	return(%e);
+}
 
 1;
