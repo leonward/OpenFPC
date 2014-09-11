@@ -28,9 +28,9 @@ use Getopt::Long;
 use Switch;
 use Data::Dumper;
 use File::Path qw(mkpath make_path remove_tree);
-
+no warnings "experimental::smartmatch";
 my $openfpcver=0.9;
-my $conf_dir="/etc/openfpc";
+my $conf_dir="/etc/openfpc/";
 
 my ($quiet,$usertype,$verbose,$help);
 my $init=0;						# init script friendly output (i.e not much!)
@@ -62,6 +62,94 @@ my %defaults=(  PIDPATH => "/var/run/",
 ############################################
 # End of globals
 ############################################
+
+=head2 checkconfig
+	Check all config files to look for things I know will break the system and catch common mistakes
+=cut
+
+sub checkconfig{
+	my $c=shift;
+	my %o=(
+		success => 0,
+		error => "None",
+		);
+	my @ports=();
+	my @errs=();
+
+	foreach my $file (keys $c) {
+		my $bad=0;
+		if ($c->{$file}{NODENAME} =~ /[-\?\\\/\.;]/ ) {
+			my $err="Invalid characters found in NODENAME \"$c->{$file}{NODENAME}\"";
+			push(@errs, $err);
+			$bad=1;
+		}
+		
+		if ($c->{$file}{'OFPC_ENABLED'} =~ /[yY1]/ ) {
+			if ( grep (/$c->{$file}{'OFPC_PORT'}/, @ports)) {
+				#if ( $c->{$file}{'OFPC_PORT'} ~~ @ports) {
+				my $err="OFPC Port $c->{$file}{'OFPC_PORT'} already in use by another node";
+				push(@errs, $err);
+				$bad=1;
+			}
+			push(@ports, $c->{$file}{'OFPC_PORT'});
+		}
+		if ($bad) {
+			foreach (@errs){
+				print "[!] Error: $_ in file $file\n";
+			}
+
+		$c->{$file}{OFPC_ENABLED}=0;
+		print "    Disabling node $c->{$file}{'NODENAME'} in instance file $file.\n";
+		}
+	}
+
+	return($c);
+
+}
+
+sub readconfig{
+	my $conf_dir=shift;
+	my %configs;
+	# Read in a hash of all configs on the system
+	opendir(my $dh, $conf_dir) || die("Unable to open config dir $conf_dir\n");
+	while(my $file=readdir $dh) {
+		my $goodfile=0;
+		# Check if this is an OpenFPC config file, or some other junk.
+		open FILE, '<', "$conf_dir/$file" or die "Unable to open config file $conf_dir/$file $!";
+		while(<FILE>) {
+			chomp $_;
+			$goodfile=1 if ( $_ =~ /^OFPC_ENABLED=/);
+		}
+		close(FILE);
+		# Open file to read config if it is a valid OpenFPC config file
+		if ($goodfile) {
+			# Apply defaults to this instance file in case it's missing some of the required configuration lines.
+			foreach (keys %defaults) {
+				$configs{$file}{$_} = $defaults{$_};	
+			}
+			open FILE, '<', "$conf_dir/$file" or die "Unable to open config file $conf_dir/$file $!";
+			while(my $line=<FILE>) {
+   	     		chomp $line;
+			        if ( $line =~ m/^[a-zA-Z]/) {
+			                (my $key, my @value) = split /=/, $line;
+			                unless ($key eq "USER") {
+			                        $configs{$file}{$key} = join '=', @value;
+		       	         	}
+		        	}
+			}
+			close(FILE);
+		
+			# Perform some sanity checks on the instance config, if something strange is found, disable it and warn the user.
+	
+			push(@nodes, $configs{$file}{NODENAME}) if ($configs{$file}{OFPC_ENABLED} =~ /[Yy]/ );
+		}
+	}
+
+	# Check config is valid
+	my $c=checkconfig(\%configs);		
+	return($c);
+	closedir($dh);
+}
 
 =head2  getType
 	Unless a user has specified if we are taking action on a daemon, or a configuration, this function will try to autodetect.
@@ -468,14 +556,14 @@ sub openfpcdaemonlogger{
 			} else {
 				# Check if interface is available
 				if (system("ifconfig $configs{$instance}{'INTERFACE'} up > /dev/null 2>&1")){
-					print " - WARNING unable to bring $configs{$instance}{'INTERFACE'} up\n" unless $quiet;
+					print " - WARNING unable to bring $configs{$instance}{'INTERFACE'} up\n" if $verbose;
 				}
 				# Check if BUFFER_PATH exists and is writable
 				if ( ! -d  $configs{$instance}{'BUFFER_PATH'}){
 					unless (make_path $configs{$instance}{'BUFFER_PATH'}, {owner=>$configs{$instance}{'DROP_USER'}, 
 								group=>$configs{$instance}{'DROP_USER'}}) {
 						printf '%10s',"Failed\n";	
-						print " - Unable to create $configs{$instance}{'BUFFER_PATH'}\n" unless $quiet;
+						print " - Unable to create $configs{$instance}{'BUFFER_PATH'}\n" if $verbose;
 						return(0);
 					}
 				} else {
@@ -508,7 +596,7 @@ sub openfpcdaemonlogger{
 					}
 				} else {
 					printf '%10s', "Failed\n";
-					printf " - Dameonlogger not found on this system.\n" unless $quiet;
+					printf " - Dameonlogger not found on this system.\n" if $verbose;
 					return(0);
 				}	
 			}
@@ -579,7 +667,7 @@ sub openfpccxtracker{
 			} else {
 				# Check if interface is available
 				if (system("ifconfig $configs{$instance}{'INTERFACE'} up > /dev/null 2>&1")){
-					print " - WARNING unable to bring $configs{$instance}{'INTERFACE'} up\n" unless $quiet;
+					print " - WARNING unable to bring $configs{$instance}{'INTERFACE'} up\n" if $verbose;
 				}
 				# Check if SESSION_PATH exists and is writable by DROP_USER
 				if ( ! -d  $configs{$instance}{'SESSION_DIR'})  {
@@ -587,7 +675,7 @@ sub openfpccxtracker{
 					unless (make_path $fp, {owner=>$configs{$instance}{'DROP_USER'}, 
 											group=>$configs{$instance}{'DROP_USER'}}) { 
 						printf '%10s',"Failed\n";	
-						print " - Unable to create $configs{$instance}{'SESSION_DIR'}\n" unless $quiet;
+						print " - Unable to create $configs{$instance}{'SESSION_DIR'}\n" if $verbose;
 						return(1);
 					}
 				}
@@ -602,7 +690,7 @@ sub openfpccxtracker{
 					}
 				} else {
 					printf '%10s', "Failed\n";
-					print " - cxtracker not found on this system\n" unless $quiet;
+					print " - cxtracker not found on this system\n" if $verbose;
 				}	
 			}
 
@@ -665,7 +753,7 @@ sub openfpccx2db{
 				# Check if BUFFER_PATH exists and is writable
 				if ( ! -d  $configs{$instance}{'SESSION_DIR'}){
 					printf '%10s', "Failed. \n";	
-					print " - Log path $configs{$instance}{'SESSION_DIR'} doesn't exist\n" unless $quiet;
+					print " - Log path $configs{$instance}{'SESSION_DIR'} doesn't exist\n" if $verbose;
 					return(0);
 				}
 				print "daemoncmd is $daemoncmd $daemonargs\n" if $debug;
@@ -673,14 +761,14 @@ sub openfpccx2db{
 					my $result=system("$daemoncmd $daemonargs");
 					if ($result) {
 						printf '%10s', "Failed\n";
-						print "[!] ERROR: Problem starting cx2db process. Check syslog for details\n" unless $quiet;
+						print "[!] ERROR: Problem starting cx2db process. Check syslog for details\n" if $verbose;
 					} else {
 						printf '%10s', "Done\n";
 						return(1);
 					}
 				} else {
 					printf '%10s', "Failed\n";
-					print " - openfpc-cx2db command not found on this system \n" unless $quiet;
+					print " - openfpc-cx2db command not found on this system \n" if $verbose;
 				}	
 			}
 
@@ -784,53 +872,20 @@ unless ($action =~ /^(status|start|stop|debug|restart)$/) {
 unless ($> == 0 || $< == 0) { die "You need root privs to run this tool.\n" }
 $verbose=1 if ($debug);
 
-# Read in a hash of all configs on the system
 
-opendir(my $dh, $conf_dir) || die("Unable to open config dir $conf_dir\n");
-while(my $file=readdir $dh) {
-	my $goodfile=0;
-	# Check if this is an OpenFPC config file, or some other junk.
-	open FILE, '<', "$conf_dir/$file" or die "Unable to open config file $conf_dir/$file $!";
-	while(<FILE>) {
-		chomp $_;
-		$goodfile=1 if ( $_ =~ /^OFPC_ENABLED=/);
-	}
-	close(FILE);
-	# Open file to read config if it is a valid OpenFPC config file
-	if ($goodfile) {
-		# Apply defaults to this instance file in case it's missing some of the required configuration lines.
-		foreach (keys %defaults) {
-			$configs{$file}{$_} = $defaults{$_};	
-		}
-		open FILE, '<', "$conf_dir/$file" or die "Unable to open config file $conf_dir/$file $!";
-		while(my $line=<FILE>) {
-        		chomp $line;
-		        if ( $line =~ m/^[a-zA-Z]/) {
-		                (my $key, my @value) = split /=/, $line;
-		                unless ($key eq "USER") {
-		                        $configs{$file}{$key} = join '=', @value;
-	       	         	}
-	        	}
-		}
-		close(FILE);
-		
-		# Perform some sanity checks on the instance config, if something strange is found, disable it and warn the user.
-		my $badconfig=0;
-		if ($configs{$file}{NODENAME} =~ /[-\?\\\/\.]/ ) {
-			print "ERROR: Invalid characters found in NODENAME in file $file \"$configs{$file}{NODENAME}\"\n";
-			$badconfig=1;
-		}
-		if ($badconfig) {
-			print "###############################################################################\n";
-			$configs{$file}{OFPC_ENABLED}=0;
-			print "WARNING: Bad configuration file $file. Disabling instance \"$configs{$file}{NODENAME}\"\n";
-		}
-		# Add this node if enabled to a list of all nodes on this system
-		push(@nodes, $configs{$file}{NODENAME}) if ($configs{$file}{OFPC_ENABLED} =~ /[Yy]/ );
-	}
-}
-closedir($dh);
 # Make sure we have the minimum input to do something of use.
+# XXXX
+
+my $c=readconfig($conf_dir);
+%configs=%$c;
+
+#my $g = checkconfig(\%configs);
+#if ($g->{'success'}) {
+#	print "Config looks good\n";
+#} else {
+#	print "Problem with config $g->{'error'}\n";
+#}
+
 
 # Check we don't have any dupe nodes active.
 while (my $node = shift(@nodes)){
@@ -912,7 +967,7 @@ if ($thing) {
 	foreach my $instance (keys(%configs)) {
 		if (defined $configs{$instance}{'OFPC_ENABLED'}) {
 
-			unless ($quiet) {
+			if ($verbose) {
 				print "###############################################################################\n";
 				print "[*] OpenFPC instance $instance\n";
 				print " -  NODENAME:              $configs{$instance}{'NODENAME'} \n" 	  if defined $configs{$instance}{'NODENAME'};
