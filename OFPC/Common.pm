@@ -176,10 +176,11 @@ sub mkBPF($) {
 	        wlog("MKBPF: Building bpf from:");
     	    wlog("MKBPF: SIP: $r->{'sip'}{'val'}, DIP: $r->{'dip'}{'val'}");
         	wlog("MKBPF: SPT: $r->{'spt'}{'val'}, DPT: $r->{'dpt'}{'val'}");
+        	wlog("MKBPF: Proto $r->{proto}{'val'}");
         };
 
         if ($r->{'proto'}{'val'}) {
-                $r->{'proto'}{'val'} = lc $r->{'proto'}{'val'}; # In case the tool provides a protocol in upper case
+                $r->{'proto'}{'val'} = lc $r->{'proto'}{'val'}; 				# In case the tool provides a protocol in upper case
         }   
 
         if ( $r->{'sip'}{'val'} xor $r->{'dip'}{'val'} ) { # One sided bpf
@@ -194,7 +195,7 @@ sub mkBPF($) {
    
         if ( $r->{'proto'}{'val'} ) { 
                  push(@eventbpf, "$r->{'proto'}{'val'}" );
-	}
+		}
  
         if ( $r->{'spt'}{'val'} xor $r->{'dpt'}{'val'} ) { 
                 if ($r->{'spt'}{'val'} ) { push(@eventbpf, "port $r->{'spt'}{'val'}" ) } 
@@ -217,11 +218,13 @@ sub mkBPF($) {
                 $bpfstring = $bpfstring . $_ . " ";
         } 
 
-        wlog("MKBPF: Built bpf \"$bpfstring\" Checking validity");
+        wlog("MKBPF: Built bpf \"$bpfstring\"") if $debug;;
         my $valid=checkbpf($bpfstring);
         if ($valid) {
+        	wlog("DEBUG: MKBPF: BPF looks valid") if $debug;
 	        return($bpfstring);
         } else {
+        	wlog("DEBUG: MKBPF: Bad BPF") if $debug;
         	return(0);
         }
 }
@@ -879,6 +882,11 @@ sub decoderequest($){
 		  filetype => 0,
 		  md5 => 0,
 		  size => 0,
+		  extract => {
+			totalspace => 0,
+			searchspace => 0,
+			searchtime => 0,
+		  },
 		)
 
 		success 1 = Okay 0 = Fail
@@ -900,6 +908,11 @@ sub prepfile{
         filetype => "PCAP",
         md5 => 0,
         size => 0,
+        buffer => {
+        	totalspace => 0,
+        	searchspace => 0,
+        	searchtime => 0,
+        },
     );	
 
     # If a specific filetype is requested, set prep to gather it 

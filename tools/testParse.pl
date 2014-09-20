@@ -140,6 +140,7 @@ sub showhelp{
 		-q or --quiet	   Only output if there is an error
 		-t or --type       Only process this logtype
 		-h or --help	   This message
+		-v or --verbose    Verbose output
 		-tz                Timezone (default UTC)
 		\n\n";
 

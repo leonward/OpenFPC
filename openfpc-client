@@ -627,8 +627,10 @@ unless ($sock) {
 print "DEBUG: Connected to $config{'server'}\n" if ($debug);
 %result=OFPC::Request::request($sock,$r2);
 
-print "DEBUG: Sent Request\n" if ($debug);
+print "DEBUG: Request Result...\n" if ($debug);
 close($sock);
+print Dumper \%result if $debug;;
+
 unless ($result{'success'}) {
 	print "OFPC Request Failed: $result{'message'}\n";
 	exit 1;
