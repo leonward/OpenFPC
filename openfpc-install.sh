@@ -42,6 +42,7 @@ REQUIRED_BINS="tcpdump date mergecap perl tshark test"
 LOCAL_CONFIG="/etc/openfpc/openfpc.conf"
 PERL_LIB_DIR="/usr/local/lib/site_perl"
 OFPC_LIB_DIR="$PERL_LIB_DIR/OFPC"
+CXINSTALLED=0
 
 DEPSOK=0			# Track if known deps are met
 DISTRO="AUTO"		# Try to work out what distro we are installing on
@@ -66,6 +67,79 @@ function chkroot()
 	then
 	       	die "[!] ERROR: Must be root to run this script"
 	fi
+}
+
+function mkuser(){
+	PASSFILE="/etc/openfpc/openfpc.passwd"
+	echo "[*] Step 1: Creating a user to access OpenFPC."
+	echo "    This user will be able to extract data and interact with the queue-daemon. "
+	echo "    The OpenFPC user management is controlled by the application openfpc-passwd. "
+	echo "    The default OpenFPC passwd file is $PASSFILE"
+
+	for i in 1 2 3
+	do
+		openfpc-password -f $PASSFILE -a add && break
+	done
+}
+
+function mksession(){
+	if [ $CXINSTALLED == "1" ]
+	then
+		echo "[*] Creating OpenFPC Session DB"
+		echo "    OpenFPC uses cxtracker to record session data. Session data is much quicker to search through than whole packet data stored in a database."
+		echo "    All of the databases used in OpenFPC are controlled by an application called openfpc-dbmaint. "
+		echo "    - Note that you will need to enter the credentials of a mysql user that has privileges to creted/drop databases"
+		echo "      If you don't know what this is, it's likely root with the password that you were asked for while installing mysql"
+		for i in 1 2 3 
+		do 
+			echo "- Attempt $i/3"
+		 	sudo openfpc-dbmaint create session /etc/openfpc/openfpc-default.conf && break
+			echo "Problem creating database: Trying again in case you typed in the wrong password" 
+		done
+	fi
+}
+
+function endmessage(){
+	echo -e "
+--------------------------------------------------------------------------
+[*] Installation Complete 
+
+ ************************
+ **      IMPORTANT     **
+ ************************
+ OpenFPC should now be installed and ready for *configuration*.
+   
+ 1) Go configure /etc/openfpc/openfpc-default.conf
+ 2) Add a user E.g.
+
+    $ sudo openfpc-password -a add -u admin \ 
+	-f /etc/openfpc/openfpc.passwd  
+
+ 3) Make a database for connection:
+    $ sudo openfpc-dbmaint create session /etc/openfpc/openfpc-default.conf
+ 4) Start OpenFPC
+    $ sudo openfpc --action start
+ 5) Check status (authenticate with user/password set in step 2)
+	$ openfpc-client -a status --server localhost --port 4242
+ 6) Go extract files and search for sessions!
+    $ openfpc-client -a search -dpt 53 --last 600
+    $ openfpc-client -a  fetch -dpt 53 --last 600
+    $ openfpc-client --help
+"
+
+}
+
+function easymessage(){
+	echo "[*] Starting OpenFPC"
+	sudo openfpc -a start
+
+	echo "[*] Simple installation complete. "
+	echo "    Here are a couple of tips to get started:
+	$ openfpc-client -a status --server localhost --port 4242
+    $ openfpc-client -a search -dpt 53 --last 600
+    $ openfpc-client -a  fetch -dpt 53 --last 600
+    $ openfpc-client --help
+    "
 }
 
 function checkdeps()
@@ -137,6 +211,7 @@ function checkdeps()
 	if which cxtracker
 	then
 		echo "[*] Found cxtracker in your \$PATH (good)"
+		CXINSTALLED=1
 	else
 		echo -e "
 ###########################################################
@@ -231,7 +306,7 @@ function doinstall()
 
 	for file in $PROG_FILES
 	do
-		echo -e " -  Installing OpenFPC prog: $file"
+		echo -e " -  Installing OpenFPC Application: $file"
 		cp $file $PROG_DIR
 	done
 
@@ -296,32 +371,7 @@ function doinstall()
 
 	fi
 
-	echo -e "
---------------------------------------------------------------------------
-[*] Installation Complete 
-
- ************************
- **      IMPORTANT     **
- ************************
- OpenFPC should now be installed and ready for *configuration*.
-   
- 1) Go configure /etc/openfpc/openfpc-default.conf
- 2) Add a user E.g.
-
-    $ sudo openfpc-password -a add -u admin \ 
-	-f /etc/openfpc/openfpc.passwd  
-
- 3) Make a database for connection:
-    $ sudo openfpc-dbmaint create session /etc/openfpc/openfpc-default.conf
- 4) Start OpenFPC
-    $ sudo openfpc --action start
- 5) Check status (authenticate with user/password set in step 2)
-	$ openfpc-client -a status --server localhost --port 4242
- 6) Go extract files and search for sessions!
-    $ openfpc-client -a search -dpt 53 --last 600
-    $ openfpc-client -a  fetch -dpt 53 --last 600
-    $ openfpc-client --help
-"
+	
 }
 
 function remove()
@@ -536,9 +586,11 @@ case $1 in
     install)
 		checkdeps
         doinstall
+        endmessage
     ;;
     forceinstall)
     	doinstall
+    	endmessage
     ;;
     remove)
     	remove
@@ -550,7 +602,17 @@ case $1 in
 		echo [*] Running reinstall remove
 		remove
 		echo [*] Running reinstall install
+		checkdeps
 		doinstall
+		endmessage
+	;;
+	easyinstall)
+		echo [*] Performing an easyinstall
+		checkdeps
+		doinstall
+		mkuser
+		mksession
+		easymessage
 	;;
      *)
         echo -e "
@@ -558,7 +620,8 @@ case $1 in
     $ openfpc-install <action> <gui>
 
     Where <action> is one of the below: 
-    install       - Install OpenFPC
+    easyinstall   - Install and auto-configure. Good for first time users
+    install       - Install OpenFPC, no configuration
     forceinstall  - Install OpenFPC without checking for dependencies
     remove        - Uninstall OpenFPC 
     status        - Check installation status
