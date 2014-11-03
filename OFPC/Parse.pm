@@ -740,18 +740,18 @@ sub ofpc_search{
 	$e{'dip'} = $d[5];	
 	$e{'dpt'} = $d[6];	
 
-	my $ipproto = $d[8];
-
-	if ($ipproto =~ /6/ ) {
-		$e{'proto'} = "tcp";
-	} elsif ($ipproto =~ /17/ ) {
+	my $ipproto = $d[7];
+	if ($ipproto =~ /udp/ ) {
 		$e{'proto'} = "udp";
+	} elsif ($ipproto =~ /tcp/ ) {
+		$e{'proto'} = "tcp";
 	}	
 
 	if ($e{'timestamp'} and
 		$e{'sip'} and
 		$e{'dip'} and
 		$e{'spt'} and 
+		$e{'proto'} and 
 		$e{'dpt'}) {
 		$e{'parsed'} = 1;
 	} 
