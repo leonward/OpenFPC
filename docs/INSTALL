@@ -46,6 +46,10 @@ lward@dev-ny:~$ wget http://github.com/downloads/gamelinux/cxtracker/cxtracker_0
 
 lward@dev-ny:~$ sudo dpkg -i cxtracker_0.9.5-1_i386.deb
 
+If cxtracker fails to install due to package dependencies, a simple -f install should fix that for you:
+
+lward@ubuntu-14-lts:~$ sudo apt-get -f install
+
 # Download OpenFPC.
 
  This documentation was created for openfpc-0.9.5, and documentation has a bad habit of getting out of date quickly. The installation process shouldn't change much between minor releases, so I suggest you go and install the latest release and hope that these docs are still relevant for it.
