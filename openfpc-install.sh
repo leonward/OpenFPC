@@ -90,12 +90,7 @@ function mksession(){
 		echo "    All of the databases used in OpenFPC are controlled by an application called openfpc-dbmaint. "
 		echo "    - Note that you will need to enter the credentials of a mysql user that has privileges to creted/drop databases"
 		echo "      If you don't know what this is, it's likely root with the password that you were asked for while installing mysql"
-		for i in 1 2 3 
-		do 
-			echo "- Attempt $i/3"
 		 	sudo openfpc-dbmaint create session /etc/openfpc/openfpc-default.conf && break
-			echo "Problem creating database: Trying again in case you typed in the wrong password" 
-		done
 	fi
 }
 
@@ -133,11 +128,15 @@ function easymessage(){
 	echo "[*] Starting OpenFPC"
 	sudo openfpc -a start
 
-	echo "[*] Simple installation complete. "
-	echo "    Here are a couple of tips to get started:
+	echo "
+
+	[*] Simple installation complete. 
+
+    Here are a couple of tips to get started.
+
 	$ openfpc-client -a status --server localhost --port 4242
-    $ openfpc-client -a search -dpt 53 --last 600
     $ openfpc-client -a  fetch -dpt 53 --last 600
+    $ openfpc-client -a search -dpt 53 --last 600
     $ openfpc-client --help
     "
 }
@@ -378,16 +377,18 @@ function remove()
 {
 	echo -e "[*] Stopping Services..."
 	chkroot
-	for file in $INIT_SCRIPTS
-	do
-		if [ -f $INIT_DIR/$file ] 
-		then 
-			echo -e "Stopping $file"
-			$INIT_DIR/$file stop || echo -e " -  $file didn't stop, removing anyway"
-		else
-			echo -e " -  $INIT_DIR/$file doesn't exist - Won't try to stop"
-		fi
-	done
+	#for file in $INIT_SCRIPTS
+	#do
+	#	if [ -f $INIT_DIR/$file ] 
+	#	then 
+	#		echo -e "Stopping $file"
+	#		$INIT_DIR/$file stop || echo -e " -  $file didn't stop, removing anyway"
+	#	else
+	#		echo -e " -  $INIT_DIR/$file doesn't exist - Won't try to stop"
+	#	fi
+	#done
+
+	sudo openfpc -a stop
 
 	echo -e "[*] Disabling OpenFPC GUI"
 	if [ -f /etc/apache2/sites-available/openfpc.apache2.site ]
@@ -446,12 +447,12 @@ function remove()
 	# Remove the password file if it has been created
 	#[ -f $CONF_DIR/apache2.passwd ] && rm $CONF_DIR/apache2.passwd
 
-	echo -e "[*] Removing openfpc wwwroot"
-	if [ -d $WWW_DIR ] 
-	then
-		rm -r $WWW_DIR  || echo -e "[!] Unable to delete $WWW_DIR"
-		echo -e " -  Removed $WWW_DIR"
-	fi
+	#echo -e "[*] Removing openfpc wwwroot"
+	#if [ -d $WWW_DIR ] 
+	#then
+	#	rm -r $WWW_DIR  || echo -e "[!] Unable to delete $WWW_DIR"
+	#	echo -e " -  Removed $WWW_DIR"
+	#fi
 
 	echo -e "[-] Updating init sciprts"
         if [ "$DISTRO" == "DEBIAN" ]
@@ -626,13 +627,14 @@ case $1 in
     remove        - Uninstall OpenFPC 
     status        - Check installation status
     reinstall     - Re-install OpenFPC (remove then install in one command)
-    <gui>         - Add 'gui' to the end of the command to also
-	                take <action> on OpenFPC GUI as well.
-[*] Examples: 
-    Install OpenFPC 		
-    $ sudo ./openfpc-install install
 
-    Install OpenFPC and OpenFPC GUI
+[*] Examples: 
+    Easy Install: Get OpenFPC running for the 1st time, many defaults are 
+    selected for you. Just answer a couple of questions.
+
+    $ sudo ./openfpc-install easyinstall
+
+    Install OpenFPC without asking questions. You'll have to configure it afterwards
     $ sudo ./openfpc-install gui
 
     Remove OpenFPC

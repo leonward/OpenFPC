@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Deply script to push key files on to testing device. 
-# Only really useful for my own testing - Leon
+# Deply script to push key files on my local testing device. 
+# Only really useful in my own world here - Leon
 
 TUSER=lward
 TDEV=192.168.42.10
@@ -45,10 +45,11 @@ function deploy
 
 if [ $1 ] ; then
 
-	echo "Deploying to $1"
+	echo "Deploying to devices."
 	TDEV=$1
 else 
-	echo "Deploying to $TDEV"
+	die "Usage: deploy <device IP>"
+	
 fi
 
 if [ $VERBOSE == 1 ] ; then
@@ -68,7 +69,9 @@ done
 
 for i in $@
 do
-	echo "Deploying to $i"
-	deploy $i
+	echo $i
+	TDEV=$i
+	echo "Deploying to $TDEV"
+	deploy $TDEV
 done 
 

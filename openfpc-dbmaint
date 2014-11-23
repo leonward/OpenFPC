@@ -227,7 +227,7 @@ function create_proxy
   # Test we have access
 
   # Check if DB already exist
-  mysql -u$DBUSER -p$DBPASS -e "USE $PROXY_DB_NAME;" > /dev/null 2>&1 && die "Database $PROXY_DB_NAME already exists"
+  mysql -u$DBUSER -p$DBPASS -e "USE $PROXY_DB_NAME;" > /dev/null 2>&1 && die "Database $PROXY_DB_NAME already exists, won't create another one"
 
   # Create new DB
   mysql -u$DBUSER -p$DBPASS -e "CREATE DATABASE $PROXY_DB_NAME;" > /dev/null 2>&1 || die "Unable to create DB $PROXY_DB_NAME - Did you enter the correct user/password?"
