@@ -28,7 +28,7 @@ use Getopt::Long;
 use Switch;
 use Data::Dumper;
 use File::Path qw(mkpath make_path remove_tree);
-no warnings "experimental::smartmatch";
+no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 my $openfpcver=0.9;
 my $conf_dir="/etc/openfpc/";
 
