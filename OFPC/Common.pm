@@ -38,6 +38,7 @@ use threads::shared;
 use Filesys::Df;
 use Data::Dumper;
 use JSON::PP;
+use Data::UUID;
 our @ISA = qw(Exporter);
 @EXPORT = qw(wlog);
 @EXPORT_OK = qw(ALL);
@@ -119,15 +120,17 @@ sub wlog{
 }
 
 =head2 getrequestid
-	Generate a "unique" request ID for the extraction request
-	It's pretty basic right now, but it's here in case I want
-	to make each rid unique over program restarts.
+	Generate a "unique" request ID for the extraction request.
+	Using a GUID for each extraction
 =cut
 
 sub getrequestid{
 	$mrid++;
-        wlog("COMMS: Request ID is $mrid\n") if $debug;
-	return($mrid);
+	my $ug = new Data::UUID; 
+	my $rguid=$ug->create_str();
+
+	wlog("COMMS: Request GUID is $rguid\n") if $debug;
+	return($rguid);
 }
 
 
@@ -806,7 +809,6 @@ sub decoderequest($){
 			$gr->{'stime'}{'val'} = $r->{'stime'}{'val'};
 			$gr->{'etime'}{'val'} = $r->{'etime'}{'val'};
 			$gr->{'proto'}{'val'} = $r->{'proto'}{'val'};
-			print Dumper $r;
 			wlog("DECOD: DEBUG: Timestamp is $r->{'timestamp'}{'val'}") if $debug;
 			wlog("DECOD: DEBUG: Session IDs sip: \'$r->{'sip'}{'val'}\' dip: \'$r->{'dip'}{'val'}\' spt: \'$r->{'spt'}{'val'}\' dpt: \'$r->{'dpt'}{'val'}\' proto: \'$r->{'proto'}{'val'}\'") if $debug;
 
@@ -882,6 +884,7 @@ sub decoderequest($){
 		  filetype => 0,
 		  md5 => 0,
 		  size => 0,
+		  rid => <GUID for request>
 		  extract => {
 			totalspace => 0,
 			searchspace => 0,
@@ -908,6 +911,7 @@ sub prepfile{
         filetype => "PCAP",
         md5 => 0,
         size => 0,
+        rid => $r->{'metadata'}{'rid'},
         buffer => {
         	totalspace => 0,
         	searchspace => 0,
@@ -962,6 +966,7 @@ sub prepfile{
 				$prep{'md5'} = $result->{'md5'};
 				$prep{'filetype'} = "PCAP";
 				$prep{'filename'}="$result->{'filename'}";
+				$prep{'rid'}=$r->{'metadata'}{'rid'};
        			push (@nodefiles, $result->{'filename'});
 				wlog("PREP : Added $result->{'filename'} to zip list") if ($debug);
         	} else {
@@ -987,13 +992,16 @@ sub prepfile{
 	    	$prep{'filename'} = $result->{'filename'};
 	    	$prep{'md5'} = $result->{'md5'};
 	    	$prep{'size'} = $result->{'size'};
+			$prep{'rid'}=$r->{'metadata'}{'rid'};
 		} else {
 	    	$prep{'message'} = $result->{'message'};
+	    	$prep{'error'} = $result->{'message'};
 			return(\%prep);
 		}
         
 		my $reportfilename=mkreport(0,$r,\%prep);
-        
+		mkjlog($r, \%prep);
+
 		if ($prep{'filetype'} eq "ZIP") {
             if ($reportfilename) {
 				push(@nodefiles,"$result->{'filename'}.txt");
@@ -1091,6 +1099,7 @@ sub donode{
         message => 0,
         md5 => 0,
         size => 0,
+        error => 0,
 	);
 	my $debug=wantdebug();
 
@@ -1105,6 +1114,7 @@ sub donode{
     # If for some reason we have failed to get a BPF, lets return an error
 	unless ($bpf) {
             $result{'message'} = "Insufficient constraints for request (Null or invalid BPF)";
+            $result{'error'} = "Insufficient constraints for request (Null or invalid BPF)";
             wlog("NODE : Request: $r->{'metadata'}{'rid'} " . $result{'message'});
             return(\%result);
 	}
@@ -1503,6 +1513,29 @@ sub doExtract{
 	return($mergefile,$filesize,$md5,$err);
 }
 
+=head2 mkjlog
+	Create a JSON text log of the extract
+=cut
+
+sub mkjlog{
+	my $r=shift; 	
+	my $q=shift;
+	my %jlog=(
+		request => $r,
+		result => $q,
+		);
+	my $log_json=encode_json(\%jlog);
+	my $filename="$config{'SAVEDIR'}/$r->{'metadata'}{'rid'}.json";
+
+	if (open JSON , '>', $filename)  { 
+		print JSON $log_json;
+		close(JSON);
+		wlog("JSON : Created log JSON log for session $r->{'metadata'}{'rid'}");
+	} else {
+		wlog("MKLOG: ERROR: Unable to open JSON log file $filename for writing");
+	}
+}
+
 =head2 mkreport
 	Create a text report about the extraction.
 =cut
@@ -1519,7 +1552,7 @@ sub mkreport{
 		$bpf=$r->{'bpf'}{'val'};
 	}
 
-	$filename="$config{'SAVEDIR'}/$r->{'metadata'}{'tempfile'}.txt" unless ($filename);
+	$filename="$config{'SAVEDIR'}/$r->{'metadata'}{'rid'}.txt" unless ($filename);
 
 	if (open REPORT , '>', $filename)  { 
 	
@@ -1728,9 +1761,10 @@ sub comms{
 							if ("$request->{'action'}{'val'}" eq "store") {
 									wlog("REQ: Action Store");
 		                            # Create a tempfilename for this store request
-		                            $request->{'metadata'}{'tempfile'}=time() . "-" . $request->{'metadata'}{'rid'} . ".pcap";
+		                            $request->{'metadata'}{'tempfile'}=$request->{'metadata'}{'rid'} . ".pcap";
+#		                            $request->{'metadata'}{'tempfile'}=time() . "-" . $request->{'metadata'}{'rid'} . ".pcap";
 		                            print $client "FILENAME: $request->{'metadata'}{'tempfile'}\n";
-		                            
+		                           	print $client "RID: $request->{'metadata'}{'rid'}\n"; 
 		                            $queue->enqueue($request);
 		                            
 		                            #Say thanks and disconnect
@@ -1742,7 +1776,8 @@ sub comms{
 									wlog("REQ: Action Fetch");
 		                            # Create a tempfilename for this store request
 		                            $request->{'metadata'}{'tempfile'}=time() . "-" . $request->{'metadata'}{'rid'} . ".pcap";
-					    			wlog("COMMS: $client_ip: RID: $request->{'metadata'}{'rid'} Fetch Request OK -> WAIT!\n");
+					    			wlog("COMMS: $client_ip: RID: $request->{'metadata'}{'rid'} Fetch Request OK, sending RID\n");
+					    			print $client "RID: $request->{'metadata'}{'rid'}\n";
 		                            
 					    			# Prep result of the request for delivery (route/extract/compress etc etc)
 		                            my $prep = OFPC::Common::prepfile($request);
@@ -1791,7 +1826,7 @@ sub comms{
 										unless ($config{'KEEPFILES'}) {
 		                                    wlog("COMMS: $client_ip Request: $request->{'metadata'}{'rid'} : Cleaning up.") if $debug;
 		                                    unlink("$config{'SAVEDIR'}/$xferfile") or
-		                                     wlog("COMMS: ERROR: $client_ip Request: $request->{'metadata'}{'rid'} : Unable to unlink $config{'SAVEDIR'}/$xferfile");
+		                                    	wlog("COMMS: ERROR: $client_ip Request: $request->{'metadata'}{'rid'} : Unable to unlink $config{'SAVEDIR'}/$xferfile");
 										}
 		                            } else {
 										print $client "ERROR: $prep->{'message'}\n";
