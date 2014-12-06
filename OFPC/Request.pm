@@ -205,6 +205,7 @@ sub receivefile{
 	my $filetype=shift;	# Filetype
 	my $svrmd5=shift;	# MD5 of file from server
 	my $r=shift;	# Request hashref
+	my $rid=shift;	# request ID
 	#my $debug=0;
 	my $debug=wantdebug();
 	my %result={
@@ -229,7 +230,10 @@ sub receivefile{
 		return(\%result);
 	}
 
+	# Unless a filename to save the file as is passed from the client
+	# use the RID instead.
 
+	$r->{'filename'}{'val'} = $rid unless $r->{'filename'}{'val'};
 	# Update $filename with new extension.
 	# XXX May have use in proxy mode	
 	$r->{'filename'}{'val'} = $r->{'filename'}{'val'} . $result{'ext'};
@@ -247,29 +251,33 @@ sub receivefile{
 
 	# Open file and set socket/file to BIN
 	$result{'filename'} = $savefile;
-    open (FILE,'>',$savefile);
-	FILE->autoflush(1);	
-    binmode(FILE);
-	binmode($socket);
+    if (open (FILE,'>',$savefile)) {
 
-	my $data;
-	my $a=0;
+		FILE->autoflush(1);	
+    	binmode(FILE);
+		binmode($socket);
 
-	print $socket "READY:\n";
-	print "DEBUG: Sent ready marker\n" if ($debug);
-	# Do the read from socket, write to file
-	while (sysread($socket,$data,1024,0)){
-		syswrite(FILE, $data,1024,0);
-		$a++;
+		my $data;
+		my $a=0;
+
+		print $socket "READY:\n";
+		print "DEBUG: Sent ready marker\n" if ($debug);
+		# Do the read from socket, write to file
+		while (sysread($socket,$data,1024,0)){
+			syswrite(FILE, $data,1024,0);
+			$a++;
+		}
+
+		close($socket);
+		close(FILE);
+	} else {
+		$result{'message'} = "Error: Unable to write file $savefile";
+		return(\%result);
 	}
-
-	close($socket);
-	close(FILE);
-
 	unless (open(FILEMD5, '<', $savefile)) {
 		$result{'message'} = "Cant open received file $savefile";
 		$result{'success'} = 0;
-		return %result;
+		return \%result;
 	} else {
 		$result{'md5'}=Digest::MD5->new->addfile(*FILEMD5)->hexdigest;
 		close(PCAPMD5);
@@ -314,6 +322,7 @@ sub request{
 			'size' => 0,
 			'time' => 0,
 			'table' => 0,
+			'rid' => 0,
 		);					# This is the hash we provide back to the calling function.
 	my $debug=wantdebug();
 	my $event=0;
@@ -394,17 +403,17 @@ sub request{
 					print $socket "ERROR Problem with challenge\n";
 				}
 			} 
-			case /WAIT/ {
-				if ($data =~ /^WAIT:*\s*(\d+)/) {
-					$result{'position'} = $	1;
-					if ( $r->{'showposition'}{'val'} ){
-						print "Queue position $result{'position'}. Wait...\n";
-					}
-					print "DEBUG: Position: $result{'position'}\n" if ($debug);
-				} else {
-					print "DEBUG: Request accepted. Queue position $result{'position'}  Waiting.....\n" if ($debug);
-				}
-			} 
+			#case /WAIT/ {
+			#	if ($data =~ /^WAIT:*\s*(\d+)/) {
+			#		$result{'position'} = $	1;
+			#		if ( $r->{'showposition'}{'val'} ){
+			#			print "Queue position $result{'position'}. Wait...\n";
+			#		}
+			#		print "DEBUG: Position: $result{'position'}\n" if ($debug);
+			#	} else {
+			#		print "DEBUG: Request accepted. Queue position $result{'position'}  Waiting.....\n" if ($debug);
+			#	}
+			#} 
 			case /STATUS/ {
 				my $sr=0;
 				if ($data =~ /^STATUS:\s*(.*)/) {
@@ -423,6 +432,12 @@ sub request{
 				}
 				return(%result);
 			} 
+			case /RID/ {
+				if ($data =~ /^RID:\s*(.*)/) {
+					$result{'rid'} = $1;
+					print "DEBUG: Request ID was $result{'rid'}\n" if $debug;
+				}
+			}
 			case /PCAP/ {
 				my $filetype;
 				print "DEBUG: Incomming PCAP\n" if ($debug);
@@ -431,7 +446,8 @@ sub request{
 					$result{'expected_md5'} = $1;
 					print "DEBUG: Expecting md5 of pcap to be $result{'expected_md5'}\n" if $debug;
 				}
-				my $xfer=receivefile($socket,$filetype,$result{'expected_md5'},$r);
+				my $xfer=receivefile($socket,$filetype,$result{'expected_md5'},$r,$result{'rid'});
+				#my $xfer=receivefile($socket,$filetype,\%result,$r);
 				$result{'md5'} = $xfer->{'md5'};
 				$result{'size'} = $xfer->{'size'};
 				$result{'message'} = $xfer->{'message'};
