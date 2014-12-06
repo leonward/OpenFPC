@@ -1,0 +1,5 @@
+logger: 'file'
+log: 'warn'
+startup_info: 0
+show_errors:  0
+
