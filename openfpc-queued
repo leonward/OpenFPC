@@ -127,6 +127,34 @@ drop_privileges($config{'DROP_USER'});
 $cuser=`whoami`;
 wlog("START: Now running as user $cuser");
 
+# Check if all save directories where we are expected to write files can be accessed as DROP_USER
+
+my @wdirs=($config{'SAVEDIR'});
+
+foreach (@wdirs) {
+	my $t="test.openfpc";
+	wlog "DEBUG: Checking write access to directory $_" if $debug;
+	if (-d $_ ) {
+		if ( open (TESTFILE, "> $_/$t") ){
+			print TESTFILE "OpenFPC Write Test.";
+			close TESTFILE;
+			wlog "DEBUG: Write access to $_ successful" if $debug;
+			if (unlink "$_/$t") {
+				wlog "DEBUG: Unlink access successful for $_" if $debug;
+			} else {
+				wlog "ERROR: Unable to unlink files from $_ and user $cuser. Unable to start.";
+				die "ERROR: Unable to unlink files from $_ and user $cuser. Unable to start.";
+			}
+		} else {
+			wlog "ERROR: Unable write to directory $_ as user $cuser\n";
+			die "ERROR: Unable write to directory $_ as user $cuser\n";
+		}
+	} else {
+		wlog "ERROR: Expected directory $_ does not exist. Unable to start";
+		die "ERROR:, Expected directory $_ does not exist. Unable to start";
+	}
+}
+
 my $numofusers=keys(%userlist);
 unless ($numofusers) {
    print("ERROR: $numofusers users defined in config file. You need to add some.\n");
