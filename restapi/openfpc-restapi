@@ -11,10 +11,6 @@ use Data::UUID;
 use Switch;
 use Dancer::FileUtils 'read_file_content';
 
-# Set logging to console
-#set logger => "console";
-#set log => "debug";
-#set log => "core";
 set warnings => 1;
 set serializer => 'JSON';
 
@@ -30,7 +26,7 @@ my %config=(
 	ofpc_port => 4242,
 	ofpc_savedir => '/tmp/',
 	ofpc_passwd => '/etc/openfpc/openfpc.passwd',
-	);    
+);    
 
 =head2 readusers
 	Reads an openfpc user file and returns a hash of user, password, and APIkeys
@@ -158,6 +154,9 @@ sub checkinput{
 		logline => 0,
 		apikey => 0,
 		rid => 0,
+		stime => 0,
+		etime => 0,
+		timestamp => 0,
 	);
 
 	debug "Performing API input validation for $f action";
@@ -180,7 +179,7 @@ sub checkinput{
 		}
 	}
 
-	if (($f eq "store") || ($f eq "fetch")) {
+	if (($f eq "store") || ($f eq "fetch") || ($f eq "search")) {
 		if (params->{'bpf'}) {
 			$q{'bpf'} = uri_unescape(params->{'bpf'});
 
@@ -231,6 +230,18 @@ sub checkinput{
 				return(\%q);
 			}	
 			debug "Decoded destination port is $q{'dpt'}";
+		}
+
+		foreach ('stime', 'etime', 'timestamp') {
+			if (params->{$_}) {
+				$q{$_}=uri_unescape(params->{$_});
+				unless ($q{$_}=~/^[A-Za-z0-9 :\.\[\]\(\)\/]+$/) {
+					$q{'error'} = "Error. $_ failed input validation.";
+					error $q{'error'};
+					return(\%q);
+				}	
+				debug "Decoded $_ as $q{$_}";
+			}
 		}
 	}
 	return(\%q);
@@ -347,6 +358,39 @@ get '/api/1/store' => sub {
 	}
 	return { error => "There was an error processing this request. Check log for more information"};
 };
+
+get '/api/1/search' => sub {
+	info "Received search request";
+
+	my $r=OFPC::Request::mkreqv2;
+	$r->{'action'}{'val'} = "search";
+
+	my $e=checkinput($r->{'action'}{'val'});
+	return $e if $e->{'error'};
+	$r->{'sip'}{'val'} = $e->{'sip'};
+	$r->{'dip'}{'val'} = $e->{'dip'};
+	$r->{'dpt'}{'val'} = $e->{'dpt'};
+	$r->{'spt'}{'val'} = $e->{'spt'};
+	$r->{'bpf'}{'val'} = $e->{'bpf'};
+	$r->{'stime'}{'val'} = $e->{'stime'};
+	$r->{'etime'}{'val'} = $e->{'etime'};
+	$r->{'timestamp'}{'val'} = $e->{'timestamp'};
+
+	my $auth=checkauth(params->{'apikey'}, $api_keys);
+	return { error => $auth->{'error'}} unless $auth->{'auth'};
+
+	$r->{'user'}{'val'} = $auth->{'user'};
+	$r->{'password'}{'val'} = $auth->{'password'};
+
+	my $p=doit($r);
+	if ($p->{'success'}) {
+		return ($p->{'table'});
+	} else {
+		debug "Search request failed";
+		return { error => "There was an error processing this request. Check log for more information"};
+	}
+};
+
 
 get '/api/1/retrieve' => sub {
 	debug "Processing a retrieve request";

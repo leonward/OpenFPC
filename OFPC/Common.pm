@@ -640,7 +640,6 @@ sub getstatus{
 		my $psr = \%ps;
 		$scr->{$config{'NODENAME'}} = $psr;
 	}
-	#print Dumper \%sc if $debug;
 	return(\%sc);
 }
 
@@ -728,7 +727,7 @@ sub decoderequest($){
     	$gr->{'fail'}{'val'} = 1;
     	return($gr);
     }
-
+    $gr->{'valid'}{'val'} = 0;										# Set to valid after decoding and checking
 	$gr->{'rtime'}{'val'} = gmtime();
 	$gr->{'metadata'}{'rid'} = OFPC::Common::getrequestid;
 	# Copy values from the client JSON request into the server request hash.
@@ -745,7 +744,24 @@ sub decoderequest($){
 	$gr->{'action'}{'val'} = lc $r->{'action'}->{'val'};				# Ensure action is lower case
 	wlog("DECOD: DEBUG: Received action $gr->{'action'}{'val'}") if ($debug);
 
-	if ($gr->{'action'}{'val'} =~ /(fetch|store)/) {
+
+	# fetch, store and search all have the same time constraints. 
+	# normalizing them once and only once.
+
+	if ($gr->{'action'}{'val'} =~/(fetch|store|search)/) {
+		wlog("DECOD: DEBUG: Normalizing timestamps") if $debug;
+		foreach ('timestamp', 'stime', 'etime') {
+			if ($r->{$_}{'val'}) {
+				wlog("DECOD: DEBUG: $_ in request was: $r->{$_}{'val'}") if $debug;
+				$gr->{$_}{'val'} = OFPC::Parse::norm_time($r->{$_}{'val'});
+				wlog("DEBUG: DEBUG: $_ normalized to $gr->{$_}{'val'} (" . localtime($gr->{$_}{'val'}) . ")") if $debug;
+			} else {
+				wlog("DECOD: DEBUG: $_ not set in request. Nothing to normalize") if $debug;
+			}
+		}
+	}
+
+	if ($gr->{'action'}{'val'} =~/(fetch|store)/) {
 
 		# Data could be requested in multiple forms, need to choose a priority order in case multiple appear in the same request
 		# 1 bpf
@@ -759,9 +775,6 @@ sub decoderequest($){
             if ($bpfcheck==1) {
             	# Good BPF
                 $gr->{'bpf'}{'val'} = $r->{'bpf'}{'val'};
-                $gr->{'timestamp'}{'val'} = $r->{'timestamp'}{'val'};
-                $gr->{'stime'}{'val'} = $r->{'stime'}{'val'};
-                $gr->{'etime'}{'val'} = $r->{'etime'}{'val'};
             } elsif ($bpfcheck==2) {
             	# Unable to check BPF because of tcpdump error
                 $gr->{'msg'}{'val'} .= "No pcap files found in buffer path";
@@ -793,9 +806,6 @@ sub decoderequest($){
 				$gr->{'spt'}{'val'} = $eventdata->{'spt'};
 				$gr->{'dpt'}{'val'} = $eventdata->{'dpt'};
 				$gr->{'msg'}{'val'} = $eventdata->{'msg'};
-				$gr->{'timestamp'}{'val'} = $eventdata->{'timestamp'};
-				$gr->{'stime'}{'val'} = $eventdata->{'stime'};
-				$gr->{'etime'}{'val'} = $eventdata->{'etime'};
 				$gr->{'proto'}{'val'} = $eventdata->{'proto'};
 				wlog("DECOD: DEBUG: logline timestamp has been set to $gr->{'timestamp'}{'val'}. Stime is $gr->{'stime'}{'val'}, etime is $gr->{'etime'}{'val'}\n") if $debug;
 			}
@@ -805,9 +815,6 @@ sub decoderequest($){
 			$gr->{'dip'}{'val'} = $r->{'dip'}{'val'};
 			$gr->{'spt'}{'val'} = $r->{'spt'}{'val'};
 			$gr->{'dpt'}{'val'} = $r->{'dpt'}{'val'};
-			$gr->{'timestamp'}{'val'} = $r->{'timestamp'}{'val'};
-			$gr->{'stime'}{'val'} = $r->{'stime'}{'val'};
-			$gr->{'etime'}{'val'} = $r->{'etime'}{'val'};
 			$gr->{'proto'}{'val'} = $r->{'proto'}{'val'};
 			wlog("DECOD: DEBUG: Timestamp is $r->{'timestamp'}{'val'}") if $debug;
 			wlog("DECOD: DEBUG: Session IDs sip: \'$r->{'sip'}{'val'}\' dip: \'$r->{'dip'}{'val'}\' spt: \'$r->{'spt'}{'val'}\' dpt: \'$r->{'dpt'}{'val'}\' proto: \'$r->{'proto'}{'val'}\'") if $debug;
@@ -831,9 +838,6 @@ sub decoderequest($){
 		$gr->{'dip'}{'val'} = $r->{'dip'}{'val'};
 		$gr->{'spt'}{'val'} = $r->{'spt'}{'val'};
 		$gr->{'dpt'}{'val'} = $r->{'dpt'}{'val'};
-		$gr->{'timestamp'}{'val'} = $r->{'timestamp'}{'val'};
-		$gr->{'stime'}{'val'} = $r->{'stime'}{'val'};
-		$gr->{'etime'}{'val'} = $r->{'etime'}{'val'};
 		$gr->{'proto'}{'val'} = $r->{'proto'}{'val'};
 		$gr->{'valid'}{'val'} = 1;
 	} else {
@@ -849,13 +853,13 @@ sub decoderequest($){
 	# If no timestamp, stime or etime have been specified, set a default range to search
 	unless ($r->{'timestamp'}{'val'}) {
 		if ($r->{'stime'}{'val'} and $r->{'etime'}{'val'}) {
-			wlog("DECOD: stime and etime are set in request as $r->{'stime'}{'val'} / $r->{'etime'}{'val'}\n") if $debug;
+			wlog("DECOD: Final stime and etime are set in request as $r->{'stime'}{'val'} / $r->{'etime'}{'val'}\n") if $debug;
 		} else {
 			wlog("DECOD: Neither timestamp or stime/etime are set, setting timestamp to $now, it was $r->{'timestamp'}{'val'}\n") if $debug;
 			$gr->{'timestamp'}{'val'} = $now;
 		}
 	} else {
-		wlog("DECOD: DEBUG: timestamp is set to $r->{'timestamp'}{'val'}");
+		wlog("DECOD: DEBUG: Final timestamp used in request is epoch $r->{'timestamp'}{'val'}");
 	}
 
     return($gr);
@@ -1124,7 +1128,6 @@ sub donode{
 	# Do we have a single timestamp or pair of them?
 	# Single= event sometime in the middle of a session
 	# stime/etime = a search time window to look for data over
-    #print Dumper $request if $debug;    
 	my @pcaproster=();
 	if ( $r->{'stime'}{'val'} && $r->{'etime'}{'val'} ) {
 			wlog("NODE : Getting a bunch of pcap files between $r->{'stime'}{'val'} (" . localtime($r->{'stime'}{'val'}) . 
@@ -1132,7 +1135,7 @@ sub donode{
             @pcaproster=bufferRange($r->{'stime'}{'val'}, $r->{'etime'}{'val'});
 
 	} else  {
-			wlog("NODE : Getting a bunch of pcap files around timestamp $r->{'timestamp'}{'val'}" . localtime($r->{'timestamp'}{'val'}) );
+			wlog("NODE : Getting a bunch of pcap files around timestamp $r->{'timestamp'}{'val'} (" . localtime($r->{'timestamp'}{'val'}) . ")");
             # Event, single look over roster
             @pcaproster=findBuffers($r->{'timestamp'}{'val'}, 1);
 	}
@@ -1751,7 +1754,6 @@ sub comms{
 		                wlog("DEBUG: $client_ip: REQ -> $reqcmd\n") if $debug;
 		                    
 		                my $request=OFPC::Common::decoderequest($reqcmd);
-		                #print Dumper $request if $debug;
 		                if ($request->{'valid'}{'val'} == 1) {	# Valid request then...		
 							# Generate a rid (request ID for this.... request!).
 							# Unless action is something we need to wait for, lets close connection
@@ -1838,7 +1840,6 @@ sub comms{
 		                            
 			                    my $s=OFPC::Common::getstatus($request);
 			                    my $sj = encode_json($s);
-			                    # print Dumper $s;
 		    	                wlog("DEBUG: Status msg sent to client") if $debug;	
 		        	            print $client "STATUS: $sj";
 			        	        shutdown($client,2);
@@ -1848,7 +1849,6 @@ sub comms{
 		                        wlog("COMMS: $client_ip: RID: $request->{'metadata'}{'rid'} Start time=$request->{'stime'}{'val'} End time=$request->{'etime'}{'val'}");
 
 		                        (my $t)=OFPC::CXDB::cx_search($request);
-		                        #print Dumper $t;
 
 		                        unless ($t->{'error'}) { 
 		                        	my $tj=encode_json($t);	
@@ -1866,13 +1866,14 @@ sub comms{
 								wlog("Error: Unknown action $request->{'action'}{'val'}");
 							}
 		                } else {
+		                	print Dumper $request;
 							wlog("COMMS: $client_ip: BAD request $request->{'msg'}{'val'}");
-							print $client "ERROR: $request->{'msg'}\n";
+							print $client "ERROR: $request->{'msg'}{'val'}\n";
 			                shutdown($client,2);
 		                }
 					} else {
 		                wlog("DEBUG: $client_ip: BAD REQ -> $reqcmd") if $debug;
-		                print $client "ERROR: badr equest\n";
+		                print $client "ERROR: bad request\n";
 		                shutdown($client,2);
 					}
 				} else {

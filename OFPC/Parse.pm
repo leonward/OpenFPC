@@ -77,7 +77,7 @@ sub norm_time{
 	# If ttz isn't set, assume it is from the local tz
 	unless ($ttz) {
 		$ttz = $ltz;
-		print "\nTimezone for timestamp $ts not set. Defaulting to local tz ($ltz)\n" if $debug;
+		wlog("Timezone for timestamp $ts not set. Defaulting to local tz ($ltz)\n") if $debug;
 	}
 
 	# Convert strange timestamp into an epoch value with the TZ in the wrong TZ

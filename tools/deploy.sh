@@ -8,7 +8,7 @@ TDEV=192.168.42.10
 TPATH=/home/$USER/openfpc/
 PATHCHECK="openfpc-client README.md"
 DIRS="restapi docs etc OFPC tools"
-FILES="openfpc-restapi openfpc-client openfpc-dbmaint openfpc-password openfpc openfpc-cx2db openfpc-install.sh openfpc-queued"
+FILES="openfpc-client openfpc-dbmaint openfpc-password openfpc openfpc-cx2db openfpc-install.sh openfpc-queued"
 VERBOSE=1
 
 function die
