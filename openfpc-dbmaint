@@ -125,37 +125,48 @@ DELIMITER ;
 function readconfig
 {
     # Read in configuration from $CONFIG file.
-    if [ -f $CONFIG ] ; then
-		source $CONFIG || die "Unable to read config file \"$CONFIG\""
-		# Check all vars required are set in $CONFIG
-		[ -n "$ENABLE_SESSION" ] || die "ENABLE_SESSION not defined in $CONFIG"
-		[ -n "$NODENAME" ] || die "NODENAME not set in $CONFIG"
-    [ -n "$PASSWD" ] || die "PASSWD file not set in $CONFIG"
-    [ "$PROXY_DB_USER" == "$SESSION_DB_USER" ] && die "PROXY_DB_USER and SESSION_DB_USER in $CONFIG must be unique, they can't both be $SESSION_DB_USER"
-    [ "$GUI_DB_USER" == "$SESSION_DB_USER" ] && die "GUI_DB_USER and SESSION_DB_USER in $CONFIG must be unique, they can't both be $SESSION_DB_USER"
-    [ "$GUI_DB_USER" == "$PROXY_DB_USER" ] && die "GUI_DB_USER and PROXY_DB_USER in $CONFIG  must be unique, they can't both be $GUI_DB_USER"
+      if [ -f $CONFIG ] ; then
+		    source $CONFIG || die "Unable to read config file \"$CONFIG\""
+		    # Check all vars required are set in $CONFIG
+		    [ -n "$ENABLE_SESSION" ] || die "ENABLE_SESSION not defined in $CONFIG"
+		    [ -n "$NODENAME" ] || die "NODENAME not set in $CONFIG"
+        [ -n "$PASSWD" ] || die "PASSWD file not set in $CONFIG"
+        [ "$PROXY_DB_USER" == "$SESSION_DB_USER" ] && die "PROXY_DB_USER and SESSION_DB_USER in $CONFIG must be unique, they can't both be $SESSION_DB_USER"
+        [ "$GUI_DB_USER" == "$SESSION_DB_USER" ] && die "GUI_DB_USER and SESSION_DB_USER in $CONFIG must be unique, they can't both be $SESSION_DB_USER"
+        [ "$GUI_DB_USER" == "$PROXY_DB_USER" ] && die "GUI_DB_USER and PROXY_DB_USER in $CONFIG  must be unique, they can't both be $GUI_DB_USER"
       
-    # check db names for invalid chars
-    DBNAMES="$SESSION_DB_NAME $GUI_DB_NAME $PROXY_DB_NAME"
+        # check db names for invalid chars
+        DBNAMES="$SESSION_DB_NAME $GUI_DB_NAME $PROXY_DB_NAME"
 
-    for i in $DBNAMES 
-    do
-      echo $i | grep - > /dev/null && die "Error in Database name $i. Name cannot contain a '-' character."
-    done
+        for i in $DBNAMES 
+        do
+          echo $i | grep - > /dev/null && die "Error in Database name $i. Name cannot contain a '-' character."
+        done
 
-
-		echo -e "[*] Enter mysql \"root\" credentials to connect to your local mysql server in order to create the databases"
-		read -p "    DB root Username: " DBUSER
-		stty -echo
-		read -p "    DB root Password: " DBPASS
-		stty echo
-    echo -e "\n"
+        LOGIN=0
+        COUNT=0
+        while [ "$LOGIN" == "0" ] 
+        do
+		      echo -e "[*] Enter mysql credentials of an account with that can create/update/drop databases"
+		      read -p "    DB root Username: " DBUSER
+		      stty -echo
+		      read -p "    DB root Password: " DBPASS
+		      stty echo
+          echo -e "\n"
                 
-                # Check we can access DB with these creds
-                mysql -u$DBUSER -p$DBPASS -e 'SHOW DATABASES;' > /dev/null || die "Unable to connect to database - Did you enter the correct user/password?"
-    else
+          mysql -u$DBUSER -p$DBPASS -e 'SHOW DATABASES;' > /dev/null && break
+          COUNT=$(($COUNT + 1))
+          if [ "$COUNT" -gt "3" ]
+            then
+              die "[!] Too many failed attempts. Stopping."
+            else 
+              echo "[!] Invalid credentials. Please try again $COUNT/3." 
+          fi
+        done
+     
+      else
         die "Cant find config file $CONFIG"
-    fi
+      fi
 
 }
 

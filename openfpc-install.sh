@@ -71,9 +71,11 @@ function chkroot()
 
 function mkuser(){
 	PASSFILE="/etc/openfpc/openfpc.passwd"
+	echo "=============================================="
+	echo " EASY INSTALL"
 	echo "[*] Step 1: Creating a user to access OpenFPC."
 	echo "    This user will be able to extract data and interact with the queue-daemon. "
-	echo "    The OpenFPC user management is controlled by the application openfpc-passwd. "
+	echo "    OpenFPC user & password management is controlled by the application openfpc-passwd. "
 	echo "    The default OpenFPC passwd file is $PASSFILE"
 
 	for i in 1 2 3
@@ -83,14 +85,18 @@ function mkuser(){
 }
 
 function mksession(){
+	echo "=============================================="
+	echo "[*] Step 2: Creating an OpenFPC Session DB"
+	echo "    OpenFPC uses cxtracker to record session data. Session data is much quicker to search through than whole packet data stored in a database."
+	echo "    All of the databases used in OpenFPC are controlled by an application called openfpc-dbmaint. "
+	echo "    - Note that you will need to enter the credentials of a mysql user that has privileges to creted/drop databases"
+
 	if [ $CXINSTALLED == "1" ]
 	then
-		echo "[*] Creating OpenFPC Session DB"
-		echo "    OpenFPC uses cxtracker to record session data. Session data is much quicker to search through than whole packet data stored in a database."
-		echo "    All of the databases used in OpenFPC are controlled by an application called openfpc-dbmaint. "
-		echo "    - Note that you will need to enter the credentials of a mysql user that has privileges to creted/drop databases"
-		echo "      If you don't know what this is, it's likely root with the password that you were asked for while installing mysql"
-		 	sudo openfpc-dbmaint create session /etc/openfpc/openfpc-default.conf && break
+		sudo openfpc-dbmaint create session /etc/openfpc/openfpc-default.conf
+	else 
+		echo "[!] WARNING: cxtracker does not appear to be installed on this system, therefore I won't create a session database."
+		echo "    OpenFPC can operate without session searching, but it's a pretty useful feature. You're missing out without it!"
 	fi
 }
 
@@ -132,7 +138,7 @@ function easymessage(){
 
 	[*] Simple installation complete. 
 
-    Here are a couple of tips to get started.
+	Here are a couple of tips to get started.
 
 	$ openfpc-client -a status --server localhost --port 4242
     $ openfpc-client -a  fetch -dpt 53 --last 600
@@ -146,7 +152,7 @@ function checkdeps()
 	missdeps=""
 	if [ "$DISTRO" == "DEBIAN" ] 
 	then
-		DEPS="daemonlogger tcpdump tshark libdatetime-perl libprivileges-drop-perl libarchive-zip-perl libfilesys-df-perl mysql-server libdbi-perl libterm-readkey-perl libdate-simple-perl libdigest-sha-perl libjson-pp-perl libdatetime-perl libswitch-perl libdatetime-format-strptime-perl" 
+		DEPS="daemonlogger tcpdump tshark libdatetime-perl libprivileges-drop-perl libarchive-zip-perl libfilesys-df-perl mysql-server libdbi-perl libterm-readkey-perl libdate-simple-perl libdigest-sha-perl libjson-pp-perl libdatetime-perl libswitch-perl libdatetime-format-strptime-perl libdata-uuid-perl" 
 
 		# Check if some obvious dependencies are met	
 		for dep in $DEPS

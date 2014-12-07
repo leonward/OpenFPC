@@ -885,12 +885,12 @@ GetOptions (
 
 &showhelp if ($help);
 unless ($action =~ /^(status|start|stop|debug|restart)$/) {
-	print "Invalid action \"$action\". See --help\n";
+	print "Invalid --action specified. See --help for usage\n";
 	exit(1);
 }
 
 # Check if we are root
-unless ($> == 0 || $< == 0) { die "You need root privs to run this tool.\n" }
+unless ($> == 0 || $< == 0) { die "You need root privileges to run this tool.\n" }
 $verbose=1 if ($debug);
 
 
