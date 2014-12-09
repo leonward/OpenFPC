@@ -52,7 +52,9 @@ our $DROP_USER   = "openfpc";
 
 our $AUTOCOMMIT    = 0;
 my $SANCP_DB       = {};
-my %CONFIG         = ();
+my %CONFIG         = (
+  NODENAME => "No_Name",
+  );
 my $starttime      = 0;
 my $FDIR          = "$SDIR/failed";
 my $openfpcver     = "0.9";
@@ -78,7 +80,7 @@ $SIG{"KILL"}  = sub { game_over() };
 
 if ($CONFFILE) { 
 	warn "[*] Reading config file\n" if ($DEBUG);
-	open my $CONFIG, '<', $CONFFILE or die "Unable to open config file $CONFFILE $!";
+	open my $CONFIG, '<', $CONFFILE or ldie("Unable to open config file $CONFFILE $!");
 	while(<$CONFIG>) {
 		chomp;
    	if ( $_ =~ m/^[a-zA-Z]/) {
@@ -120,7 +122,7 @@ if ($DEBUG) {
 unless ( -d "$SDIR/failed" ) {
   my $FDIR=$SDIR . "/failed";
   make_path $FDIR, {owner=>$DROP_USER, 
-                      group=>$DROP_USER} or die("Session dir $SDIR doesn't exist, and I failed to create it");
+                      group=>$DROP_USER} or ldie("Session dir $SDIR doesn't exist, and I failed to create it");
 	warn "[-] Created session dir $SDIR\n";
 }
 
@@ -148,12 +150,12 @@ if ( $DAEMON ) {
    wlog("[*] Daemonizing...");
    chdir ("/") or die "chdir /: $!\n";
    open (STDIN, "/dev/null") or die "open /dev/null: $!\n";
-   open (STDOUT, "> $LOGFILE") or die "open > $LOGFILE: $!\n";
+   open (STDOUT, "> $LOGFILE") or ldie("Error: Unable to open log file $LOGFILE: $!\n");
    defined (my $dpid = fork) or die "fork: $!\n";
    if ($dpid) {
       # Write PID file
       wlog("Using pid file $PIDFILE");
-      open (PID, "> $PIDFILE") or die "Unable to open($PIDFILE): $!\n";
+      open (PID, "> $PIDFILE") or ldie("Unable to open pid file: $PIDFILE: $!\n");
       print PID $dpid, "\n";
       close (PID);
       exit 0;
@@ -171,7 +173,7 @@ $cuser=`whoami`;
 warn("Now running as user $cuser") if $DEBUG;
 
 unless ( -w "$SDIR" ) {
-  die("Error: Session directory $SDIR isn't writable as current user $cuser"); 
+  ldie("Error: Session directory $SDIR isn't writable as current user $cuser"); 
 }
 
 
@@ -203,6 +205,17 @@ sub wlog{
             print "$gmtime GMT: $logdata\n" ;
         }
     syslog("info",$logdata);
+}
+
+=head2 ldie
+  Write a log message, and then die.
+  Helps find start up problems in daemon mode
+=cut
+
+sub ldie{
+  my $msg=shift;
+  wlog($msg);
+  die($msg);
 }
 
 =head2 dir_watch
