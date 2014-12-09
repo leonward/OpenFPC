@@ -839,7 +839,13 @@ sub decoderequest($){
 		$gr->{'spt'}{'val'} = $r->{'spt'}{'val'};
 		$gr->{'dpt'}{'val'} = $r->{'dpt'}{'val'};
 		$gr->{'proto'}{'val'} = $r->{'proto'}{'val'};
-		$gr->{'valid'}{'val'} = 1;
+		# Search needs to have at least one session identifier to work.
+		if ( $gr->{'sip'}{'val'} || $gr->{'dip'}{'val'} || $gr->{'spt'}{'val'} || $gr->{'dpt'}{'val'} || $gr->{'proto'}{'val'}) {
+			$gr->{'valid'}{'val'} = 1;
+		} else {
+			$gr->{'msg'}{'val'} = "Search requires valid session identifiers. Note that flow search by BPF is not supported.";
+			wlog("DECOD: ERROR: $gr->{'msg'}{'val'}");
+		}
 	} else {
 		# Invalid action
 		wlog("DECOD: Received invalid action $gr->{'action'}{'val'}");
