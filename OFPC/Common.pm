@@ -136,6 +136,7 @@ sub getrequestid{
 
 sub checkbpf{
         my $bpf=shift;
+        my $debug=wantdebug();
         # Check BPF to ensure it's valid before doing anything with it.
         unless ($bpf =~/^[A-Za-z0-9 \.\[\]\(\)&=\/]+$/) {
                 wlog("DEBUG: BPF Failed input validation, bad chars in $bpf");
@@ -151,9 +152,12 @@ sub checkbpf{
         if (@pcaptemp) {
                 my $p=shift(@pcaptemp);
                 chomp $p;
-                my $i=system("$config{'TCPDUMP'} -nnr $p -c 1 \"$bpf or not($bpf)\" > /dev/null 2>&1");
+                my $bc="$config{'TCPDUMP'} -nnr $p -c 1 \"$bpf or not($bpf)\" > /dev/null 2>&1";
+                my $i=system($bc);
                 if ($i) {
                         wlog("WARN : BPF failed to validate - $bpf");
+						wlog("Command used to validate BPF was: $bc") if $debug;
+						wlog("Retrun was $i") if $debug;
                         return(0);
                     }
                     # Looks like the BPF is okay then...
