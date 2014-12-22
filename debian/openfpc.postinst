@@ -1,0 +1,56 @@
+#!/bin/sh
+. /usr/share/debconf/confmodule
+
+if ! getent passwd openfpc >/dev/null; then
+       adduser --quiet --system --group --no-create-home --home /nsm_data/ --shell /usr/sbin/nologin openfpc
+fi
+
+HOSTNAME=`hostname -s`
+OFPC_DIR=/var/tmp/openfpc
+PCAP_DIR=$OFPC_DIR/pcap
+SESSION_DIR=$OFPC_DIR/sessions
+EXTRACT_DIR=$OFPC_DIR/extracted
+CONFIG="/etc/openfpc/openfpc-default.conf"
+
+OFPC_DIRS="$PCAP_DIR $SESSION_DIR $EXTRACT_DIR"
+
+for DIR in $OFPC_DIRS
+do
+	if [ ! -d $DIR ]; then
+        	mkdir -vp $DIR || exit 74
+	        chown -vR openfpc:openfpc $DIR || exit 74
+	fi
+done
+
+# Get username for mysql to create database
+db_input high openfpc/mysql_root_user || true
+db_go
+db_get openfpc/mysql_root_user
+DBUSER=$RET
+
+db_input high openfpc/mysql_root_pass || true
+db_go
+db_get openfpc/mysql_root_pass
+DBPASS=$RET
+
+openfpc-dbmaint -q -s -a create -t session -c $CONFIG -u $DBUSER -p $DBPASS 
+
+db_input high openfpc/ofpc_user || true
+db_go
+db_get openfpc/ofpc_user
+OFPC_USER=$RET
+
+db_input high openfpc/ofpc_pass || true
+db_go
+db_get openfpc/ofpc_pass
+OFPC_PASS=$RET
+
+openfpc-password -a add -u $OFPC_USER -p $OFPC_PASS -f /etc/openfpc/openfpc.passwd
+
+update-rc.d  openfpc-daemonlogger defaults > /dev/null
+update-rc.d  openfpc-queued defaults > /dev/null
+update-rc.d  openfpc-cxtracker defaults > /dev/null
+update-rc.d  openfpc-cx2db defaults > /dev/null
+
+
+#DEBHELPER#

@@ -1,3 +1,10 @@
+openfpc (1.0) unstable; urgency=low
+
+  * Updated .deb packages for OpenFPC 1.0
+  * See openfpc.org for details.
+
+ -- Leon Ward <leon@openfpc.org>  Mon, 22 Dec 2014 19:54:00 +0000
+
 openfpc (0.3) unstable; urgency=low
 
   * Multiple configs can co-exist on a single box 

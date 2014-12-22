@@ -1,0 +1,21 @@
+OFPC/Parse.pm usr/share/perl5/OFPC
+OFPC/Request.pm usr/share/perl5/OFPC
+OFPC/CXDB.pm usr/share/perl5/OFPC
+OFPC/Common.pm usr/share/perl5/OFPC
+OFPC/Config.pm usr/share/perl5/OFPC
+
+openfpc-cx2db usr/bin
+openfpc-dbmaint usr/bin
+openfpc usr/bin
+openfpc-password usr/bin
+openfpc-queued usr/bin
+openfpc-client usr/bin
+
+etc/init.d/openfpc-cx2db etc/init.d
+etc/init.d/openfpc-cxtracker etc/init.d
+etc/init.d/openfpc-queued etc/init.d
+etc/init.d/openfpc-daemonlogger etc/init.d
+
+etc/openfpc-default.conf etc/openfpc
+etc/openfpc-example-proxy.conf etc/openfpc
+etc/routes.ofpc etc/openfpc

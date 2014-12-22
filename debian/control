@@ -1,16 +1,16 @@
 Source: openfpc
 Priority: optional
-Maintainer: Edward Fjellskål <edward.fjellskaal@gmail.com>
+Maintainer: Leon Ward <leon@openfpc.org>
 Build-Depends: debhelper (>= 7)
 Standards-Version: 3.8.3
 Section: net
 Homepage: http://www.openfpc.org/
 
-Package: openfpc-common
+Package: openfpc
 Section: net
 Priority: optional
 Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, libarchive-zip-perl, libfilesys-df-perl, libdatetime-perl, libdate-simple-perl
+Depends: ${shlibs:Depends}, ${misc:Depends}, libarchive-zip-perl, libfilesys-df-perl, libdatetime-perl, libdate-simple-perl, daemonlogger, tshark, tcpdump, libdbi-perl, mysql-server, libswitch-perl, libdata-uuid-perl, libprivileges-drop-perl
 Recommends: wireshark
 Description: OpenFPC - An Open Full Packet Capture Setup
  OpenFPC is a set of scripts that combine to provide
@@ -27,7 +27,7 @@ Package: openfpc-client
 Section: net
 Priority: optional
 Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, openfpc-common
+Depends: ${shlibs:Depends}, ${misc:Depends}, libarchive-zip-perl, libfilesys-df-perl, libdatetime-perl, libdate-simple-perl, libswitch-perl, libdata-uuid-perl
 Recommends: wireshark, unzip
 Description: OpenFPC - An Open Full Packet Capture Setup
  OpenFPC is a set of scripts that combine to provide
@@ -42,48 +42,6 @@ Description: OpenFPC - An Open Full Packet Capture Setup
  a openfpc installation.
  openfpc-client can be installed on the same host as the
  openfpc-proxy or openfpc-node.
- .
- For more information, visit the OpenFPC project home at
- http://www.openfpc.org
-
-Package: openfpc-proxy
-Section: net
-Priority: optional
-Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, openfpc-common, tshark, tcpdump
-Description: OpenFPC - An Open Full Packet Capture Setup
- OpenFPC is a set of scripts that combine to provide
- a lightweight full-packet network traffic recorder
- & buffering tool. It's design goal is to allow non-expert
- users to deploy a distributed network traffic recorder
- on COTS hardware while integrating into existing alert
- and log tools.
- .
- openfpc-proxy is best installed on a system that will
- be used to manage all the nodes in a openfpc installation.
- You can install openfpc-client or node on the same host if desired.
- .
- For more information, visit the OpenFPC project home at
- http://www.openfpc.org
-
-Package: openfpc-node
-Section: net
-Priority: optional
-Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, openfpc-common, daemonlogger, tshark, tcpdump, apache2, apache2-mpm-prefork, libapache2-mod-php5, libdbi-perl, mysql-server, php5-mysql 
-Description: OpenFPC - An Open Full Packet Capture Setup
- OpenFPC is a set of scripts that combine to provide
- a lightweight full-packet network traffic recorder
- & buffering tool. It's design goal is to allow non-expert
- users to deploy a distributed network traffic recorder
- on COTS hardware while integrating into existing alert
- and log tools.
- .
- openfpc-node is to be installed on the system that will
- be used for packet capturing.
- You can install openfpc-client on the same host if desired.
- It is recomended to do so if you want to be able to handle
- pcap extractions from that host only.
  .
  For more information, visit the OpenFPC project home at
  http://www.openfpc.org
