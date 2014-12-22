@@ -124,7 +124,7 @@ Creating new user file /etc/openfpc/openfpc.passwd...
 To make database creation simple, there is a tool for creating and dropping the correct database that matches the configuration you define in the openfpc config file (in our simple default that's /etc/openfpc/openfpc-default.conf).
 openfpc-dbmaint uses the data in that config file to create the database with the expected permissions. This tool requires you to have root access to use. There are multiple database types that can be created, in our simple default example you only will need a session DB. For more options you can see openfpc-dbmain --help.
 
-lward@dev-ny:~/openfpc-0.9$ sudo openfpc-dbmaint create session /etc/openfpc/openfpc-default.conf
+lward@dev-ny:~/openfpc-0.9$ sudo openfpc-dbmaint -a create -t session -c /etc/openfpc/openfpc-default.conf
 [*] Enter mysql "root" credentials to connect to your local mysql server in order to create the databases
     DB root Username: root
     DB root Password:
