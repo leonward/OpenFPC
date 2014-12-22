@@ -93,7 +93,7 @@ function mksession(){
 
 	if [ $CXINSTALLED == "1" ]
 	then
-		sudo openfpc-dbmaint create session /etc/openfpc/openfpc-default.conf
+		sudo openfpc-dbmaint -a create -t session -c /etc/openfpc/openfpc-default.conf
 	else 
 		echo "[!] WARNING: cxtracker does not appear to be installed on this system, therefore I won't create a session database."
 		echo "    OpenFPC can operate without session searching, but it's a pretty useful feature. You're missing out without it!"
@@ -117,7 +117,7 @@ function endmessage(){
 	-f /etc/openfpc/openfpc.passwd  
 
  3) Make a database for connection:
-    $ sudo openfpc-dbmaint create session /etc/openfpc/openfpc-default.conf
+    $ sudo openfpc-dbmaint -a create -t session -c /etc/openfpc/openfpc-default.conf
  4) Start OpenFPC
     $ sudo openfpc --action start
  5) Check status (authenticate with user/password set in step 2)

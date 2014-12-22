@@ -24,10 +24,6 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #########################################################################################
 
-ACTION=$1
-TYPE=$2
-CONFIG=$3
-
 # Default values for configuration in case user chooses to not include
 # unneeded values in the config file. E.g. GUI_DB_NAME when the GUI
 # is not being used.
@@ -43,7 +39,10 @@ GUI_DB_PASS="openfpc"
 PROXY_DB_NAME="proxy_openfpc"
 PROXY_DB_USER="proxy_openfpc"
 PROXY_DB_PASSWORD="proxy_openfpc"
-OPENFPCVER="0.9"
+OPENFPCVER="1.0"
+DBUSER=0
+DBPASS=0
+CONFIG=0
 
 function die
 {
@@ -143,29 +142,34 @@ function readconfig
           echo $i | grep - > /dev/null && die "Error in Database name $i. Name cannot contain a '-' character."
         done
 
-        LOGIN=0
-        COUNT=0
-        while [ "$LOGIN" == "0" ] 
-        do
-		      echo -e "[*] Enter mysql credentials of an account with that can create/update/drop databases"
-		      read -p "    DB root Username: " DBUSER
-		      stty -echo
-		      read -p "    DB root Password: " DBPASS
-		      stty echo
-          echo -e "\n"
+
+        if [ "$DBUSER" == "0" ]; then
+          LOGIN=0
+          COUNT=0
+          while [ "$LOGIN" == "0" ] 
+          do
+		        echo -e "[*] Enter mysql credentials of an account with that can create/update/drop databases"
+		        read -p "    DB root Username: " DBUSER
+		        stty -echo
+		        read -p "    DB root Password: " DBPASS
+		        stty echo
+            echo -e "\n"
                 
-          mysql -u$DBUSER -p$DBPASS -e 'SHOW DATABASES;' > /dev/null && break
-          COUNT=$(($COUNT + 1))
-          if [ "$COUNT" -gt "3" ]
-            then
-              die "[!] Too many failed attempts. Stopping."
-            else 
-              echo "[!] Invalid credentials. Please try again $COUNT/3." 
-          fi
-        done
+            mysql -u$DBUSER -p$DBPASS -e 'SHOW DATABASES;' > /dev/null && break
+            COUNT=$(($COUNT + 1))
+            if [ "$COUNT" -gt "3" ]
+              then
+                die "[!] Too many failed attempts. Stopping."
+              else 
+                echo "[!] Invalid credentials. Please try again $COUNT/3." 
+            fi
+          done
+        else 
+          echo "[*] DB username & password set on command line"
+        fi  
      
       else
-        die "Cant find config file $CONFIG"
+        die "Cant find config file $CONFIG. Check -h for help"
       fi
 
 }
@@ -406,16 +410,18 @@ function showhelp
     echo -e "  Create and maintain an OpenFPC databases"
     echo -e ""
     echo -e "  Usage:"
-    echo -e "  openfpc-dbmaint.sh <action> <db_type> <config_file>\n"
-    echo -e "      action          create / drop"
-    echo -e "      db_type         session / gui / proxy"
-    echo -e "      config_file     /path/to/openfpc-config.conf"
+    echo -e "  openfpc-dbmaint.sh -a <action> -t <db_type> -c <config_file>\n"
+    echo -e "  Mandatory arguments:"
+    echo -e "      -a <action>          create / drop"
+    echo -e "      -t <db_type>         session / gui / proxy"
+    echo -e "      -c <config_file>     /path/to/openfpc-config.conf"
     echo -e ""
-    echo -e "  Example 1: Creating a session database"
-    echo -e "  openfpc-dbmaint create session /etc/openfpc/openfpc-default.conf"
+    echo -e "  Optional arguments. If not supplied they will be promoted for:"
+    echo -e "      -u <username>        Mysql root username"
+    echo -e "      -p <password>        Mysql root user password"
     echo -e ""
-    echo -e "  Example 2: Dropping the gui database"
-    echo -e "  openfpc-dbmaint drop gui /etc/openfpc/openfpc-default.conf"
+    echo -e "  Example: Creating a session database"
+    echo -e "  openfpc-dbmaint -a create -t session -c /etc/openfpc/openfpc-default.conf"
     echo -e ""
 
 }
@@ -428,13 +434,37 @@ function restartopenfpc
 }
 
 ARGC=$#
-if [ "$ARGC" == "2" ] ; then 
-	echo -e "Error: incorrect arguements"
-        showhelp
-	exit 1
-fi
 
-case $1 in 
+while getopts :a:c:t:hu:p: OPT; do
+  case $OPT in 
+  a) 
+    ACTION=$OPTARG
+    echo " - Action: $OPTARG"
+  ;;
+  c) 
+    CONFIG=$OPTARG
+    echo " - Config file: $CONFIG"
+  ;;
+  t) 
+    TYPE=$OPTARG
+    echo " - Database type: $TYPE"
+  ;;
+  h)
+    showhelp
+    exit 1;
+  ;;
+  u)
+    DBUSER=$OPTARG
+    echo " - Mysql DB root user is $DBUSER"
+  ;;
+  p) 
+    DBPASS=$OPTARG
+    echo " - Mysql DB root password is set"
+  ;;
+  esac  
+done
+
+case $ACTION in 
 	create)
     chkroot	
     readconfig
@@ -459,7 +489,6 @@ case $1 in
       die "Invalid database type $TYPE. See usage"
     fi
 	;;
-
 	drop)
     chkroot
     readconfig
