@@ -869,7 +869,7 @@ sub decoderequest($){
 			$gr->{'timestamp'}{'val'} = $now;
 		}
 	} else {
-		wlog("DECOD: DEBUG: Final timestamp used in request is epoch $r->{'timestamp'}{'val'}");
+		wlog("DECOD: DEBUG: Final timestamp used in request is epoch $r->{'timestamp'}{'val'}") if $debug;
 	}
 
     return($gr);
@@ -1846,11 +1846,11 @@ sub comms{
 		                            }
 		                            
 							} elsif ($request->{'action'}{'val'} eq "status") {
-		    	                wlog("DEBUG: Got status request") if $debug;	
+		    	                wlog("Recieved status request");	
 		                            
 			                    my $s=OFPC::Common::getstatus($request);
 			                    my $sj = encode_json($s);
-		    	                wlog("DEBUG: Status msg sent to client") if $debug;	
+		    	                wlog("Status response sent to client") if $debug;	
 		        	            print $client "STATUS: $sj";
 			        	        shutdown($client,2);
 										                    

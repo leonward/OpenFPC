@@ -115,37 +115,41 @@ sub readconfig{
 	opendir(my $dh, $conf_dir) || die("Unable to open config dir $conf_dir\n");
 	while(my $file=readdir $dh) {
 		my $goodfile=0;
-		# Check if this is an OpenFPC config file, or some other junk.
-		open FILE, '<', "$conf_dir/$file" or die "Unable to open config file $conf_dir/$file $!";
-		while(<FILE>) {
-			chomp $_;
-			$goodfile=1 if ( $_ =~ /^OFPC_ENABLED=/);
-		}
-		close(FILE);
-		# Open file to read config if it is a valid OpenFPC config file
-		if ($goodfile) {
-			# Apply defaults to this instance file in case it's missing some of the required configuration lines.
-			foreach (keys %defaults) {
-				$configs{$file}{$_} = $defaults{$_};	
-			}
+		if ($file =~ /.*\.conf$/) {
+
+			# Check if this is an OpenFPC config file, or some other junk.
 			open FILE, '<', "$conf_dir/$file" or die "Unable to open config file $conf_dir/$file $!";
-			while(my $line=<FILE>) {
-   	     		chomp $line;
-			        if ( $line =~ m/^[a-zA-Z]/) {
-			                (my $key, my @value) = split /=/, $line;
-			                unless ($key eq "USER") {
-			                        $configs{$file}{$key} = join '=', @value;
-		       	         	}
-		        	}
+			while(<FILE>) {
+				chomp $_;
+				$goodfile=1 if ( $_ =~ /^OFPC_ENABLED=/);
 			}
 			close(FILE);
+			# Open file to read config if it is a valid OpenFPC config file
+			if ($goodfile) {
+				# Apply defaults to this instance file in case it's missing some of the required configuration lines.
+				foreach (keys %defaults) {
+					$configs{$file}{$_} = $defaults{$_};	
+				}
+				open FILE, '<', "$conf_dir/$file" or die "Unable to open config file $conf_dir/$file $!";
+				while(my $line=<FILE>) {
+   		     		chomp $line;
+				        if ( $line =~ m/^[a-zA-Z]/) {
+				                (my $key, my @value) = split /=/, $line;
+				                unless ($key eq "USER") {
+				                        $configs{$file}{$key} = join '=', @value;
+			       	         	}
+			        	}
+				}
+				close(FILE);
 		
-			# Perform some sanity checks on the instance config, if something strange is found, disable it and warn the user.
+				# Perform some sanity checks on the instance config, if something strange is found, disable it and warn the user.
 	
-			push(@nodes, $configs{$file}{NODENAME}) if ($configs{$file}{OFPC_ENABLED} =~ /[Yy]/ );
+				push(@nodes, $configs{$file}{NODENAME}) if ($configs{$file}{OFPC_ENABLED} =~ /[Yy]/ );
+			}
+		} else {
+			print "DEBUG: Not reading possible config file $file becasue it doesn't end in .conf\n" if $debug;
 		}
 	}
-
 	# Check config is valid
 	my $c=checkconfig(\%configs);		
 	return($c);
@@ -711,7 +715,7 @@ sub openfpccxtracker{
 					}
 				} else {
 					printf '%10s', "Failed\n";
-					print " - cxtracker not found on this system\n" if $verbose;
+					print "[!] cxtracker not found on this system. Can't start it\n";
 				}	
 			}
 

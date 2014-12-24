@@ -46,7 +46,7 @@ CONFIG=0
 
 function die
 {
-	echo ERROR: $1
+	echo -e "    $1"
 	exit 1
 }
 
@@ -123,6 +123,9 @@ DELIMITER ;
 
 function readconfig
 {
+  if [ "$CONFIG" == "0" ]; then
+    die "Please specify an OpenFPC config file with the -c option"
+  fi
     # Read in configuration from $CONFIG file.
       if [ -f $CONFIG ] ; then
 		    source $CONFIG || die "Unable to read config file \"$CONFIG\""
@@ -440,6 +443,7 @@ function restartopenfpc
     sudo openfpc -a stop -t $NODENAME
     sudo openfpc -a start -t $NODENAME
 }
+echo -e "[*] openfpc-dbmaint: Create and manage OpenFPC databases"
 
 ARGC=$#
 
@@ -447,15 +451,15 @@ while getopts :a:c:t:hu:p:qs OPT; do
   case $OPT in 
   a) 
     ACTION=$OPTARG
-    echo " - Action: $OPTARG"
+    echo " -  Action: $OPTARG"
   ;;
   c) 
     CONFIG=$OPTARG
-    echo " - Config file: $CONFIG"
+    echo " -  Config file: $CONFIG"
   ;;
   t) 
     TYPE=$OPTARG
-    echo " - Database type: $TYPE"
+    echo " -  Database type: $TYPE"
   ;;
   h)
     showhelp
@@ -463,19 +467,19 @@ while getopts :a:c:t:hu:p:qs OPT; do
   ;;
   u)
     DBUSER=$OPTARG
-    echo " - Mysql DB root user is $DBUSER"
+    echo " -  Mysql DB root user is $DBUSER"
   ;;
   p) 
     DBPASS=$OPTARG
-    echo " - Mysql DB root password is set"
+    echo " -  Mysql DB root password is set"
   ;;
   q) 
     QUIET=1
-    echo " - Quiet enabled."
+    echo " -  Quiet enabled."
   ;;
   s)
     CMD_ENABLE_SESSION=1
-    echo " - Session data will be automatically enabled in config"
+    echo " -  Session data will be automatically enabled in config"
   ;;
   esac  
 done

@@ -16,6 +16,10 @@ case "$1" in
                         rm /etc/openfpc/openfpc-example-node.conf
                 fi
 
+                if [ -e /etc/openfpc/openfpc.passwd ] ; then
+                        rm /etc/openfpc/openfpc.passwd
+                fi
+
                 # Remove configuration dir
                 [ -d /etc/openfpc ] && rmdir --ignore-fail-on-non-empty /etc/openfpc
 
