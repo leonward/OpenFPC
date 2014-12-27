@@ -1,7 +1,7 @@
 Template: openfpc/mysql_root_user
 Type: string 
 Description: Mysql root username
- Enter a username that can connect to mysql to create a database. Mostlikely 'root' 
+ Enter a username that can connect to mysql to create a database. This is quite likely to be 'root'.
 
 Template: openfpc/mysql_root_pass
 Type: password
@@ -11,10 +11,10 @@ Description: Mysql root password
 
 Template: openfpc/ofpc_user
 Type: string
-Description: Initial OpenFPC USer
-	Enter a username for your first OpenFPC user.
+Description: Initial OpenFPC User
+	Enter a username for your first OpenFPC user. This user will be created for you using the openfpc-password tool. You can use the command openfpc-password to change this user later if you desire.
 
 Template: openfpc/ofpc_pass
 Type: password
 Description: OpenFPC User password
-	Enter a password for your first OpenFPC user
+	Enter a password for your first OpenFPC user.
