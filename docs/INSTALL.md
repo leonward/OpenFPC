@@ -248,5 +248,5 @@ Here are a couple of tips to get started.
   $ openfpc-client --help
 ```
 
-To actually interact with you OpenFPC Node (Default_Node), you can use the openfpc-client. The openfpc-client is a client application that talks with either an OpenFPC Node or OpenFPC Proxy over the network. This allows you to use a local tool on your workstation to search, extract, save and fetch pcaps from the remote device capturing data. By default openfpc-client tries to connect to the server localhost on TCP:4242. Check openfpc-client --help to find out how to specify a remote node (--server --port).
+To actually interact with your new OpenFPC Node (Default_Node), you can use the openfpc-client. The openfpc-client is a client application that talks with either an OpenFPC Node or OpenFPC Proxy over the network. This allows you to use a local tool on your workstation to search, extract, save and fetch pcaps from the remote device capturing data. By default openfpc-client tries to connect to the server localhost on TCP:4242. Check openfpc-client --help to find out how to specify a remote node (--server --port).
 
