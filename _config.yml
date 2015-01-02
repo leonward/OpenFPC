@@ -35,7 +35,7 @@ install:
   step1:
     title: "Get your platform ready"
     body: "OpenFPC is developed on the current Ubuntu LTS (long term support) release; It should function on many other platforms, however your mileage may vary. Get in touch with feedback!"
-    image: "img/about/ubuntu_svg.png"
+    image: "img/ubuntu_svg.png"
   step2:
     title: "Get OpenFPC"
     body: "If you're using Ubuntu LTS, either download and install the packages dpkg, or add the apt repository and 'apt-get install openfpc'. Details of how to do this are available in the <a href='https://github.com/leonward/OpenFPC/blob/master/docs/INSTALL'> INSTALL </a>file. However if you want to live on the edge where you'll find different bugs, you're also welcome to <a href='http://github.com/leonward/openfpc'> clone the repo</a>"
