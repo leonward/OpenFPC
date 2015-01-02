@@ -1,100 +1,98 @@
-Installing OpenFPC - 2014.
+Installing OpenFPC.
+=========================
 
-Hi, this is a simple walk through of installing OpenFPC on Ubuntu LTS 14.04, although the steps should be similar for any Debian based distribution. Getting things running should be pretty simple, but there are couple of gotchas along the way. For the impatient and those that only want the highlights, here is the process at a high level:
+*Last updated Jan 1 2015*
+
+** Contact: leon@openfpc.org **
 
 
- - Install the Ubuntu package dependencies that are in the Ubuntu package archives. Note that the install script will also check these for you.
- - Download & install cxtracker 
- - Download OpenFPC 
- - Untar and run the OpenFPC install script (openfpc-install.sh)
-   At this point you could go and edit the example config files that were placed in /etc/openfpc, but instead I suggest you get things functioning in a default configuration before trying to over complicate things.
- - Create a user for OpenFPC and set the password them.
- - Create the session database
- - Start OpenFPC
- - Grab a coffee and wait for some packets to come in
- - Try out some basic searches and traffic extraction.
+To install OpenFPC you have two options:
+
+* Use the Ubuntu Packages
+  These packages are not part of the Ubuntu distribution, I roll them myself. This should be the easiest way to get started.
+* Go grab the source from Github, and install from source using the openfpc-install.sh script.
+  If you're using Ubuntu and have a system that can work with the .deb packages, the only advantage of using the openfpc-install.sh script is that it makes it easier to use the most recent code. 
+
+Both installation methods should leave you with a system that functions in the same way, so the choice is yours.
+
+Installing from Source
+----------------------
+
+If this is your first time installing OpenFPC and have decided against using the Ubuntu packages, it's wise to start off with a default installation (./openfpc-install.sh install). From there you can get used to how things function, and then customize it as needed. If you know what you're doing and don't want databases and users created automatically for you, take a look at './openfpc-install.sh help' for other options.
+
+The general steps you need to follow for a default install are the below. Each step is also described in detail.
+
+* Install the Ubuntu package dependencies that are in the Ubuntu package archives
+  Note that the install script will also check these for you in case you miss any.
+* Download & install cxtracker 
+* Download OpenFPC code 
+* Untar and run the OpenFPC install script (openfpc-install.sh)
+  The installer will also do the following things for you:
+  - Create a user for OpenFPC and set the password
+  - Create the session database
+  - Start OpenFPC
+
+That should be it. So go grab a coffee and wait for some packets to come in, then try out some basic searches and traffic extraction.
 
 All of the below sections talk though the details of how to achieve the above.
 
-For your first time using OpenFPC, I stringly suggest you start off with the default installation. You can get to the advanced functions like proxy nodes later. By default you will have a single device sniffing traffic and connections from eth0 with a name of Default_Node.
+Install the Ubuntu package dependencies:
+----------------------------------------
 
- # Install package dependencies:
- $ sudo apt-get install \
-    daemonlogger \ 
-    tcpdump \
-    tshark \
-    libdatetime-perl \
-    libprivileges-drop-perl \
-    libarchive-zip-perl \
-    libfilesys-df-perl \
-    mysql-server \
-    libdbi-perl \
-    libterm-readkey-perl \
-    libdate-simple-perl \
-    libdigest-sha-perl \
-    libjson-pp-perl \
-    libdatetime-perl \
-    libswitch-perl \
-    libdatetime-format-strptime-perl
+You'll need to install all of the below packages for OpenFPC to function. If you chose to install from the .deb file, these will be resolved for you thanks to the magic of apt.
 
- # Download Cxtracker
- Cxtracker is a connection capturing tool designed for general nsm functions. In the context of OpenFPC it finds connections on the network and stores them to disk in a CSV file. A second program (openfpc-cx2db) then parses these session files and uploads them to the OpenFPC session database. This session database allows you to search for network traffic very quickly and identify the sessions you would like to extract. In OpenFPC the connection data is not centrally stored, instead an OpenFPC proxy can aggregate a single search and make it take place across multiple nodes (the things capturing session and packat data), and then combine the results into one dataset for the user.
+```
+ $ sudo apt-get install daemonlogger tcpdump tshark libdatetime-perl libprivileges-drop-perl libarchive-zip-perl libfilesys-df-perl mysql-server libdbi-perl libterm-readkey-perl libdate-simple-perl libdigest-sha-perl libjson-pp-perl libdatetime-perl libswitch-perl libdatetime-format-strptime-perl libdata-uuid-perl git
+```
 
-lward@dev-ny:~$ wget http://github.com/downloads/gamelinux/cxtracker/cxtracker_0.9.5-1_i386.deb
-<snip>
-2014-09-17 07:47:20 (153 MB/s) - ‘cxtracker_0.9.5-1_i386.deb’ saved [12116/12116]
+Download & Install cxtracker
+----------------------------
 
-lward@dev-ny:~$ sudo dpkg -i cxtracker_0.9.5-1_i386.deb
+ Cxtracker is a connection capturing tool designed for general nsm functions. It is written and maintained by Edward Bjarte Fjellskål. In the context of OpenFPC. it finds connections on the network and stores them to disk in a CSV file. A second program (openfpc-cx2db) then parses these session files and uploads them to the OpenFPC session database. This session database allows you to search for network traffic very quickly and identify the sessions you would like to extract. In OpenFPC the connection data is not back-hauled to a central point centrally stored, instead an OpenFPC proxy can aggregate a single search and make it take place across multiple remote nodes (the things capturing session and packet data), it will then combine the results into one dataset for the user.
+
+```
+   $ wget http://github.com/downloads/gamelinux/cxtracker/cxtracker_0.9.5-1_i386.deb
+```
+
+```
+   $ sudo dpkg -i cxtracker_0.9.5-1_i386.deb
+```
 
 If cxtracker fails to install due to package dependencies, a simple -f install should fix that for you:
 
-lward@ubuntu-14-lts:~$ sudo apt-get -f install
+```
+   $ sudo apt-get -f install
+```
 
-# Download OpenFPC.
+Download OpenFPC.
+-----------------
 
- This documentation was created for openfpc-0.9.5, and documentation has a bad habit of getting out of date quickly. The installation process shouldn't change much between minor releases, so I suggest you go and install the latest release and hope that these docs are still relevant for it.
+Either download one of the release tarballs, or simply clone the repo if you want the bleeding edge:
 
-lward@dev-ny:~$ wget 
+```
+$ git clone https://github.com/leonward/OpenFPC.git
+```
 
-# Extract and install OpenFPC
+    $ cd OpenFPC
+
+Tarballs can be found at http://leonward.github.com/OpenFPC/releases
+
+Extract and install OpenFPC
+-----------------------------
+
 Before you run the installer, there are likely a couple of things you should note.
- - Because openfpc-queued needs to use tcpdump to extract session data that is stored on disk, the Ubuntu apparmour profile that prevents it from *reading* files anywere outside of a users home directory isn't viable. The installer will disable apparmour for tcpdump (and only tcpdump) by creating /etc/apparmor.d/disable/usr.sbin.tcpdump. If you don't want this, make sure you re-enable it, or edit the installer to not do this. Note that you'll have to make sure that all pcap operations take place in the openfpc user's ~, and that's less than ideal for a file organization point of view.
- - A node called "Default_Node" is created by default. To change its configuration you can edit /etc/openfpc/openfpc-default.conf
- - A user called openfpc is added to the system for all components to drop privileges to (you don't want daemons running as root)
- - Pay attention for any errors that pop up
 
-lward@dev-ny:~$ tar -zxvf openfpc-0.9.tgz
-openfpc-0.9/
-openfpc-0.9/etc/
-openfpc-0.9/etc/openfpc-default.conf
-openfpc-0.9/etc/openfpc-example-proxy.conf
-openfpc-0.9/etc/init.d/
-openfpc-0.9/etc/init.d/openfpc-daemonlogger
-openfpc-0.9/etc/init.d/openfpc-cx2db
-openfpc-0.9/etc/init.d/openfpc-queued
-openfpc-0.9/etc/init.d/openfpc-cxtracker
-openfpc-0.9/etc/routes.ofpc
-openfpc-0.9/openfpc-install.sh
-openfpc-0.9/OFPC/
-openfpc-0.9/OFPC/CXDB.pm
-openfpc-0.9/OFPC/Config.pm
-openfpc-0.9/OFPC/Request.pm
-openfpc-0.9/OFPC/Parse.pm
-openfpc-0.9/OFPC/Common.pm
-openfpc-0.9/docs/
-openfpc-0.9/docs/README
-openfpc-0.9/docs/TODO
-openfpc-0.9/docs/INSTALL
-openfpc-0.9/openfpc-dbmaint
-openfpc-0.9/openfpc-cx2db
-openfpc-0.9/openfpc-client
-openfpc-0.9/openfpc-queued
-openfpc-0.9/cgi-bin/
-openfpc-0.9/openfpc
-openfpc-0.9/openfpc-password
-lward@dev-ny:~$
+* The apparmor profile for tcpdump will be disabled.
+  Because openfpc-queued needs to use tcpdump to extract session data that is stored on disk, the Ubuntu apparmor profile that prevents it from *reading* files anywhere outside of a users home directory isn't viable. The installer will disable apparmor for tcpdump (and only tcpdump) by creating /etc/apparmor.d/disable/usr.sbin.tcpdump. If you don't want this, make sure you re-enable it, or edit the installer to not do this. Note that you'll have to make sure that all pcap operations take place in the openfpc user's ~, and that's less than ideal for a file organization point of view.
+* A node called "Default_Node" is created by default. 
+   To change its configuration you can edit /etc/openfpc/openfpc-default.conf. If you're going to change the name of a node, **make sure you stop OpenFPC first**.
+* A user called openfpc is added to the system
+   This is used by all components to drop privileges to (you don't want daemons running as root)
+* Pay attention for any errors that pop up
 
-lward@dev-ny:~/openfpc-0.9$ sudo ./openfpc-install.sh install
+
+```
+$ sudo ./openfpc-install.sh  install
 
  *************************************************************************
  *  OpenFPC installer - Leon Ward (leon@openfpc.org) v0.9
@@ -103,39 +101,125 @@ lward@dev-ny:~/openfpc-0.9$ sudo ./openfpc-install.sh install
 
  *  http://www.openfpc.org
 
-[*] Detected distribution as DEBIAN
+[*] Detected distribution as DEBIAN-like
 
-<SNIP>
-[*] Installation Complete
- 
-# Create a user for OpenFPC.
-The location checked for the openfpc password file is defined in the instance configuration file. For us in our simple install that's /etc/openfpc/openfpc-default.conf that was created when running openfpc-install.sh. In that file you'll notice a line that defines where to look for a passwd file, our default config looks for /etc/openfpc/openfpc.passwd. 
-
-lward@dev-ny:~/openfpc-0.9$ sudo openfpc-password -a add -u admin \
-  -f /etc/openfpc/openfpc.passwd
-Creating new user file /etc/openfpc/openfpc.passwd...
-[*] Adding user admin
+[*] Installing OpenFPC
+[-] Checking for daemonlogger ...
+    daemonlogger Okay
+[-] Checking for tcpdump ...
+    tcpdump Okay
+[-] Checking for tshark ...
+    tshark Okay
+[-] Checking for libdatetime-perl ...
+    libdatetime-perl Okay
+[-] Checking for libprivileges-drop-perl ...
+    libprivileges-drop-perl Okay
+[-] Checking for libarchive-zip-perl ...
+    libarchive-zip-perl Okay
+[-] Checking for libfilesys-df-perl ...
+    libfilesys-df-perl Okay
+[-] Checking for mysql-server ...
+    mysql-server Okay
+[-] Checking for libdbi-perl ...
+    libdbi-perl Okay
+[-] Checking for libterm-readkey-perl ...
+    libterm-readkey-perl Okay
+[-] Checking for libdate-simple-perl ...
+    libdate-simple-perl Okay
+[-] Checking for libdigest-sha-perl ...
+    libdigest-sha-perl Okay
+[-] Checking for libjson-pp-perl ...
+    libjson-pp-perl Okay
+[-] Checking for libdatetime-perl ...
+    libdatetime-perl Okay
+[-] Checking for libswitch-perl ...
+    libswitch-perl Okay
+[-] Checking for libdatetime-format-strptime-perl ...
+    libdatetime-format-strptime-perl Okay
+[-] Checking for libdata-uuid-perl ...
+    libdata-uuid-perl Okay
+/usr/bin/cxtracker
+[*] Found cxtracker in your $PATH (good)
+[*] Disabling apparmor profile for tcpdump
+ * Reloading AppArmor profiles
+Skipping profile in /etc/apparmor.d/disable: usr.sbin.tcpdump            [ OK ]
+ -  Installing modules to /usr/local/lib/site_perl
+ -  Installing PERL module Parse.pm
+ -  Installing PERL module Request.pm
+ -  Installing PERL module CXDB.pm
+ -  Installing PERL module Common.pm
+ -  Installing PERL module Config.pm
+ -  Installing OpenFPC Application: openfpc-client
+ -  Installing OpenFPC Application: openfpc-queued
+ -  Installing OpenFPC Application: openfpc-cx2db
+ -  Installing OpenFPC Application: openfpc
+ -  Installing OpenFPC Application: openfpc-dbmaint
+ -  Installing OpenFPC Application: openfpc-password
+ -  Installing OpenFPC conf: etc/openfpc-default.conf
+ -  Installing OpenFPC conf: etc/openfpc-example-proxy.conf
+ -  Installing OpenFPC conf: etc/routes.ofpc
+ -  Installing /etc/init.d//openfpc-daemonlogger
+ -  Installing /etc/init.d//openfpc-cx2db
+ -  Installing /etc/init.d//openfpc-cxtracker
+ -  Installing /etc/init.d//openfpc-queued
+[*] Updating init config with update-rc.d
+ Adding system startup for /etc/init.d/openfpc-daemonlogger ...
+   /etc/rc0.d/K20openfpc-daemonlogger -> ../init.d/openfpc-daemonlogger
+   /etc/rc1.d/K20openfpc-daemonlogger -> ../init.d/openfpc-daemonlogger
+   /etc/rc6.d/K20openfpc-daemonlogger -> ../init.d/openfpc-daemonlogger
+   /etc/rc2.d/S20openfpc-daemonlogger -> ../init.d/openfpc-daemonlogger
+   /etc/rc3.d/S20openfpc-daemonlogger -> ../init.d/openfpc-daemonlogger
+   /etc/rc4.d/S20openfpc-daemonlogger -> ../init.d/openfpc-daemonlogger
+   /etc/rc5.d/S20openfpc-daemonlogger -> ../init.d/openfpc-daemonlogger
+[*] Adding user openfpc
+ Adding system startup for /etc/init.d/openfpc-cx2db ...
+   /etc/rc0.d/K20openfpc-cx2db -> ../init.d/openfpc-cx2db
+   /etc/rc1.d/K20openfpc-cx2db -> ../init.d/openfpc-cx2db
+   /etc/rc6.d/K20openfpc-cx2db -> ../init.d/openfpc-cx2db
+   /etc/rc2.d/S20openfpc-cx2db -> ../init.d/openfpc-cx2db
+   /etc/rc3.d/S20openfpc-cx2db -> ../init.d/openfpc-cx2db
+   /etc/rc4.d/S20openfpc-cx2db -> ../init.d/openfpc-cx2db
+   /etc/rc5.d/S20openfpc-cx2db -> ../init.d/openfpc-cx2db
+ Adding system startup for /etc/init.d/openfpc-cxtracker ...
+   /etc/rc0.d/K20openfpc-cxtracker -> ../init.d/openfpc-cxtracker
+   /etc/rc1.d/K20openfpc-cxtracker -> ../init.d/openfpc-cxtracker
+   /etc/rc6.d/K20openfpc-cxtracker -> ../init.d/openfpc-cxtracker
+   /etc/rc2.d/S20openfpc-cxtracker -> ../init.d/openfpc-cxtracker
+   /etc/rc3.d/S20openfpc-cxtracker -> ../init.d/openfpc-cxtracker
+   /etc/rc4.d/S20openfpc-cxtracker -> ../init.d/openfpc-cxtracker
+   /etc/rc5.d/S20openfpc-cxtracker -> ../init.d/openfpc-cxtracker
+ Adding system startup for /etc/init.d/openfpc-queued ...
+   /etc/rc0.d/K20openfpc-queued -> ../init.d/openfpc-queued
+   /etc/rc1.d/K20openfpc-queued -> ../init.d/openfpc-queued
+   /etc/rc6.d/K20openfpc-queued -> ../init.d/openfpc-queued
+   /etc/rc2.d/S20openfpc-queued -> ../init.d/openfpc-queued
+   /etc/rc3.d/S20openfpc-queued -> ../init.d/openfpc-queued
+   /etc/rc4.d/S20openfpc-queued -> ../init.d/openfpc-queued
+   /etc/rc5.d/S20openfpc-queued -> ../init.d/openfpc-queued
+==============================================
+[*] EASY INSTALL
+ -  Step 1: Creating a user to access OpenFPC.
+    This user will be able to extract data and interact with the queue-daemon.
+    OpenFPC user & password management is controlled by the application openfpc-passwd.
+    The default OpenFPC passwd file is /etc/openfpc/openfpc.passwd
+[*] Creating new user file /etc/openfpc/openfpc.passwd...
+[-] Enter Username: <ENTER A USERNAME>
     Enter new password:
     Retype password:
     Password Okay
 [*] Done.
-
-# Create the session database. 
-To make database creation simple, there is a tool for creating and dropping the correct database that matches the configuration you define in the openfpc config file (in our simple default that's /etc/openfpc/openfpc-default.conf).
-openfpc-dbmaint uses the data in that config file to create the database with the expected permissions. This tool requires you to have root access to use. There are multiple database types that can be created, in our simple default example you only will need a session DB. For more options you can see openfpc-dbmain --help.
-
-lward@dev-ny:~/openfpc-0.9$ sudo openfpc-dbmaint -a create -t session -c /etc/openfpc/openfpc-default.conf
-[*] Enter mysql "root" credentials to connect to your local mysql server in order to create the databases
+==============================================
+[*] Step 2: Creating an OpenFPC Session DB
+    OpenFPC uses cxtracker to record session data. Session data is much quicker to search through than whole packet data stored in a database.
+    All of the databases used in OpenFPC are controlled by an application called openfpc-dbmaint.
+    - Note that you will need to enter the credentials of a mysql user that has privileges to creted/drop databases (most likely root)
+[*] openfpc-dbmaint: Create and manage OpenFPC databases
+ -  Action: create
+ -  Database type: session
+ -  Config file: /etc/openfpc/openfpc-default.conf
+[*] Enter mysql credentials of an account with that can create/update/drop databases
     DB root Username: root
     DB root Password:
-
-Enter password:
----------------------------------------------------------
-[*] Working on Instance /etc/openfpc/openfpc-default.conf .
-    Would you like session capture ENABLED on Default_Node? (y/n)y
-[-] Enabling session capture in Default_Node config
-    Done.
-[-] Found cxtracker.
 [*] Creating Session database on Default_Node
  -  Session DB Created
  -  Adding function INET_ATON6 to DB ofpc_session_default
@@ -148,154 +232,21 @@ Starting Daemonlogger (Default_Node)...                                    Done
 Starting OpenFPC Queue Daemon (Default_Node)...                            Done
 Starting OpenFPC cxtracker (Default_Node)...                               Done
 Starting OpenFPC Connection Uploader (Default_Node) ...                    Done
-lward@dev-ny:~/openfpc-0.9$
+[*] Starting OpenFPC
+Starting Daemonlogger (Default_Node)...                                 Running
+Starting OpenFPC Queue Daemon (Default_Node)...                         Running
+Starting OpenFPC cxtracker (Default_Node)...                            Running
+Starting OpenFPC Connection Uploader (Default_Node) ...                 Running
+==============================================
+[*] Installation complete.
+Now would be a good time to read of docs/usage.md.
+Here are a couple of tips to get started.
 
-After creating the database you'll notice that openfpc is automatically restarted, as openfpc wasn't running before we executed this command you'll notice that it starts up. Hopefully you'll have output like the above.
-
-
-# Testing the install and getting started.
-You can start, stop and check the status of openfpc using the openfpc command. Passing the -v (for verbose) will provide you with some information about the configuration of the system. In the below output you can see that there are two instances configured on my system, one is DISABLED (Example_Proxy), and another is active (Default_Node).
-
-
-lward@Dev:~/openfpc$ sudo ./openfpc -a status -v
-###############################################################################
-[*] OpenFPC instance openfpc-example-proxy.conf
- -  NODENAME:              Example_Proxy
- -  DESCRIPTION:           "An example OpenFPC Proxy config. www.openfpc.org"
- -  STATUS :               DISABLED
- -  PORT:                  4243
- -  PASSWORD FILE          /etc/openfpc/openfpc.passwd
-###############################################################################
-[*] OpenFPC instance openfpc-default.conf
- -  NODENAME:              Default_Node
- -  DESCRIPTION:           "An OpenFPC node. www.openfpc.org"
- -  STATUS :               ENABLED
- -  PORT:                  4242
- -  PASSWORD FILE          /etc/openfpc/openfpc.passwd
- -  INTERFACE:             eth0
- -  FULL PACKET CAPTURE:   ENABLED
- -  PACKET STORE:          /var/tmp/openfpc/pcap
- -  SESSION DATA SEARCH:   ENABLED
- -  SESSION DATABASE NAME: openfpc
- -  SESSION LAG:           0 
- -  SESSION INSERT FAIL:   0
- - openfpc-daemonlogger is /usr/bin/daemonlogger
-Daemonlogger (Default_Node) :                                           Running 
- - openfpc-queued is /usr/bin/openfpc-queued
-OpenFPC Queue Daemon  (Default_Node):                                   Running
- - openfpc-cxtracker is /usr/bin/cxtracker
-OpenFPC Connection Tracker (Default_Node) :                             Running
- - openfpc-cx2db is /usr/bin/openfpc-cx2db
-OpenFPC Connection Uploader (Default_Node) :                            Running 
-
+  $ openfpc-client -a status --server localhost --port 4242
+  $ openfpc-client -a  fetch -dpt 53 --last 600
+  $ openfpc-client -a search -dpt 53 --last 600
+  $ openfpc-client --help
+```
 
 To actually interact with you OpenFPC Node (Default_Node), you can use the openfpc-client. The openfpc-client is a client application that talks with either an OpenFPC Node or OpenFPC Proxy over the network. This allows you to use a local tool on your workstation to search, extract, save and fetch pcaps from the remote device capturing data. By default openfpc-client tries to connect to the server localhost on TCP:4242. Check openfpc-client --help to find out how to specify a remote node (--server --port).
-
-lward@dev-ny:~$ openfpc-client -a status
-
-   * openfpc-client 0.9 *
-     Part of the OpenFPC project - www.openfpc.org
-
-Username: admin
-Password for user admin :
-=====================================
- Status from: Default_Node
-=====================================
- * Node: Default_Node
-   - Node Type                       : 	 NODE
-   - Description                     : 	 "An OpenFPC node. www.openfpc.org"
-   - Packet storage utilization      : 	 7 %
-   - Session storage utilization     : 	 7 %
-   - Space available in save path    : 	 7 %
-   - Space used in the save path     : 	 2047640 (2.05 GB)
-   - Session storage used            : 	 2047640 (2.05 GB)
-   - Packet storage used             : 	 2047640 (2.05 GB)
-   - PCAP file space used            : 	 156M
-   - Local time on node              : 	 1410955045 (Wed Sep 17 07:57:25 2014 America/New_York)
-   - Newest session in storage       : 	 1410954011 (Wed Sep 17 07:40:11 2014 America/New_York)
-   - Oldest session in storage       : 	 1410441644 (Thu Sep 11 09:20:44 2014 America/New_York)
-   - Oldest packet in storage        : 	 1410353440 (Wed Sep 10 08:50:40 2014 America/New_York)
-   - Storage Window                  : 	 5 Days, 22 Hours, 19 Minutes, 27 Seconds
-   - Load Average 1                  : 	 0.00
-   - Load average 5                  : 	 0.01
-   - Load average 15                 : 	 0.05
-   - Number of session files lagging : 	 0
-   - Number of sessions in Database  : 	 8
-   - Node Timezone                   : 	 America/New_York
-lward@dev-ny:~$
-
-In the output above I can see some important status information about this device. Note the amount of data captured, disk usage, and session database size. The session database will auto-trim to only keep session data for the packets that are available for extraction. Make sure you have some data captured and lets go grab some full packet data.
-
-Here I will simply ask to fetch (extract and send to my workstation) all traffic to a destination port of 53 in the last 10 minutes. For more advanced constraints check out openfpc-client --help. 
-
-lward@dev-ny:~$ openfpc-client -a fetch -dpt 53 --last 600
-
-   * openfpc-client 0.9 *
-     Part of the OpenFPC project - www.openfpc.org
-
-Username: admin
-Password for user admin :
-#####################################
-Date    : Wed Sep 17 07:58:56 2014
-Filename: /tmp/pcap-openfpc-1410955136.pcap
-Size    : 17K
-MD5     : 938638229b7e508646e5dbbb3ba231b3
-
-The above shows me the filename I've just created, by default the pcap file is written to /tmp, you can choose a better filename with the -w option. If we look at the contents of this file we will see the full packet contents.
-
-lward@dev-ny:~$ tshark -r /tmp/pcap-openfpc-1410955136.pcap
-  1 0.000000000 192.168.42.12 -> 192.168.42.1 DNS 76 Standard query 0x17d0  A daisy.ubuntu.com
-  2 0.000004000 192.168.42.12 -> 192.168.42.1 DNS 76 Standard query 0x34c8  AAAA daisy.ubuntu.com
-  3 0.034045000 192.168.42.1 -> 192.168.42.12 DNS 108 Standard query response 0x17d0  A 91.189.92.57 A 91.189.92.55
- <SNIP>
-
-To save you performing large extractions to see if sessions that match your constraints exist you can use the --search option. The --search option asks openfpc to look though its session database to find out if the traffic you're interested in exists. This is much faster than actually extracting the full pcap data itself.
-
-
-lward@dev-ny:~$ openfpc-client -a search -dpt 53
-
-   * openfpc-client 0.9 *
-     Part of the OpenFPC project - www.openfpc.org
-
-Username: admin
-Password for user admin :
-=====================================================================================================================================================
- Custom Search
-=====================================================================================================================================================
- Start: Wed Sep 17 07:01:22 2014 (America/New_York)
- End  : Wed Sep 17 08:01:22 2014 (America/New_York)
- Node : Default_Node
- Rows : 4
- SQL  : SELECT start_time,INET_NTOA(src_ip),src_port,INET_NTOA(dst_ip),dst_port,ip_proto,src_bytes, dst_bytes,(src_bytes+dst_bytes) as total_bytes
-	FROM session IGNORE INDEX (p_key) WHERE unix_timestamp(CONVERT_TZ(`start_time`, '+00:00', @@session.time_zone))
-	between 1410951682 and 1410955282 AND dst_port='53' ORDER BY start_time DESC LIMIT 20
-=====================================================================================================================================================
-  Row            Start Time         Source IP   sPort       Destination   dPort   Proto     Src Bytes     Dst Bytes   Total Bytes           Node Name
-    0   2014-09-17  7:07:17     192.168.42.12   48755      192.168.42.1      53     udp         14828         18924         33752        Default_Node
-    1   2014-09-17  7:07:17     192.168.42.12   34676      192.168.42.1      53     udp         14828         31724         46552        Default_Node
-    2   2014-09-17  7:07:17     192.168.42.12   41495      192.168.42.1      53     udp         14828         20204         35032        Default_Node
-    3   2014-09-17  7:07:44     192.168.42.12   46496      192.168.42.1      53     udp         34264         53976         88240        Default_Node
-=====================================================================================================================================================
-
-One of the more useful features of OpenFPC is to actually request data in in the formats outputted by different tools. This enables you to simply 'paste' the log line from some tool into openfpc-client and it will go grab the session for you. Unsurprisingly OpenFPC supports the search format as one of these log formats. This means for any session that we find in the database with the search action, we can go and ask for is with a fetch (or store) action. E.g.
-
-$ openfpc-client -a fetch --logline " 1   2014-09-17  7:07:17     192.168.42.12   34676      192.168.42.1      53     udp         14828         31724         46552        Default_Node" 
-
-   * openfpc-client 0.9 *
-     Part of the OpenFPC project - www.openfpc.org
-
-Username: admin
-Password for user admin :
-#####################################
-Date    : Fri Oct  3 16:57:14 2014
-Filename: /tmp/pcap-openfpc-1412351834.pcap
-Size    : 660
-MD5     : 39fdb557d751b2cebe31b2d5b9aa5d3c
-
-Hopefully this is enough information to get you started!
-
--Leon
-
-
-
 
