@@ -72,8 +72,8 @@ function chkroot()
 function mkuser(){
 	PASSFILE="/etc/openfpc/openfpc.passwd"
 	echo "=============================================="
-	echo " EASY INSTALL"
-	echo "[*] Step 1: Creating a user to access OpenFPC."
+	echo "[*] EASY INSTALL"
+	echo " -  Step 1: Creating a user to access OpenFPC."
 	echo "    This user will be able to extract data and interact with the queue-daemon. "
 	echo "    OpenFPC user & password management is controlled by the application openfpc-passwd. "
 	echo "    The default OpenFPC passwd file is $PASSFILE"
@@ -81,6 +81,7 @@ function mkuser(){
 	for i in 1 2 3
 	do
 		openfpc-password -f $PASSFILE -a add && break
+		echo [!] Problem creating user, will try again.
 	done
 }
 
@@ -89,7 +90,7 @@ function mksession(){
 	echo "[*] Step 2: Creating an OpenFPC Session DB"
 	echo "    OpenFPC uses cxtracker to record session data. Session data is much quicker to search through than whole packet data stored in a database."
 	echo "    All of the databases used in OpenFPC are controlled by an application called openfpc-dbmaint. "
-	echo "    - Note that you will need to enter the credentials of a mysql user that has privileges to creted/drop databases"
+	echo "    - Note that you will need to enter the credentials of a mysql user that has privileges to creted/drop databases (most likely root)"
 
 	if [ $CXINSTALLED == "1" ]
 	then
@@ -134,17 +135,16 @@ function easymessage(){
 	echo "[*] Starting OpenFPC"
 	sudo openfpc -a start
 
-	echo "
+	echo "==============================================
+[*] Installation complete. 
+Now would be a good time to read of docs/usage.md. 
+Here are a couple of tips to get started.
 
-	[*] Simple installation complete. 
-
-	Here are a couple of tips to get started.
-
-	$ openfpc-client -a status --server localhost --port 4242
-    $ openfpc-client -a  fetch -dpt 53 --last 600
-    $ openfpc-client -a search -dpt 53 --last 600
-    $ openfpc-client --help
-    "
+  $ openfpc-client -a status --server localhost --port 4242
+  $ openfpc-client -a  fetch -dpt 53 --last 600
+  $ openfpc-client -a search -dpt 53 --last 600
+  $ openfpc-client --help
+"
 }
 
 function checkdeps()
@@ -586,11 +586,11 @@ then
 		die "[*] Unable to detect distribution. Please set it manually in the install script. Variable: DISTRO=<>"
 	fi
 
-	echo -e "[*] Detected distribution as $DISTRO\n"
+	echo -e "[*] Detected distribution as $DISTRO-like \n"
 fi
 
 case $1 in  
-    install)
+    files)
 		checkdeps
         doinstall
         endmessage
@@ -613,8 +613,8 @@ case $1 in
 		doinstall
 		endmessage
 	;;
-	easyinstall)
-		echo [*] Performing an easyinstall
+	install)
+		echo [*] Installing OpenFPC
 		checkdeps
 		doinstall
 		mkuser
@@ -623,12 +623,12 @@ case $1 in
 	;;
      *)
         echo -e "
-[*] openfpc-install usage:
+[*] openfpc-install.sh usage:
     $ openfpc-install <action> <gui>
 
     Where <action> is one of the below: 
-    easyinstall   - Install and auto-configure. Good for first time users
-    install       - Install OpenFPC, no configuration
+    install       - Install and auto-configure. Good for first time users
+    files         - Only install OpenFPC programs, don't auto-configure 
     forceinstall  - Install OpenFPC without checking for dependencies
     remove        - Uninstall OpenFPC 
     status        - Check installation status
@@ -637,13 +637,9 @@ case $1 in
 [*] Examples: 
     Easy Install: Get OpenFPC running for the 1st time, many defaults are 
     selected for you. Just answer a couple of questions.
+    $ sudo ./openfpc-install install
 
-    $ sudo ./openfpc-install easyinstall
-
-    Install OpenFPC without asking questions. You'll have to configure it afterwards
-    $ sudo ./openfpc-install gui
-
-    Remove OpenFPC
+    Remove OpenFPC: 
     $ sudo ./openfpc-install remove
 "	
     ;;
