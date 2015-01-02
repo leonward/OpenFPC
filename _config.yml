@@ -1,5 +1,5 @@
-url: http://wwww.openfpc.org
-baseurl: /
+url: http://wwww.openfpc.org/
+baseurl: http://www.openfpc.org
 
 # Site settings
 title: OpenFPC
