@@ -1,4 +1,4 @@
-#!/usr/bin/perl -I.
+#!/usr/bin/env perl 
 #########################################################################################
 # Copyright (C) 2013 Leon Ward 
 # openfpc-client.pl - Part of the OpenFPC - (Full Packet Capture) project
