@@ -618,7 +618,7 @@ my $sock = IO::Socket::INET->new(
                                 Proto => 'tcp',
                                 );  
 unless ($sock) { 
-	$result{'message'} = "Unable to create socket to server $config{'server'} on TCP:$config{'port'}\n"; 
+	$result{'message'} = "Unable to create socket to server $config{'server'} on TCP:$config{'port'}\n($@)\n"; 
 	displayResult($cmdargs{'gui'});
 	exit 1;
 }
