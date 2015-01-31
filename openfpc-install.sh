@@ -40,7 +40,8 @@ INIT_SCRIPTS="openfpc-daemonlogger openfpc-cx2db openfpc-cxtracker openfpc-queue
 INIT_DIR="/etc/init.d/" 
 REQUIRED_BINS="tcpdump date mergecap perl tshark test"
 LOCAL_CONFIG="/etc/openfpc/openfpc.conf"
-PERL_LIB_DIR="/usr/local/lib/site_perl"
+#PERL_LIB_DIR="/usr/local/lib/site_perl"
+PERL_LIB_DIR="/usr/share/perl5"
 OFPC_LIB_DIR="$PERL_LIB_DIR/OFPC"
 CXINSTALLED=0
 

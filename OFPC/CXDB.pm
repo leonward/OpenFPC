@@ -70,7 +70,7 @@ sub cx_search{
 		# 'protocol' = Protocol number, e.g. 17
 
 		my @cols = ("Start Time", "Source IP", "sPort", "Destination", "dPort", "Proto", "Src Bytes", "Dst Bytes", "Total Bytes", "Node Name"); 
-		my @format = (22, 18,           8,       18,            8,      8,        14,          14,          14, 20);
+		my @format = (22,          18,          8,       18,            8,       8,       14,          14,          14,            20);
 		my @dtype = ("udt", "ip", "port", "ip", "port","protocol","bytes", "bytes","bytes","text");
 		$t->{'title'} = "Custom Search";
 		$t->{'sql'} = $q;	# Save query made
@@ -81,12 +81,13 @@ sub cx_search{
 		$t->{'stime'} = $r->{'stime'}{'val'};
 		$t->{'etime'} = $r->{'etime'}{'val'};
 		$t->{'nodename'} = $config{'NODENAME'};
-		#print Dumper $t;
 		# Put the search results hash into a container that can contain multiple results 
 		push (@{$t->{'nodelist'}},$config{'NODENAME'});
 
 	} else {
+
 		wlog("Proxy session search");
+		my $se;			# Search errors, to capture problems run on each node
 		my $rc=0; 		# Total record count back from all Nodes
 		# Grab some details about the query SQL made
 		my $q=buildQuery($r);
@@ -107,7 +108,6 @@ sub cx_search{
   			my $sth = $dbh->prepare_cached($sql);
       		$sth->execute($now, $r->{'user'}{'val'},$r->{'comment'}{'val'},$q);
 
-
       		# Get last insert ID
       		$sql = "SELECT id from search order by id desc limit 1";
   			my $sth = $dbh->prepare_cached($sql);
@@ -115,7 +115,6 @@ sub cx_search{
       		my @row = $sth->fetchrow_array;
       		my $sid=@row[0];
       		wlog("PROXY: SEARCH: Saving search: Search_id: $sid, User: $r->{'user'}{'val'}, Timestamp: $now, Comment: $r->{'comment'}{'val'}");
-
 
 			my $sc;
 			foreach (keys %$rt) {
@@ -137,47 +136,53 @@ sub cx_search{
                                 );
     			if ($nodesock) {
     				wlog("PROXY: SEARCH: $rn: Connected to node $rt->{$_}{'name'}");
-	    		 	$r2->{'user'}{'val'} =  $rt->{$_}{'user'}; 
-    				$r2->{'password'}{'val'} = OFPC::Request::mkhash($rt->{$_}{'user'},$rt->{$_}{'password'}); 
+    				# Now passing the same user/passhash that was used to connect to this OpenFPC_Proxy
     				$r2->{'action'}{'val'} = "search";
     				my %result=OFPC::Request::request($nodesock,$r2);
 
-					my $tj=$result{'table'};
-					if ($tj) {
-						my $t=decode_json($tj);
+    				unless ($result{'error'}) {
 
-	    				wlog("PROXY: SEARCH: $rn: DEBUG: Table size back from search is $t->{'size'} rows\n");
-	    				$rc=$rc+$t->{'size'};
-						my $i=0;
-						while ($i < $t->{'size'}) {
-							my @f = @{$t->{'table'}{$i}};  	# Assign table array to f to make this easier to read.
-							$i++;
-							# Change Sip / Dip into numbers for storage.
-							# Socket aton returns a packed number. Need to unpack before saving to DB.
-							$f[1] = inet_aton($f[1]);
-							$f[1] = unpack('N', $f[1]);
-							$f[3] = inet_aton($f[3]);
-							$f[3] = unpack('N', $f[3]);
-							# Save this session from the node to the proxy search database
-							my $sql = "INSERT INTO session 
-								( search_id, start_time, src_ip, src_port, dst_ip, dst_port, ip_proto, src_bytes, dst_bytes, total_bytes, node_name     
-								) values (?,?,?,?,?,?,?,?,?,?,?)";
- 							my $sth = $dbh->prepare_cached($sql);
-    						$sth->execute($sid, $f[0], $f[1], $f[2], $f[3], $f[4], $f[5], $f[6], $f[7], $f[8], $f[9]);
-						}	
-						wlog("PROXY: SEARCH: $rn: Wrote $i results to db from node $rn");
+						my $tj=$result{'table'};
+						if ($tj) {
+							my $t=decode_json($tj);
+	    					wlog("PROXY: SEARCH: $rn: DEBUG: Table size back from search is $t->{'size'} rows\n");
+	    					$rc=$rc+$t->{'size'};
+							my $i=0;
+							while ($i < $t->{'size'}) {
+								my @f = @{$t->{'table'}{$i}};  	# Assign table array to f to make this easier to read.
+								$i++;
+								# Change Sip / Dip into numbers for storage.
+								# Socket aton returns a packed number. Need to unpack before saving to DB.
+								$f[1] = inet_aton($f[1]);
+								$f[1] = unpack('N', $f[1]);
+								$f[3] = inet_aton($f[3]);
+								$f[3] = unpack('N', $f[3]);
+								# Save this session from the node to the proxy search database
+								my $sql = "INSERT INTO session 
+									( search_id, start_time, src_ip, src_port, dst_ip, dst_port, ip_proto, src_bytes, dst_bytes, total_bytes, node_name     
+									) values (?,?,?,?,?,?,?,?,?,?,?)";
+ 								my $sth = $dbh->prepare_cached($sql);
+    							$sth->execute($sid, $f[0], $f[1], $f[2], $f[3], $f[4], $f[5], $f[6], $f[7], $f[8], $f[9]);
+							}	
+							wlog("PROXY: SEARCH: $rn: Wrote $i results to db from node $rn");
 
+    					} else {
+    						my $e="$rn: Error, no json back from node. ";
+    						wlog("PROXY: SEARCH: $e");
+    						$se = $se . $e;
+    					}
     				} else {
-    					wlog("PROXY: SEARCH: $rn: Error, no jason back from node $rt->{$_}{'name'}");
+   						my $e="$rn: Error $result{'error'}";
+   						wlog("PROXY: SEARCH: ERROR: $e. ");
+   						$se = $se . $e;
     				}
-
-
 	    		} else {
-    				wlog("PROXY: SEARCH: $rn: Unable to Connect to node $rt->{$_}{'name'}");
+    				my $e="$rn: Error, unable to Connect to remote node. ";
+    				wlog("PROXY: SEARCH: $e");
+					$se = $se . $e;
     			}
     			wlog("PROXY: SEARCH: TOTAL: results from all nodes: $rc");
-
-    		}
+    		} 
 
     		# Now that the data is in the DB, we need to re-search this data set to build a json to send back 
     		# to the original client
@@ -188,8 +193,10 @@ sub cx_search{
 
     		my $sql="SELECT start_time, inet_ntoa(src_ip), src_port, inet_ntoa(dst_ip), dst_port, ip_proto, src_bytes, dst_bytes, total_bytes, node_name, search_id from session where search_id=$sid order by start_time desc";
 			(my $t)=getresults($config{'PROXY_DB_NAME'}, $config{'PROXY_DB_USER'}, $config{'PROXY_DB_PASS'}, $sql);
-			my @cols = ("Start Time", "Source IP", "sPort", "Destination", "dPort", "Proto", "Src Bytes", "Dst Bytes", "Total Bytes", "Node Name", "Search", "Proxy"); 
-			my @format = (22, 18,           8,       18,            8,      8,        14,          14,          14, 10, 7, 10);
+			#my @cols = ("Start Time", "Source IP", "sPort", "Destination", "dPort", "Proto", "Src Bytes", "Dst Bytes", "Total Bytes", "Node Name", "Search", "Proxy"); 
+			#my @format = (22,         8,           8,       18,            8,        8,       14,          14,          14,            13,         5,         13);
+			my @cols = ("Start Time", "Source IP", "sPort", "Destination", "dPort", "Proto", "S Bytes", "D Bytes", "Total", "Node Name", "Sid", "Proxy"); 
+		    my @format = (20,          17,          6,       17,            6,       6,       10,          10,          10,            18,         5,         18);
 			my @dtype = ("udt", "ip", "port", "ip", "port","protocol","bytes", "bytes","bytes","text","text");
 			$t->{'title'} = "Proxy search over multiple nodes";
 			$t->{'type'} = "search";
@@ -200,9 +207,13 @@ sub cx_search{
 			$t->{'etime'} = $r->{'etime'}{'val'};
 			$t->{'nodename'} = $config{'NODENAME'};
 			$t->{'sql'} = buildQuery($r);
+			$t->{'warning'} = $se;
 			return($t);
 		} else {
-			wlog("PROXY: SEARCH: Unable to connect to local proxy DB to save results $DBI::errstr");
+			wlog("PROXY: ERROR: Unable to connect to local proxy DB to save results $DBI::errstr\n");
+			$t->{'error'} = "Unable to connect to local proxy DB to save results. Check error log on $config{'NODENAME'} for more information.";
+			wlog("-----\n");
+			return($t);
 		}
 	}
 	return($t);
@@ -390,16 +401,13 @@ sub getresults{
 						#%t{$rnum} = @row;
 					}
 					# Add the nodename to the row
-					# XXX
 					push @results, [@row];		# Add this row to the Results AoA
 				}
 				$t{'size'}=$rnum;
             } else {
-				$error="Unable to exec query\n"; #XXX delete
 				$t{'error'}="Unable to exec query\n";
 			}
 	   	} else {
-			$error="Unable to prep query $DBI::errstr\n"; # XXX
 			$t{'error'}="Unable to prep query\n";	
 		}
 		$dbh->disconnect or print "Unable to disconnect from DB $DBI::errstr";

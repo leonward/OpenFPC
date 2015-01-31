@@ -1,16 +1,16 @@
 Installing OpenFPC.
 =========================
 
-*Last updated Jan 1 2015*
+*Last updated Jan 13 2015*
 
 ** Contact: leon@openfpc.org **
 
 
 To install OpenFPC you have two options:
 
-* Use the Ubuntu Packages
+* Use the Ubuntu Packages:
   These packages are not part of the Ubuntu distribution, I roll them myself. This should be the easiest way to get started.
-* Go grab the source from Github, and install from source using the openfpc-install.sh script.
+* Go grab the source from Github and install from source using the openfpc-install.sh script:
   If you're using Ubuntu and have a system that can work with the .deb packages, the only advantage of using the openfpc-install.sh script is that it makes it easier to use the most recent code. 
 
 Both installation methods should leave you with a system that functions in the same way, so the choice is yours.

@@ -1,4 +1,4 @@
 # Dev Test OpenFPC route file.
 
-London=localhost:4244:foo:foo
-New_York=localhost:4246:bar:bar
+London=localhost:4244
+New_York=localhost:4246

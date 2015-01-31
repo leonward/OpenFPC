@@ -1,9 +1,8 @@
 # Example OpenFPC route file.
 ##############################################################################
 # http://www.openfpc.org
-# These two lines work with the example configs included.
-# Note you can have multiple aliases for a single Node, this allows extraction
-# by multiple different aliases. 
 #
-Example_Node=localhost:4242:openfpc:openfpc
-Node=localhost:4242:openfpc:openfpc
+# Note: format change: Jan 31/2015. 
+# Each node no longer requires its own password. The pass 'hash' of the original user is passed to the node 
+
+Default_Node=localhost:4242

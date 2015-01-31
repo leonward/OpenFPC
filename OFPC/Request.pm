@@ -371,9 +371,9 @@ sub request{
 		}
 	}
 
-	# Remove the password from the JSON sent, we don't want to leak it
 	my $r_tmp=dclone($r);
-	$r_tmp->{'password'}{'val'} = 0;
+	# Remove the password from the JSON sent, we don't want to leak it
+	#$r_tmp->{'password'}{'val'} = 0;
 	my $rj=encode_json($r_tmp);
 
 	while(my $connection = $socket->connected) { # While we are connected to the server
@@ -536,6 +536,7 @@ sub request{
 				print "DEBUG: Password BAD\n" if ($debug);
 				$result{'success'} = 0;
 				$result{'message'} = "Authentication Failed";
+				$result{'error'} = "Authentication Failed";
 				return %result;
 			}
 		}

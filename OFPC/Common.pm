@@ -600,7 +600,6 @@ sub getstatus{
 		$sc{'ofpctype'} = "PROXY";
 		$sc{'proxy'} = 1;
 		$sc{'success'} = 1;
-		# XXX
 		my $rt=readroutes();
 		my $b;
 		my $scr=\%sc;		# Convert sc (status containter) into a ref
@@ -736,6 +735,7 @@ sub decoderequest($){
 	$gr->{'metadata'}{'rid'} = OFPC::Common::getrequestid;
 	# Copy values from the client JSON request into the server request hash.
 	$gr->{'user'}{'val'}		=	$r->{'user'}{'val'};
+	$gr->{'password'}{'val'}	=	$r->{'password'}{'val'};
 	$gr->{'action'}{'val'}		=	$r->{'action'}{'val'}; 			# Action (store,status,fetch,etc)
 	$gr->{'device'}{'val'} 		=	$r->{'device'}{'val'};			# Device to request from i.e openfpc-node
 	$gr->{'filename'}{'val'} 	= 	$r->{'filename'}{'val'};		# Filename to save file as 
@@ -1859,7 +1859,6 @@ sub comms{
 		                        wlog("COMMS: $client_ip: RID: $request->{'metadata'}{'rid'} Start time=$request->{'stime'}{'val'} End time=$request->{'etime'}{'val'}");
 
 		                        (my $t)=OFPC::CXDB::cx_search($request);
-
 		                        unless ($t->{'error'}) { 
 		                        	my $tj=encode_json($t);	
 									print $client "TABLE:\n";
@@ -1996,7 +1995,7 @@ sub readroutes{
 	    		if ( (my $key, my $value) = split /=/, $_ ) {
 		   	 		$route{$key} = $value;	
 					wlog("ROUTE: Adding route for $key as $value");
-					($rt{$key}{'ip'}, $rt{$key}{'port'}, $rt{$key}{'user'}, $rt{$key}{'password'}) = split/:/, $value;
+					($rt{$key}{'ip'}, $rt{$key}{'port'} = split/:/, $value;
 					$rt{$key}{'name'} = $key;
 	    		}
 	    	}
