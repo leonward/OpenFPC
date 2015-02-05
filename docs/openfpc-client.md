@@ -2,7 +2,8 @@ OpenFPC Client Documentation
 ===========================
 
 **Leon Ward**
-**UNDER DEVELOPMENT / WORK IN PROGRESS**
+
+**Document is work in progress**
 
 
 #Getting Started with openfpc-client
