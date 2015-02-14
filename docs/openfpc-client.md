@@ -19,7 +19,7 @@ This guide is designed to walk a new user though working with the OpenFPC client
   [fetch](#fetch)
   [search](#search)
   [store](#store)
-- [Traffic Constraints for extraction](trafficConstraints)
+- [Traffic Constraints for extraction](#trafficConstraints)
 - Searching for sessions
 - Specifying a time window and timestamps
 - The .openfpc-client.rc file
@@ -41,7 +41,7 @@ The command line arguments to pass all of the details for the above are pretty s
  - --port (defaults to 4242 if not specified)
 
 ````
-    $ ./openfpc-client --user $USERNAME --password $PASSWIRD --server $IP_ADDR --port $PORT
+    $ ./openfpc-client --user $USERNAME --password $PASSWORD --server $IP_ADDR --port $PORT
 ````
 
 The creation and management of users is handled on the OpenFPC node using the openfpc-passwd command. 
@@ -87,30 +87,28 @@ When requested from a node, the Status action return the status of the queue dae
 - **Local time on node**
   Time shows the local time on the node in unix timestamp format, and is also translated into your own local timezone (this may be different to the TZ of the remote node!)
 
-- Newest session in storage       : 	 1420469924 (Mon Jan  5 14:58:44 2015 Europe/London)
+- **Newest session in storage**
   Timestamp of the most recent session added to the session database, also translated into your local timezone.
 
-- Oldest session in storage:
+- **Oldest session in storage**
   This is the timestamp of the oldest session in the session database.
 
-- Oldest packet in storage        : 	 1420049832 (Wed Dec 31 18:17:12 2014 Europe/London)
-   This is the timestamp of the oldest packet in the storage buffer.
+- **Oldest packet in storage**
+  This is the timestamp of the oldest packet in the storage buffer.
 
 - **Storage Window:**
   This is the window of all the pcap data that is available for extraction. This assumes that the data is contiguous and this is a dangerous assumption. This is essentially the time delta between $lastpacket and $firstpacket. So if your buffer has been off and not capturing for some time there could be a big gap of data between the timestamps. It does however provide a pretty good idea of the size of the buffer available.
 
-- Load Average 1                  : 	 0.00
-- Load average 5                  : 	 0.01
-- Load average 15                 : 	 0.05
-  UNIX load average values.
+- **Load Average 1, 5, 15** 
+  UNIX load average values on the node
 
-- Number of session files lagging : 	 0
+- **Number of session files lagging** 
   Connection data is dumped into the SESSION_DIR, and then read/uploaded into the database. If there is ever more than one file lagging there could be something going wrong with inserting data to the DB.
 
-- Number of sessions in Database: 
-  The count of sessions in the session database. 
+- **Number of sessions in Database** 
+  The count of sessions in the session database on that node 
 
-- Node Timezone  
+- **Node Timezone** 
   Local Timezone of the remote node. 
 
 Example:
@@ -154,7 +152,7 @@ The fetch action will fetch the full session data you specify and save it on you
 you will need to specify at least one session identifier and a timewindow to look over.
 - For time window constraints look at the 'specifying a time window' section
 
-##Extract constraints [#trafficConstraints] ##
+##Extract constraints [#trafficConstraints]##
 
 The following command line options can be used to define the sessions you would like to extract:
 
@@ -173,37 +171,66 @@ For more advanced fetching of data, consider using a --bpf. You can't mix --bpf 
 
     $ ./openfpc-client -a fetch --bpf 'udp port 53 and host 8.8.8.8' --last 60
 
+When fetching pcap data, there are other aurgmention you may want to also specify.
+
+  - **-w / --write**
+  This is a filename to write the pcap data to. For example --write ./myfile. Note that the extension is added by the openfpc client based on teh format of the file returned. Normally this will just be .pcap, however a .zip file is also possible
+
+````
+[11:06:20]lward@drax~/code/OpenFPC$ ./openfpc-client -a fetch --bpf 'udp port 53 and host 8.8.8.8' --last 60 -w myfile
+* Reading configuration from /Users/lward/.openfpc-client.rc
+
+   * openfpc-client 0.9 *
+     Part of the OpenFPC project - www.openfpc.org
+
+Password for user leon :
+#####################################
+Date    : Sat Feb 14 11:06:36 2015
+Filename: myfile.pcap
+Size    : 4.9K
+MD5     : 102262ba70769e8ca1f0e5d64fd682b8
+[11:06:39]lward@drax~/code/OpenFPC$
+````
+
+ - **--comment**
+ Adds a comment to the extraction. This comment is stored in the server side logs to help justify why an extraction took place, useful for combining extractions to specific incidents. The comment is also included when a zip format file is requested at extract time (see below).
+
+ - **--zip or -Z**
+ This option asks the queue daemon to respond with a zip file containing more data about the pcap that has been extracted. This extra data includes any optional comments made by the analyst and hash data of the pcap to help handle legal hearsay issues (IANAL).
+
+````
+11:12:20]lward@drax~/code/OpenFPC$ ./openfpc-client -a fetch --bpf 'udp port 53 and host 8.8.8.8' --last 60 -w myfile --zip --comment "This is an example extraction that will show up in the openfpc-client documentation on github"
+* Reading configuration from /Users/lward/.openfpc-client.rc
+
+   * openfpc-client 0.9 *
+     Part of the OpenFPC project - www.openfpc.org
+
+Password for user leon :
+#####################################
+Date    : Sat Feb 14 11:14:40 2015
+Filename: myfile.zip
+Size    : 4.2K
+MD5     : f830ee59a6065c7e344f124a14d1005d
+[11:14:43]lward@drax~/code/OpenFPC$ unzip myfile.zip
+Archive:  myfile.zip
+  inflating: 1423912421-883F129C-B43A-11E4-9972-4C26DC081D9D.pcap.txt
+  inflating: 1423912421-883F129C-B43A-11E4-9972-4C26DC081D9D.pcap
+[11:14:47]lward@drax~/code/OpenFPC$ cat 1423912421-883F129C-B43A-11E4-9972-4C26DC081D9D.pcap.txt
+Extract Report - OpenFPC Node 'Home Test Node'
+User: leon
+Filename: myfile
+MD5: b8efce32c9432056d6b509bea02c3ea1
+Size: 21K
+User comment: This is an example extraction that will show up in the openfpc-client documentation on github
+Time: Sat Feb 14 11:13:41 2015
+[11:14:52]lward@drax~/code/OpenFPC$ md5 1423912421-883F129C-B43A-11E4-9972-4C26DC081D9D.pcap
+MD5 (1423912421-883F129C-B43A-11E4-9972-4C26DC081D9D.pcap) = b8efce32c9432056d6b509bea02c3ea1
+[11:15:43]lward@drax~/code/OpenFPC$
+````
+
 
 Specifying a time window
 -------------------------
 
-.openfpc-client.rc file
-----------------------
-
-If like me you get annoyed having to type in the same flags over and over again into openfpc-client, you can make use of a .openfpc-client.rc file. Every time you run openfpc-client it looks in your home directory for a file named .openfpc-client.rc, and uses values specified in it for your connection. For example, if you only have one --user and keep connecting to the same --server, why type them every time you want to interact with the daemon?
-
-You can put any of the below in your ~/.openfpc-client.rc file.
-
-- server=<ip.add.re.ss of your OpenFPC queue daemon>
-asdf
-- port=<port number of your OpenFPC queue daemodn>
-- action=<action>
-- limit=<number of rows>
-- last=<number of seconds you would like to look back>
-
-The format of this file is simple. 
-
-    option=value
-
-For example:
-
-````
-$ cat ~/.openfpc-client.rc
-user=bob
-server=123.456.789.123
-port=4242
-action=status
-$
-````
 
 
