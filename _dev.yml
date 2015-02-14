@@ -17,10 +17,10 @@ color:
 social:
   - title: twitter
     url: http://twitter.com/openfpc
-  - title: bitbucket 
-    url: http://bitbucket.org/jekyll
   - title: github
     url: http://github.com/leonward/openfpc
+  - title: comments
+    url: https://lists.sourceforge.net/lists/listinfo/openfpc-users
 
 # Postal address (add as many lines as necessary)
 address:
