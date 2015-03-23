@@ -209,6 +209,7 @@ sub readrcfile{
 		unless (open(RC, '<', "$rcfile")){
 			return($config);
 			print "* Error, unable to open rc file $rcfile";
+			return(0);
 		} else {
 			while(<RC>) {
 				chomp;
