@@ -1995,7 +1995,7 @@ sub readroutes{
 	    		if ( (my $key, my $value) = split /=/, $_ ) {
 		   	 		$route{$key} = $value;	
 					wlog("ROUTE: Adding route for $key as $value");
-					($rt{$key}{'ip'}, $rt{$key}{'port'} = split/:/, $value;
+					($rt{$key}{'ip'}, $rt{$key}{'port'}) = split/:/, $value;
 					$rt{$key}{'name'} = $key;
 	    		}
 	    	}
