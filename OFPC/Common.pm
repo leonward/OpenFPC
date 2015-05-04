@@ -44,6 +44,8 @@ our @ISA = qw(Exporter);
 @EXPORT_OK = qw(ALL);
 $VERSION = '0.5';
 
+my $dbhost=$config{'SESSION_DB_HOST'};
+
 =head2 wantdebug
 	Check if debug is enabled via a shell variable OFPCDEBUG=1
 	If so, return a value that enables debug in this function.
@@ -479,7 +481,7 @@ sub getstatus{
 		#################################
 		if ($config{'ENABLE_SESSION'}) {
 			wlog("STATU: DEBUG: Session data enabled on this node. Checking DB status") if $debug;
-			if ( my $dbh= DBI->connect("dbi:mysql:database=$config{'SESSION_DB_NAME'};host=localhost",$config{'SESSION_DB_USER'},$config{'SESSION_DB_PASS'}) ) {
+			if ( my $dbh= DBI->connect("dbi:mysql:database=$config{'SESSION_DB_NAME'};host=$dbhost",$config{'SESSION_DB_USER'},$config{'SESSION_DB_PASS'}) ) {
 			    
 			    # Get count of sessions in DB
 			    my $sth= $dbh->prepare("SELECT COUNT(*) FROM session") or wlog("STATUS: ERROR: Unable to get session table size $DBI::errstr");
@@ -661,7 +663,7 @@ sub trimsessiondb(){
 
 	wlog("TRIM: Trimming Session DB from: $fc (" . localtime($fc) . ") to $fp (". localtime($fp) . ")") if $debug;
 
-	if (my $dbh= DBI->connect("dbi:mysql:database=$config{'SESSION_DB_NAME'};host=localhost",$config{'SESSION_DB_USER'},$config{'SESSION_DB_PASS'})) {
+	if (my $dbh= DBI->connect("dbi:mysql:database=$config{'SESSION_DB_NAME'};host=$dbhost",$config{'SESSION_DB_USER'},$config{'SESSION_DB_PASS'})) {
 		my $sth= $dbh->prepare("DELETE FROM session WHERE unix_timestamp(start_time) < $fp") 
 			or wlog("STATUS: ERROR: Unable to prep query $DBI::errstr");
 		if ($sth->execute()) {
@@ -1995,7 +1997,7 @@ sub readroutes{
 	    		if ( (my $key, my $value) = split /=/, $_ ) {
 		   	 		$route{$key} = $value;	
 					wlog("ROUTE: Adding route for $key as $value");
-					($rt{$key}{'ip'}, $rt{$key}{'port'} = split/:/, $value;
+					($rt{$key}{'ip'}, $rt{$key}{'port'}) = split/:/, $value;
 					$rt{$key}{'name'} = $key;
 	    		}
 	    	}

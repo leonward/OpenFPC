@@ -33,12 +33,14 @@ ENABLE_SESSION=0
 SESSION_DB_NAME="openfpc" 
 SESSION_DB_USER="openfpc"
 SESSION_DB_PASS="openfpc"
+SESSION_DB_HOST="localhost"
 GUI_DB_NAME="gui"
 GUI_DB_USER="opnepfc"
 GUI_DB_PASS="openfpc"
 PROXY_DB_NAME="proxy_openfpc"
 PROXY_DB_USER="proxy_openfpc"
 PROXY_DB_PASSWORD="proxy_openfpc"
+PROXY_DB_HOST="localhost"
 OPENFPCVER="1.0"
 DBUSER=0
 DBPASS=0
@@ -118,7 +120,7 @@ END;
 //
 DELIMITER ;	
 "
-	mysql -u$DBUSER -p$DBPASS -e "$SQL"
+	mysql -u$DBUSER -p$DBPASS -h$SESSION_DB_HOST -e "$SQL"
 }
 
 function readconfig
@@ -158,7 +160,7 @@ function readconfig
 		        stty echo
             echo -e "\n"
                 
-            mysql -u$DBUSER -p$DBPASS -e 'SHOW DATABASES;' > /dev/null && break
+	    mysql -u$DBUSER -p$DBPASS -h$SESSION_DB_HOST -e 'SHOW DATABASES;' > /dev/null && break
             COUNT=$(($COUNT + 1))
             if [ "$COUNT" -gt "3" ]
               then
@@ -201,7 +203,6 @@ function configure_session
 			echo -e "    You can find it here -> http://www.openfpc.org/downloads"
 			echo -e "    Continuing, but don't expect session capture to work until cxtracker is installed"
 		fi	
-  else
     if [ "$CMD_ENABLE_SESSION" ] ; then
         sed -e 's/^ENABLE_SESSION=0/ENABLE_SESSION=1/g' -i $CONFIG
     fi
@@ -250,21 +251,19 @@ function create_proxy
 {
   
   echo -e "[*] Creating proxy database\n" 
-  # Test we have access
 
   # Check if DB already exist
-  mysql -u$DBUSER -p$DBPASS -e "USE $PROXY_DB_NAME;" > /dev/null 2>&1 && die "Database $PROXY_DB_NAME already exists, won't create another one"
+  mysql -u$DBUSER -p$DBPASS -h$PROXY_DB_HOST -e "USE $PROXY_DB_NAME;" > /dev/null 2>&1 && die "Database $PROXY_DB_NAME already exists, won't create another one"
 
   # Create new DB
-  mysql -u$DBUSER -p$DBPASS -e "CREATE DATABASE $PROXY_DB_NAME;" > /dev/null 2>&1 || die "Unable to create DB $PROXY_DB_NAME - Did you enter the correct user/password?"
+  mysql -u$DBUSER -p$DBPASS -h$PROXY_DB_HOST -e "CREATE DATABASE $PROXY_DB_NAME;" > /dev/null 2>&1 || die "Unable to create DB $PROXY_DB_NAME - Did you enter the correct user/password?"
 
   # Check if user already exists (maybe attached to another ofpc database)
-  mysql -u$DBUSER -p$DBPASS -B -N -e "use mysql; SELECT user FROM user" |grep -w $PROXY_DB_USER > /dev/null && die "User $PROXY_DB_USER already exists. This user must be unique."
+  mysql -u$DBUSER -p$DBPASS -h$PROXY_DB_HOST -B -N -e "use mysql; SELECT user FROM user" |grep -w $PROXY_DB_USER > /dev/null && die "User $PROXY_DB_USER already exists. This user must be unique."
   # Create new DB user
 
-  mysql -u$DBUSER -p$DBPASS -e "use 'mysql'; CREATE USER '$PROXY_DB_USER'@'localhost' IDENTIFIED BY '$PROXY_DB_PASS';"
-  mysql -u$DBUSER -p$DBPASS -e "use $PROXY_DB_NAME; GRANT ALL PRIVILEGES ON $PROXY_DB_NAME.* TO '$PROXY_DB_USER'@'localhost';"
-
+  mysql -u$DBUSER -p$DBPASS -h$PROXY_DB_HOST -e "use 'mysql'; CREATE USER '$PROXY_DB_USER'@'*' IDENTIFIED BY '$PROXY_DB_PASS';"
+  mysql -u$DBUSER -p$DBPASS -h$PROXY_DB_HOST -e "use $PROXY_DB_NAME; GRANT ALL PRIVILEGES ON $PROXY_DB_NAME.* TO '$PROXY_DB_USER'@'%';"
 
   echo -e "    OpenFPC Proxy DB Created.\n";
     
@@ -276,7 +275,7 @@ function create_proxy
          comment VARCHAR(100),
          search VARCHAR(500) 
          );"
-  mysql -u$DBUSER -p$DBPASS $PROXY_DB_NAME -e "$SQL"
+  mysql -u$DBUSER -p$DBPASS $PROXY_DB_NAME -h$PROXY_DB_HOST -e "$SQL"
   SQL="CREATE TABLE IF NOT EXISTS session              \
         (                                                  \
         id            INT NOT NULL AUTO_INCREMENT,\
@@ -300,19 +299,19 @@ function create_proxy
         INDEX start_time (start_time)                      \
         ) ENGINE=MyISAM                                    \
         ";
-  mysql -u$DBUSER -p$DBPASS $PROXY_DB_NAME -e "$SQL"
+  mysql -u$DBUSER -p$DBPASS $PROXY_DB_NAME -h$PROXY_DB_HOST -e "$SQL"
     
 }
 
 function drop_proxy
 {
-  echo -e "[*] Removing proxy database $NODENAME"
+echo -e "[*] Removing proxy database $NODENAME"
   # Test we have access
-  mysql -u$DBUSER -p$DBPASS -e 'SHOW DATABASES;' > /dev/null 2>&1 || die "Unable to connect to database"
+  mysql -u$DBUSER -p$DBPASS -h$PROXY_DB_HOST -e 'SHOW DATABASES;' > /dev/null 2>&1 || die "Unable to connect to database"
   # Check if DB already exists
-  mysql -u$DBUSER -p$DBPASS -e "USE $PROXY_DB_NAME;" > /dev/null 2>&1 || die "Database $PROXY_DB_NAME Not found!"
-  mysql -u$DBUSER -p$DBPASS -e "DROP DATABASE $PROXY_DB_NAME;" > /dev/null 2>&1 || die "Database $PROXY_DB_NAME Not found!"
-  mysql -u$DBUSER -p$DBPASS -e "use 'mysql'; DROP USER '$PROXY_DB_USER'@'localhost';" || die "Unable to remove user $PROXY_DB_USER"
+  mysql -u$DBUSER -p$DBPASS -h$PROXY_DB_HOST -e "USE $PROXY_DB_NAME;" > /dev/null 2>&1 || die "Database $PROXY_DB_NAME Not found!"
+  mysql -u$DBUSER -p$DBPASS -h$PROXY_DB_HOST -e "DROP DATABASE $PROXY_DB_NAME;" > /dev/null 2>&1 || die "Database $PROXY_DB_NAME Not found!"
+  mysql -u$DBUSER -p$DBPASS -h$PROXY_DB_HOST -e "use 'mysql'; DROP USER '$PROXY_DB_USER'@'*';" || die "Unable to remove user $PROXY_DB_USER"
 
   echo -e " -  Proxy database removed."
 }
@@ -325,21 +324,20 @@ function create_gui
     # Test we have access
 
     # Check if DB already exists
-    mysql -u$DBUSER -p$DBPASS -e "USE $GUI_DB_NAME;" > /dev/null 2>&1 && die "Database $GUI_DB_NAME already exists"
+    mysql -u$DBUSER -p$DBPASS -h$SESSION_DB_HOST -e "USE $GUI_DB_NAME;" > /dev/null 2>&1 && die "Database $GUI_DB_NAME already exists"
 
     # Create new DB
-    mysql -u$DBUSER -p$DBPASS -e "CREATE DATABASE $GUI_DB_NAME;" > /dev/null 2>&1 || die "Unable to create DB $GUI_DB_NAME - Did you enter the correct user/password?"
+    mysql -u$DBUSER -p$DBPASS -h$SESSION_DB_HOST -e "CREATE DATABASE $GUI_DB_NAME;" > /dev/null 2>&1 || die "Unable to create DB $GUI_DB_NAME - Did you enter the correct user/password?"
 
     # Check if user already exists (maybe attached to another ofpc database)
-    mysql -u$DBUSER -p$DBPASS -B -N -e "use mysql; SELECT user FROM user" |grep -w $GUI_DB_USER > /dev/null && die "User $GUI_DB_USER already exists. This user must be unique."
+    mysql -u$DBUSER -p$DBPASS -h$SESSION_DB_HOST -B -N -e "use mysql; SELECT user FROM user" |grep -w $GUI_DB_USER > /dev/null && die "User $GUI_DB_USER already exists. This user must be unique."
 
     # Create new DB user
-    mysql -u$DBUSER -p$DBPASS -e "use 'mysql'; CREATE USER '$GUI_DB_USER'@'localhost' IDENTIFIED BY '$GUI_DB_PASS';"
-    mysql -u$DBUSER -p$DBPASS -e "use $GUI_DB_NAME; GRANT ALL PRIVILEGES ON $GUI_DB_NAME.* TO '$GUI_DB_USER'@'localhost';"
-
+    mysql -u$DBUSER -p$DBPASS -h$SESSION_DB_HOST -e "use 'mysql'; CREATE USER '$GUI_DB_USER'@'$SESSION_DB_HOST' IDENTIFIED BY '$GUI_DB_PASS';"
+    mysql -u$DBUSER -p$DBPASS -h$SESSION_DB_HOST -e "use $GUI_DB_NAME; GRANT ALL PRIVILEGES ON $GUI_DB_NAME.* TO '$GUI_DB_USER'@'*';"
 
     echo GUI DB Created.
-    
+ 
     # Create tables
     SQL="CREATE TABLE users (
          id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -351,13 +349,13 @@ function create_gui
          timezone VARCHAR(30),
          defaultnode VARCHAR(30)
        );"
-    mysql -u$DBUSER -p$DBPASS $GUI_DB_NAME -e "$SQL"
+    mysql -u$DBUSER -p$DBPASS -h$SESSION_DB_HOST $GUI_DB_NAME -e "$SQL"
     
     SQL="INSERT INTO users (username,password,realname,email,description,defaultnode,timezone)
         VALUES (
             '$ADMIN_USER', '$ADMIN_HASH', '$REAL_NAME', '$EMAIL', '$DESCRIPTION', '$DEFAULTNODE', '$TIMEZONE'
         );"
-    mysql -u$DBUSER -p$DBPASS $GUI_DB_NAME -e "$SQL"
+    mysql -u$DBUSER -p$DBPASS -h$SESSION_DB_HOST $GUI_DB_NAME -e "$SQL"
 
     echo "New user $ADMIN_USER added."        
     
@@ -369,47 +367,46 @@ function drop_gui
     echo REMOVING DATABASE
     echo ---------------------------
     # Test we have access
-    mysql -u$DBUSER -p$DBPASS -e 'SHOW DATABASES;' > /dev/null 2>&1 || die "Unable to connect to database - Did you enter the correct user/password"
+    mysql -u$DBUSER -p$DBPASS -h$SESSION_DB_HOST -e 'SHOW DATABASES;' > /dev/null 2>&1 || die "Unable to connect to database - Did you enter the correct user/password"
     # Check if DB already exists
-    mysql -u$DBUSER -p$DBPASS -e "USE $GUI_DB_NAME;" > /dev/null 2>&1 || die "Database $GUI_DB_NAME Not found!"
-    
-    mysql -u$DBUSER -p$DBPASS -e "DROP DATABASE $GUI_DB_NAME;" > /dev/null 2>&1 || die "Database $GUI_DB_NAME Not found!"
-    mysql -u$DBUSER -p$DBPASS -e "use 'mysql'; DROP USER '$GUI_DB_USER'@'localhost';" || die "Unable to remove user $GUI_DB_USER"
+    mysql -u$DBUSER -p$DBPASS -h$SESSION_DB_HOST -e "USE $GUI_DB_NAME;" > /dev/null 2>&1 || die "Database $GUI_DB_NAME Not found!"
+
+    mysql -u$DBUSER -p$DBPASS -h$SESSION_DB_HOST -e "DROP DATABASE $GUI_DB_NAME;" > /dev/null 2>&1 || die "Database $GUI_DB_NAME Not found!"
+    mysql -u$DBUSER -p$DBPASS -h$SESSION_DB_HOST -e "use 'mysql'; DROP USER '$GUI_DB_USER'@'$SESSION_DB_HOST';" || die "Unable to remove user $GUI_DB_USER"
 
     echo GUI DB Dropped.
-
 }
 
 function create_session
 {
-  echo "[*] Creating Session database on $NODENAME"
-	# Test we have access
-	mysql -u$DBUSER -p$DBPASS -e 'SHOW DATABASES;' > /dev/null || die "Unable to connect to database"
+ 	echo "[*] Creating Session database on $NODENAME"
+        # Test we have access
+        mysql -u$DBUSER -p$DBPASS -h$SESSION_DB_HOST -e 'SHOW DATABASES;' > /dev/null || die "Unable to connect to database"
 
-	# Check if DB already exists
-	mysql -u$DBUSER -p$DBPASS -e "USE $SESSION_DB_NAME;" > /dev/null 2>&1 && die "Database $SESSION_DB_NAME already exists"
+        # Check if DB already exists
+        mysql -u$DBUSER -p$DBPASS -h$SESSION_DB_HOST -e "USE $SESSION_DB_NAME;" > /dev/null 2>&1 && die "Database $SESSION_DB_NAME already exists"
 
-	# Create new DB	
-	mysql -u$DBUSER -p$DBPASS -e "CREATE DATABASE $SESSION_DB_NAME;" > /dev/null 2>&1 || die "Unable to create DB $SESSION_DB_NAME"
+        # Create new DB
+        mysql -u$DBUSER -p$DBPASS -h$SESSION_DB_HOST -e "CREATE DATABASE $SESSION_DB_NAME;" > /dev/null 2>&1 || die "Unable to create DB $SESSION_DB_NAME"
 
   # Check if user already exists (maybe attached to another ofpc database)
-  mysql -u$DBUSER -p$DBPASS -B -N -e "use mysql; SELECT user FROM user" |grep -w $SESSION_DB_USER > /dev/null && die "User $SESSION_DB_USER already exists. This user must be unique."
+  mysql -u$DBUSER -p$DBPASS -h$SESSION_DB_HOST -B -N -e "use mysql; SELECT user FROM user" |grep -w $SESSION_DB_USER > /dev/null && die "User $SESSION_DB_USER already exists. This user must be unique."
 
   # Create new DB user
-	mysql -u$DBUSER -p$DBPASS -e "use 'mysql'; CREATE USER '$SESSION_DB_USER'@'localhost' IDENTIFIED BY '$SESSION_DB_PASS';"
-	mysql -u$DBUSER -p$DBPASS -e "use $SESSION_DB_NAME; GRANT ALL PRIVILEGES ON $SESSION_DB_NAME.* TO '$SESSION_DB_USER'@'localhost';"
-	echo -e " -  Session DB Created"
+        mysql -h$SESSION_DB_HOST -u$DBUSER -p$DBPASS -e "use 'mysql'; CREATE USER '$SESSION_DB_USER' IDENTIFIED BY '$SESSION_DB_PASS';"
+        mysql -h$SESSION_DB_HOST -u$DBUSER -p$DBPASS -e "use $SESSION_DB_NAME; GRANT ALL PRIVILEGES ON $SESSION_DB_NAME.* TO '$SESSION_DB_USER'@'%';"
+        echo -e " -  Session DB Created"
 }
 
 function drop_session
 {
 	echo -e "[*] Removing session database $NODENAME";
-	# Test we have access
-	mysql -u$DBUSER -p$DBPASS -e 'SHOW DATABASES;' > /dev/null 2>&1 || die "Unable to connect to database"
-	# Check if DB already exists
-	mysql -u$DBUSER -p$DBPASS -e "USE $SESSION_DB_NAME;" > /dev/null 2>&1 || die "Database $SESSION_DB_NAME Not found!"
-	mysql -u$DBUSER -p$DBPASS -e "DROP DATABASE $SESSION_DB_NAME;" > /dev/null 2>&1 || die "Database $SESSION_DB_NAME Not found!"
-	mysql -u$DBUSER -p$DBPASS -e "use 'mysql'; DROP USER '$SESSION_DB_USER'@'localhost';" || die "Unable to remove user $SESSION_DB_USER"
+        # Test we have access
+        mysql -h$SESSION_DB_HOST -u$DBUSER -p$DBPASS -e 'SHOW DATABASES;' > /dev/null 2>&1 || die "Unable to connect to database"
+        # Check if DB already exists
+        mysql -h$SESSION_DB_HOST -u$DBUSER -p$DBPASS -e "USE $SESSION_DB_NAME;" > /dev/null 2>&1 || die "Database $SESSION_DB_NAME Not found!"
+        mysql -h$SESSION_DB_HOST -u$DBUSER -p$DBPASS -e "DROP DATABASE $SESSION_DB_NAME;" > /dev/null 2>&1 || die "Database $SESSION_DB_NAME Not found!"
+        mysql -h$SESSION_DB_HOST -u$DBUSER -p$DBPASS -e "use 'mysql'; DROP USER '$SESSION_DB_USER';" || die "Unable to remove user $SESSION_DB_USER"
 
   echo -e " -  Session database removed";
 }

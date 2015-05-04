@@ -94,6 +94,7 @@ sub showhelp{
   -comment  or -m                        Comment for the extraction (will be stored with the output)
   -node            <nodename>            OpenFPC Node Name to extract from (via OpenFPC-Proxy)
   -hash     or -H                        Dont generate SHA1 from password. Assume it is a hash.
+  --zip     or -Z                        Return a zip file containing the pcap along with a short report
 
   -------- Traffic Constraints -------
   -bpf                                   Specify constraints with a BPF syntax
@@ -208,6 +209,7 @@ sub readrcfile{
 		unless (open(RC, '<', "$rcfile")){
 			return($config);
 			print "* Error, unable to open rc file $rcfile";
+			return(0);
 		} else {
 			while(<RC>) {
 				chomp;
