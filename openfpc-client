@@ -192,17 +192,19 @@ sub readrcfile{
 	my $config=shift;
 
 	my @rcfiles=("./openfpc-client.rc",			# CWD
-			"$ENV{HOME}/.openfpc-client.rc",			# Personal
+			"$ENV{HOME}/.openfpc-client.rc",	# Personal
 			"/etc/openfpc/openfpc-client.rc",	# System default
 		);	
 	my $rcfile=0;
 
 	foreach my $file (@rcfiles) {
 		if (-e $file) {
+			print "DEBUG: Found rc file $file\n";
 			print "* Reading configuration from $file\n";
 			$rcfile=$file;
 			last;
 		}
+		print "DEBUG: No rc file found: $file\n";
 	}
 
 	if ($rcfile) {
