@@ -4,12 +4,12 @@
 # console: log messages to STDOUT (your console where you started the
 #          application server)
 # file:    log message to a file in log/
-logger: "console"
+logger: "file"
 
 # the log level for this environment
 # core is the lowest, it shows Dancer2's core log messages as well as yours
 # (debug, info, warning and error)
-log: "core"
+log: "warning"
 
 # should Dancer2 consider warnings as critical errors?
 warnings: 1

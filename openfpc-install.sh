@@ -132,6 +132,7 @@ function endmessage(){
 function easymessage(){
 	echo "[*] Starting OpenFPC"
 	sudo openfpc -a start
+	sudo service openfpc-restapi start
 
 	echo "==============================================
 [*] Installation complete. 
@@ -242,7 +243,6 @@ function doinstall()
 	# Setup install for distro type
 	if [ "$DISTRO" == "DEBIAN" ]
 	then
-		PERL_LIB_DIR="/usr/local/lib/site_perl"
     	OFPC_LIB_DIR="$PERL_LIB_DIR/OFPC"
 	elif [ "$DISTRO" == "REDHAT" ]
 	then
@@ -259,20 +259,14 @@ function doinstall()
 	##################################
 	# Check for Dirs
 	# Check for, and create if required a /etc/openfpc dir
-    if [ -d $CONF_DIR/restapi ] 
+    if [ -d $CONF_DIR ] 
 	then
-		echo -e " -  Found existing config dir $CONF_DIR/restapi "
+		echo -e " -  Found existing config dir $CONF_DIR "
 	else
 		mkdir -p $CONF_DIR/restapi || die "[!] Unable to mkdir $CONF_DIR/restapi"
 	fi
 
-	# Deploy the OpenFPC rest api into /opt
-	if [ -d $/opt/ofpcapi ] 
-	then
-		echo -e " -  Found existing OpenFPC API dir $APIDIR"
-	else
-		mkdir -p $APIDIR || die "[!] Unable to mkdir $APIDIR"
-	fi
+	
 
 	# Check the perl_lib_dir is in the Perl path
 	if  perl -V | grep "$PERL_LIB_DIR" > /dev/null
@@ -404,9 +398,6 @@ function remove()
 		fi
 	done
 
-	#	sudo openfpc -a stop
-
-
 	echo -e "[*] Removing openfpc-programs ..."
 
 	for file in $PROG_FILES
@@ -441,14 +432,7 @@ function remove()
 			echo -e "    Cannot Find $WWW_DIR/$file"
 		fi
 	done
-	echo -e "[*] Removing API files"
-	APIPARENT=$(dirname $APIDIR)
-	if [ -f $APIPARENT ]
-	then	
-		rm $APIPARENT/ofpcapi -rf  || echo -e "[!] Unable to delete $APIPARENT/ofpcapi"
-	else
-		echo -e "    Cannot Find ofpcapi directory in path $APIPARENT"
-	fi
+	
 
 	echo -e "[-] Updating init sciprts"
     if [ "$DISTRO" == "DEBIAN" ]
@@ -587,29 +571,28 @@ function genkeys()
 enrestapi()
 {
 	echo -e "[*] Installing files for OpenFPC RestAPI"
-	if [ -d $RESTDIR/environments ] 
+	# Deploy the OpenFPC rest api into /opt
+	if [ -d $/opt/ofpcapi ] 
 	then
-		echo "    Found existing OpenFPC RestAPI directory"
+		echo -e " -  Found existing OpenFPC API dir $APIDIR"
 	else
-		mkdir -p $RESTDIR/environments
+		mkdir -p $APIDIR || die "[!] Unable to mkdir $APIDIR"
 	fi
 
-	cp restapi/config.yml $CONF_DIR
-	cp restapi/environments/production.yml $RESTDIR/environments 
-	cp restapi/openfpc-restapi $RESTDIR 
 }
 
 disrestapi()
 {
 	echo -e "[*] Removing files for OpenFPC RestAPI"
-	if [ -d $RESTDIR/environments ] 
-	then
-		rm $RESTDIR/environments/* || echo -e "    Can't find restapi file"
-		rm -r $RESTDIR/environments/  || echo -e "    Can't find restapi file"
-		rm $RESTDIR/* || echo -e "    Can't find restapi file"
-		rm -r $RESTDIR || echo -e "    Can't find restapi file"
-	fi
 
+	echo -e "[*] Removing API files"
+	APIPARENT=$(dirname $APIDIR)
+	if [ -f $APIPARENT ]
+	then	
+		rm $APIPARENT/ofpcapi -rf  || echo -e "[!] Unable to delete $APIPARENT/ofpcapi"
+	else
+		echo -e "    Cannot Find ofpcapi directory in path $APIPARENT"
+	fi
 }
  
 echo -e "

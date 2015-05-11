@@ -9,7 +9,6 @@ use IO::Socket::INET;
 use URI::Escape;
 use Data::UUID;
 use Switch;
-use Dancer::FileUtils 'read_file_content';
 use POSIX qw(setsid);
 
 set warnings => 1;
@@ -87,7 +86,6 @@ sub read_apikeys{
 			$ak{$users->{$u}{'apikey'}}{'password'} = $users->{$u}{'password'};
 		}
 	}
-	debug \%ak;	
 	return(\%ak);
 }
 

@@ -23,6 +23,7 @@ CWD="/opt/ofpcapi"
 PORT="4222"
 SSL_CERT="/etc/openfpc/ofpcapi.cert.pem"
 SSL_KEY="/etc/openfpc/ofpcapi.key.pem"
+DEBUG=1
 
 IAM=`whoami`;
 
@@ -40,19 +41,31 @@ fi
 start()
 {
     log_daemon_msg "Starting" "$DESC"
-    cd /opt/ofpcapi/ 
-    /usr/bin/starman \
-        --workers 2 \
+    cd $CWD
+    # create empty log fir
+    [ -d logs ]  || mkdir logs
+    chown $USER:$GROUP logs
+
+    CMD="/usr/bin/starman \
         -D \
+        --workers 2 \
         --port $PORT \
         --pid $PIDDIR/$PIDFILE \
-        -E development \
+        -E production \
         --user $USER \
         --group $GROUP \
         --ssl-cert $SSL_CERT \
         --ssl-key $SSL_KEY \
         --enable-ssl \
-        ./bin/app.psgi 
+        ./bin/app.psgi "
+
+    if [ "$DEBUG" == "1" ]
+    then
+        echo $CMD
+    else 
+        exec $CMD    
+    fi
+
 
     if [ $? != 0 ]; then
         log_end_msg 1
