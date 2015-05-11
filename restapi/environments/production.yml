@@ -1,6 +1,0 @@
-logger: 'file'
-log: 'warn'
-startup_info: 0
-show_errors:  0
-daemon: 1
-port: 4222

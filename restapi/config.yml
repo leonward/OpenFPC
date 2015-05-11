@@ -1,5 +1,0 @@
-logger: 'file'
-ofpc_server: 'localhost'
-ofpc_port: '4242'
-ofpc_savedir: '/var/tmp/openfpc/extracted'
-ofpc_passwd: '/etc/openfpc/openfpc.passwd'
