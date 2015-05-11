@@ -36,6 +36,8 @@ sub wantdebug{
 
 =cut
 
+my $dbhost=$config{'SESSION_DB_HOST'};
+
 sub cx_search{
 	# Expects $config to be a global - read from the openfpc config file
 	my $r=shift;
@@ -60,7 +62,7 @@ sub cx_search{
 		my $q=buildQuery($r);
 		print "DEBUG: Query is $q\n" if $debug;
 
-		($t)=getresults($dbname, $dbuser, $dbpass, $q);
+		($t)=getresults($dbname, $dbhost, $dbuser, $dbpass, $q);
 		#print Dumper $t;
 		# Format data types (@dtype)
 		# "port" = Port number
@@ -107,6 +109,7 @@ sub cx_search{
 					) values (?,?,?,?)";
   			my $sth = $dbh->prepare_cached($sql);
       		$sth->execute($now, $r->{'user'}{'val'},$r->{'comment'}{'val'},$q);
+
 
       		# Get last insert ID
       		$sql = "SELECT id from search order by id desc limit 1";
@@ -357,6 +360,7 @@ sub tftoa {
 
 sub getresults{
 	my $dbname = shift;
+	my $dbhost = shift;
 	my $dbuser = shift;
 	my $dbpass = shift;
 	my $query = shift;
@@ -379,7 +383,7 @@ sub getresults{
 			"     : Query = $query\n";
 	}
 
-	if (my $dbh= DBI->connect("dbi:mysql:database=$dbname;host=localhost",$dbuser,$dbpass)) {
+	if (my $dbh= DBI->connect("dbi:mysql:database=$dbname:host=$dbhost",$dbuser,$dbpass)) {
 		print "DEBUG: Connected to DB\n" if ($debug);
 		if (my $query=$dbh->prepare($query)) {
             if ($query->execute()) {
