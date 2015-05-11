@@ -21,6 +21,8 @@ PIDFILE="ofpcapi.pid"
 DESC="OpenFPC Rest API"
 CWD="/opt/ofpcapi"
 PORT="4222"
+SSL_CERT="/etc/openfpc/ofpcapi.cert.pem"
+SSL_KEY="/etc/openfpc/ofpcapi.key.pem"
 
 IAM=`whoami`;
 
@@ -30,14 +32,26 @@ die(){
 }
 
 [ -f /lib/lsb/init-functions ] && . /lib/lsb/init-functions
+
+if [ "$IAM" != "root" ]; then
+    die "[!] Must be root to run this script"
+fi
  
 start()
 {
     log_daemon_msg "Starting" "$DESC"
     cd /opt/ofpcapi/ 
-    /usr/bin/starman --port $PORT \
+    /usr/bin/starman \
+        --workers 2 \
+        -D \
+        --port $PORT \
         --pid $PIDDIR/$PIDFILE \
-        -E development -D \
+        -E development \
+        --user $USER \
+        --group $GROUP \
+        --ssl-cert $SSL_CERT \
+        --ssl-key $SSL_KEY \
+        --enable-ssl \
         ./bin/app.psgi 
 
     if [ $? != 0 ]; then

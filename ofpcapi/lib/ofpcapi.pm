@@ -1,13 +1,9 @@
 package ofpcapi;
 
-
-
-
 use Dancer2;
 use strict;
 use warnings;
 use OFPC::Request;
-#use Dancer2::Plugin::REST;
 use DateTime::TimeZone;
 use IO::Socket::INET;
 use URI::Escape;
@@ -154,21 +150,6 @@ sub checkauth{
 sub checkinput{
 	my $f=shift;
 	my %q=();
-	#my %q = (
-	#	error => 0,
-	#	bpf => 0,
-	#	sip => 0,
-	#	dip => 0,
-	#	spt => 0,
-	#	dpt => 0,
-	#	proto => 0,
-	#	logline => 0,
-	#	apikey => 0,
-	#	rid => 0,
-	#	stime => 0,
-	#	etime => 0,
-	#	timestamp => 0,
-	#);
 
 	debug "Performing API input validation for $f action";
 	debug "Request is $_";

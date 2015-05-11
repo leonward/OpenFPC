@@ -31,16 +31,13 @@ PROG_DIR="/usr/bin"
 CONF_DIR="/etc/openfpc"
 CONF_FILES="etc/openfpc-default.conf etc/openfpc-example-proxy.conf etc/routes.ofpc"
 PROG_FILES="openfpc-client openfpc-queued openfpc-cx2db openfpc openfpc-dbmaint openfpc-password"
-
-#GUI_FILES="css images includes index.php javascript login.php useradd.php"
-#WWW_DIR="/usr/share/openfpc/www"
+APIDIR="/opt/ofpcapi"
 
 PERL_MODULES="Parse.pm Request.pm CXDB.pm Common.pm Config.pm"
-INIT_SCRIPTS="openfpc-daemonlogger openfpc-cx2db openfpc-cxtracker openfpc-queued"
+INIT_SCRIPTS="openfpc-daemonlogger openfpc-cx2db openfpc-cxtracker openfpc-queued openfpc-restapi"
 INIT_DIR="/etc/init.d/" 
 REQUIRED_BINS="tcpdump date mergecap perl tshark test"
 LOCAL_CONFIG="/etc/openfpc/openfpc.conf"
-#PERL_LIB_DIR="/usr/local/lib/site_perl"
 PERL_LIB_DIR="/usr/share/perl5"
 OFPC_LIB_DIR="$PERL_LIB_DIR/OFPC"
 CXINSTALLED=0
@@ -123,7 +120,7 @@ function endmessage(){
  4) Start OpenFPC
     $ sudo openfpc --action start
  5) Check status (authenticate with user/password set in step 2)
-	$ openfpc-client -a status --server localhost --port 4242
+    $ openfpc-client -a status --server localhost --port 4242
  6) Go extract files and search for sessions!
     $ openfpc-client -a search -dpt 53 --last 600
     $ openfpc-client -a  fetch -dpt 53 --last 600
@@ -153,7 +150,7 @@ function checkdeps()
 	missdeps=""
 	if [ "$DISTRO" == "DEBIAN" ] 
 	then
-		DEPS="daemonlogger tcpdump tshark libdatetime-perl libprivileges-drop-perl libarchive-zip-perl libfilesys-df-perl mysql-server libdbi-perl libterm-readkey-perl libdate-simple-perl libdigest-sha-perl libjson-pp-perl libdatetime-perl libswitch-perl libdatetime-format-strptime-perl libdata-uuid-perl" 
+		DEPS="daemonlogger tcpdump tshark libdatetime-perl libprivileges-drop-perl libarchive-zip-perl libfilesys-df-perl mysql-server libdbi-perl libterm-readkey-perl libdate-simple-perl libdigest-sha-perl libjson-pp-perl libdatetime-perl libswitch-perl libdatetime-format-strptime-perl libdata-uuid-perl libdancer2-perl starman" 
 
 		# Check if some obvious dependencies are met	
 		for dep in $DEPS
@@ -262,11 +259,19 @@ function doinstall()
 	##################################
 	# Check for Dirs
 	# Check for, and create if required a /etc/openfpc dir
-    if [ -d $CONF_DIR ] 
+    if [ -d $CONF_DIR/restapi ] 
 	then
-		echo -e " -  Found existing config dir $CONF_DIR "
+		echo -e " -  Found existing config dir $CONF_DIR/restapi "
 	else
-		mkdir $CONF_DIR || die "[!] Unable to mkdir $CONF_DIR"
+		mkdir -p $CONF_DIR/restapi || die "[!] Unable to mkdir $CONF_DIR/restapi"
+	fi
+
+	# Deploy the OpenFPC rest api into /opt
+	if [ -d $/opt/ofpcapi ] 
+	then
+		echo -e " -  Found existing OpenFPC API dir $APIDIR"
+	else
+		mkdir -p $APIDIR || die "[!] Unable to mkdir $APIDIR"
 	fi
 
 	# Check the perl_lib_dir is in the Perl path
@@ -274,7 +279,7 @@ function doinstall()
 	then
 		echo " -  Installing modules to $PERL_LIB_DIR"
 	else
-		die "[!] Perl include path problem. Cant find $PERL_LIB_DIR in Perl's @INC (perl -V to check)"
+		die "[!] Perl include path problem. Cannot find $PERL_LIB_DIR in Perl's @INC (perl -V to check)"
 	fi	
 
 	# Check four our include dir	
@@ -338,7 +343,11 @@ function doinstall()
 	#	echo -e " -  Installing $file"
 	#	cp -r www/$file $WWW_DIR/$file
 	# done
+	echo -----------------
+	###### API files #######
+	cp -r ofpcapi/* $APIDIR
 
+	echo -----------------
 	###### init #######
 
     for file in $INIT_SCRIPTS
@@ -384,29 +393,21 @@ function remove()
 {
 	echo -e "[*] Stopping Services..."
 	chkroot
-	#for file in $INIT_SCRIPTS
-	#do
-	#	if [ -f $INIT_DIR/$file ] 
-	#	then 
-	#		echo -e "Stopping $file"
-	#		$INIT_DIR/$file stop || echo -e " -  $file didn't stop, removing anyway"
-	#	else
-	#		echo -e " -  $INIT_DIR/$file doesn't exist - Won't try to stop"
-	#	fi
-	#done
+	for file in $INIT_SCRIPTS
+	do
+		if [ -f $INIT_DIR/$file ] 
+		then 
+			echo -e "Stopping $file"
+			$INIT_DIR/$file stop || echo -e " -  $file didn't stop, removing anyway"
+		else
+			echo -e " -  $INIT_DIR/$file doesn't exist - Won't try to stop"
+		fi
+	done
 
-	sudo openfpc -a stop
-
-	echo -e "[*] Disabling OpenFPC GUI"
-	if [ -f /etc/apache2/sites-available/openfpc.apache2.site ]
-	then	
-		a2dissite openfpc.cgi.apache2.conf
-		service apache2 reload
-	fi
-	[ -f /etc/apache2/sites-available/openfpc.cgi.apache2.conf ] && rm /etc/apache2/sites-available/openfpc.cgi.apache2.conf
+	#	sudo openfpc -a stop
 
 
-	echo -e "[*] Removing openfpc-progs ..."
+	echo -e "[*] Removing openfpc-programs ..."
 
 	for file in $PROG_FILES
 	do
@@ -415,7 +416,7 @@ function remove()
 			echo -e "    Removed   $PROG_DIR/$file"
 			rm $PROG_DIR/$file || echo -e "unable to delete $PROG_DIR/$file"
 		else
-			echo -e "    Cant Find $PROG_DIR/$file"	
+			echo -e "    Cannot Find $PROG_DIR/$file"	
 		fi
 	done
 	
@@ -426,7 +427,7 @@ function remove()
 		then	
 			rm $OFPC_LIB_DIR/$file  || echo -e "[!] Unable to delete $file"
 		else
-			echo -e "    Cant Find $OFPC_LIB_DIR/$file"
+			echo -e "    Cannot Find $OFPC_LIB_DIR/$file"
 		fi
 	done
 
@@ -437,35 +438,23 @@ function remove()
 		then	
 			rm $WWW_DIR/$file  || echo -e "[!] Unable to delete $WWW_DIR/$file"
 		else
-			echo -e "    Cant Find $WWW_DIR/$file"
+			echo -e "    Cannot Find $WWW_DIR/$file"
 		fi
 	done
-	echo -e "[*] Removing CGI files"
-	for file in $CGI_FILES
-	do
-		if [ -f $CGI_DIR/$file ]
-		then	
-			rm $CGI_DIR/$file  || echo -e "[!] Unable to delete $CGI_DIR/$file"
-		else
-			echo -e "    Cant Find $CGI_DIR/$file"
-		fi
-	done
-
-	# Remove the password file if it has been created
-	#[ -f $CONF_DIR/apache2.passwd ] && rm $CONF_DIR/apache2.passwd
-
-	#echo -e "[*] Removing openfpc wwwroot"
-	#if [ -d $WWW_DIR ] 
-	#then
-	#	rm -r $WWW_DIR  || echo -e "[!] Unable to delete $WWW_DIR"
-	#	echo -e " -  Removed $WWW_DIR"
-	#fi
+	echo -e "[*] Removing API files"
+	APIPARENT=$(dirname $APIDIR)
+	if [ -f $APIPARENT ]
+	then	
+		rm $APIPARENT/ofpcapi -rf  || echo -e "[!] Unable to delete $APIPARENT/ofpcapi"
+	else
+		echo -e "    Cannot Find ofpcapi directory in path $APIPARENT"
+	fi
 
 	echo -e "[-] Updating init sciprts"
-        if [ "$DISTRO" == "DEBIAN" ]
-        then
-                for file in $INIT_SCRIPTS
-                do
+    if [ "$DISTRO" == "DEBIAN" ]
+    then
+    	for file in $INIT_SCRIPTS
+        do
 			update-rc.d -f $file remove
                 done
 	
@@ -566,6 +555,63 @@ function installstatus()
 	echo
 }
 
+function genkeys()
+{
+	echo -e "[*] Generating SSL keys for OpenFPC RestAPI"
+	KEYFILE=ofpcapi.key.pem
+	CERTFILE=ofpcapi.cert.pem
+	COMBINED=ofpcapi.combined.pem
+
+	if [ -f $CONF_DIR/$COMBINED ]
+	then
+		echo -e " -  Found existing key and cert: $COMBINED"
+	else 
+		echo -e " -  Generating temporary key $KEYFILE."		
+		echo -e " -  Please remember to change this to something real. Should not be used in production."		
+		pushd $CONF_DIR
+		openssl genrsa -out $KEYFILE 2048
+		echo -e " - Generating Certificate $CERTFILE"
+		openssl req \
+			-new -x509 \
+			-key $CONF_DIR/$KEYFILE \
+			-out $CONF_DIR/$CERTFILE \
+			-days 1000 \
+			-subj "/C=NA/ST=NA/L=None/O=None/CN=$HOSTNAME"
+		cat $CONF_DIR/$KEYFILE $CONF_DIR/$CERTFILE > $CONF_DIR/$COMBINED
+		popd
+	fi
+	echo -e "[*] Done generating keys"
+
+}
+
+enrestapi()
+{
+	echo -e "[*] Installing files for OpenFPC RestAPI"
+	if [ -d $RESTDIR/environments ] 
+	then
+		echo "    Found existing OpenFPC RestAPI directory"
+	else
+		mkdir -p $RESTDIR/environments
+	fi
+
+	cp restapi/config.yml $CONF_DIR
+	cp restapi/environments/production.yml $RESTDIR/environments 
+	cp restapi/openfpc-restapi $RESTDIR 
+}
+
+disrestapi()
+{
+	echo -e "[*] Removing files for OpenFPC RestAPI"
+	if [ -d $RESTDIR/environments ] 
+	then
+		rm $RESTDIR/environments/* || echo -e "    Can't find restapi file"
+		rm -r $RESTDIR/environments/  || echo -e "    Can't find restapi file"
+		rm $RESTDIR/* || echo -e "    Can't find restapi file"
+		rm -r $RESTDIR || echo -e "    Can't find restapi file"
+	fi
+
+}
+ 
 echo -e "
  *************************************************************************
  *  OpenFPC installer - Leon Ward (leon@openfpc.org) v$openfpcver
@@ -602,6 +648,7 @@ case $1 in
     ;;
     remove)
     	remove
+		disrestapi
     ;;
     status)
     	installstatus
@@ -609,15 +656,18 @@ case $1 in
 	reinstall)
 		echo [*] Running reinstall remove
 		remove
+		disrestapi
 		echo [*] Running reinstall install
-		checkdeps
+		t
 		doinstall
+		genkeys
 		endmessage
 	;;
 	install)
 		echo [*] Installing OpenFPC
 		checkdeps
 		doinstall
+		enrestapi
 		mkuser
 		mksession
 		easymessage
