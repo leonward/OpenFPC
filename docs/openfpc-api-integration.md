@@ -1,5 +1,36 @@
-# RestAPI notes
-libdancer-perl libdancer-plugin-rest-perl
+# RestAPI Usage
+
+OpenFPC has a simple API that is used to interact with the queue daemon, this enabled external systems to ask OpenFPC to provide any of the following things:
+
+ - A pcap file of the traffic requested (pass the API it session identifiers or a bpf)
+ - A JSON object of all flows, or defined subset of flows, that match the search constraints. This means that OpenFPC has these full packet sessions available for extraction
+ - To extract a pcap from the buffer, save it remotely, and return a reference of a filename that can be used to download the file when it is available
+ - The status of your OpenFPC system(s)
+
+
+* API key *
+
+Authentication is handled by a simple API key. All OpenFPC users have a unique API key for identification, the API key for a user can be returned with the openfpc-client command apikey. 
+
+````
+vagrant@vagrant-ubuntu-trusty-64:~/OpenFPC$ ./openfpc-client -a apikey
+
+   * openfpc-client 0.9 *
+     Part of the OpenFPC project - www.openfpc.org
+
+Username: someuser
+Password for user somepass :
+#####################################
+OpenFPC API key for user g: 11114-11111-1111-B233-8E42545D2F96
+
+````
+
+The API key is passed with the option apikey=xxxxxx, and is required for all requests.
+
+
+* API URL *
+
+By default the API runs over TCP:4222, and uses TLS for encryption. The SSL key that is generated at boot is self-signed and therefore needs to be replaced with a key you trust.
 
 Path: 
 http://localhost:4222/api/1
@@ -15,7 +46,7 @@ Required: apikey=<apikey>
 Example: 
 
 ````
-$curl localhost:4222/api/1/status?apikey=085F21DA-D15D-11E4-A13Q-933864F21C59
+$curl -k localhost:4222/api/1/status?apikey=085F21DA-D15D-11E4-A13Q-933864F21C59
 
    "nodelist" : [
       "Default_Node"
@@ -171,7 +202,7 @@ Arguments:
 - proto = Protocol. TCP/UDP/ICMP
 - bpf = bpf to extract
 - stime = Start time
-- stime = End timestamp
+- etime = End timestamp
 - timestamp = Single timestamp where an event took place. x seconds before/after will be also extracted
   All timestamp formats that are supported by OpenFPC client are also supported by the API.
 
@@ -179,7 +210,7 @@ Only use a BPF or session identifiers.
 
 Example:
 ````
-curl localhost:4222/api/1/fetch?apikey=085F21DA-D15D-11E4-A13B-933864F21C59\&dpt=53\&timestamp=Thu%2026%20Mar%202015%2013:13:55%20GMT > file.pcap
+curl -k localhost:4222/api/1/fetch?apikey=085F21DA-D15D-11E4-A13B-933864F21C59\&dpt=53\&timestamp=Thu%2026%20Mar%202015%2013:13:55%20GMT > file.pcap
 ````
 
 *Search*
@@ -198,7 +229,7 @@ Search for sessions in the session DB.
 
 Example:
 ````
-[13:22:54]leonward@brain~$ curl localhost:4222/api/1/search?apikey=085F21DA-D15D-11E4-A13B-933864F21C59\&dpt=53\&timestamp=Thu%2026%20Mar%202015%2013:13:55%20GMT
+[13:22:54]leonward@brain~$ curl -k localhost:4222/api/1/search?apikey=085F21DA-D15D-11E4-A13B-933864F21C59\&dpt=53\&timestamp=Thu%2026%20Mar%202015%2013:13:55%20GMT
 
 {"dtype":["udt","ip","port","ip","port","protocol","bytes","bytes","bytes","text"],"sql":"SELECT start_time,INET_NTOA(src_ip),src_port,INET_NTOA(dst_ip),dst_port,ip_proto,src_bytes, dst_bytes,(src_bytes+dst_bytes) as total_bytes\n\tFROM session IGNORE INDEX (p_key) WHERE unix_timestamp(CONVERT_TZ(`start_time`, '+00:00', @@session.time_zone))  \n\tbetween 1427372594 and 1427376194 AND dst_port='53' ORDER BY start_time DESC LIMIT 20","nodelist":["Default_Node"],"cols":["Start Time","Source IP","sPort","Destination","dPort","Proto","Src Bytes","Dst Bytes","Total Bytes","Node Name"],"error":0,"nodename":"Default_Node",
 "title":"Custom Search","etime":"1427376194","stime":"1427372594",
@@ -250,7 +281,7 @@ position: Place in the extraction queue
 filename: Auto-generated filename that will be used to save the file.
 
 ````
-13:37:20]leonward@brain~$ curl localhost:4222/api/1/store?apikey=085F21DA-D15D-11E4-A13B-933864F21C59\&dpt=53
+13:37:20]leonward@brain~$ curl -k localhost:4222/api/1/store?apikey=085F21DA-D15D-11E4-A13B-933864F21C59\&dpt=53
 {
    "message" : "In Queue",
    "success" : 1,
