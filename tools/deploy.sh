@@ -5,7 +5,7 @@
 
 TUSER=lward
 TDEV=192.168.42.10
-TPATH=/home/$USER/openfpc/
+TPATH=/home/$TUSER/openfpc/
 PATHCHECK="openfpc-client README.md"
 DIRS="restapi docs etc OFPC tools"
 FILES="openfpc-client openfpc-dbmaint openfpc-password openfpc openfpc-cx2db openfpc-install.sh openfpc-queued"

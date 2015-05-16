@@ -23,7 +23,6 @@ CWD="/opt/ofpcapi"
 PORT="4222"
 SSL_CERT="/etc/openfpc/ofpcapi.cert.pem"
 SSL_KEY="/etc/openfpc/ofpcapi.key.pem"
-DEBUG=1
 
 IAM=`whoami`;
 
@@ -59,13 +58,7 @@ start()
         --enable-ssl \
         ./bin/app.psgi "
 
-    if [ "$DEBUG" == "1" ]
-    then
-        echo $CMD
-    else 
-        exec $CMD    
-    fi
-
+        $CMD
 
     if [ $? != 0 ]; then
         log_end_msg 1

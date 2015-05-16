@@ -58,7 +58,7 @@ sub cx_search{
 	unless ($config{'PROXY'}) {
 
 		my $q=buildQuery($r);
-		print "DEBUG: Query is $q\n" if $debug;
+		wlog("DEBUG: Query is $q") if $debug;
 
 		($t)=getresults($dbname, $dbuser, $dbpass, $q);
 		#print Dumper $t;
@@ -370,17 +370,8 @@ sub getresults{
 		error => 0,
 		);
 
-
-	if ($debug) {
-		print "DEBUG getresults \n" .
-			"     : DB Name = $dbname \n" .
-			"     : DB User = $dbuser \n" .
-			"     : DB Pass = $dbpass \n" .
-			"     : Query = $query\n";
-	}
-
 	if (my $dbh= DBI->connect("dbi:mysql:database=$dbname;host=localhost",$dbuser,$dbpass)) {
-		print "DEBUG: Connected to DB\n" if ($debug);
+		wlog("DEBUG: Connected to DB\n") if ($debug);
 		if (my $query=$dbh->prepare($query)) {
             if ($query->execute()) {
            		my @row;
@@ -412,7 +403,7 @@ sub getresults{
 		}
 		$dbh->disconnect or print "Unable to disconnect from DB $DBI::errstr";
 	} else {
-		print "DEBUG: Error: Unable to connect to DB - $dbname, $dbuser, $dbpass\n" if ($debug);	
+		wlog("DEBUG: Error: Unable to connect to DB - $dbname, $dbuser, $dbpass\n") if ($debug);	
 		$t{'error'}="Unable to connect to database\n";	
 	}
 

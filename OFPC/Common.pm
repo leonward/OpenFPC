@@ -53,7 +53,6 @@ sub wantdebug{
 	my $var="OFPCDEBUG";
 
 	my $debug=$ENV{$var}; 
-	wlog("DEBUG: Enabling debug via shell variable $var\n") if $debug;
 	return($debug); 
 }
 
@@ -724,13 +723,15 @@ sub decoderequest($){
     my $gr=OFPC::Request::mkreqv2();		# Good req hash
     my $r;								# Request href, filled from the rj json
     my $debug=wantdebug();
+    wlog("DECOD: Decoding request");
     unless ($r=decode_json($rj)) {	
     	wlog("DECOD: ERROR: Failed to decode request JSON");
     	$gr->{'msg'}{'val'} = "Bad request. Unable to parse JSON.";
     	$gr->{'fail'}{'val'} = 1;
     	return($gr);
     }
-    $gr->{'valid'}{'val'} = 0;										# Set to valid after decoding and checking
+
+    $gr->{'valid'}{'val'} = 0;				# Set to valid after decoding and checking
 	$gr->{'rtime'}{'val'} = gmtime();
 	$gr->{'metadata'}{'rid'} = OFPC::Common::getrequestid;
 	# Copy values from the client JSON request into the server request hash.
@@ -850,6 +851,11 @@ sub decoderequest($){
 			$gr->{'msg'}{'val'} = "Search requires valid session identifiers. Note that flow search by BPF is not supported.";
 			wlog("DECOD: ERROR: $gr->{'msg'}{'val'}");
 		}
+
+	} elsif ($r->{'action'}{'val'} =~/apikey/) {
+		wlog("DECOD: Received action apikey");
+		$gr->{'valid'}{'val'} = 1;
+
 	} else {
 		# Invalid action
 		wlog("DECOD: Received invalid action $gr->{'action'}{'val'}");
@@ -1681,6 +1687,7 @@ sub comms{
 		response => 0,
     );
     my $debug=wantdebug();
+    my $userlist=OFPC::Common::readpasswd("$config{'PASSWD'}") or die("Problem processing users file $config{'PASSWD'}");
     # Print banner to client
     print $client "OFPC READY\n";
     while (my $buf=<$client>) {
@@ -1697,7 +1704,7 @@ sub comms{
 	                    $state{'user'}=$1;	
 	                    wlog("COMMS: $client_ip: GOT USER $state{'user'}") if ($debug);
 	                        
-	                    if ($userlist{$state{'user'}}) {	# If we have a user account for this user
+	                    if ($userlist->{$state{'user'}}) {	# If we have a user account for this user
 	                            
 	        	        my $clen=20; #Length of challenge to send
 	                        my $challenge="";
@@ -1709,9 +1716,9 @@ sub comms{
 	                        print $client "CHALLENGE: $challenge\n";
 	                        
 	                        wlog("DEBUG: $client_ip: Waiting for response to challenge\n") if $debug;
-	                        #my $expResp="$challenge$userlist{$reqh->{'user'}}";
-	                            
-	                        $state{'response'}=md5_hex("$challenge$userlist{$state{'user'}}");
+	                        # Expected response to the challenge is a hex MD5 of the challenge appended with the users password hash    
+	                        $state{'response'}=md5_hex("$challenge$userlist->{$state{'user'}}{'pass'}");
+
 	                    } else {
 	                        wlog("AUTH : $client_ip: AUTH FAIL: Bad user: $state{'user'}");
 	                        print $client "AUTH FAIL: Bad user $state{'user'}\n";
@@ -1761,7 +1768,7 @@ sub comms{
 					# OFPC request. Made up of ACTION||...stuff
 					if ($buf =~ /REQ:\s*(.*)/) {
 		                $reqcmd=$1;
-		                wlog("DEBUG: $client_ip: REQ -> $reqcmd\n") if $debug;
+		                # wlog("DEBUG: $client_ip: REQ -> $reqcmd\n") if $debug;
 		                    
 		                my $request=OFPC::Common::decoderequest($reqcmd);
 		                if ($request->{'valid'}{'val'} == 1) {	# Valid request then...		
@@ -1774,7 +1781,6 @@ sub comms{
 									wlog("REQ: Action Store");
 		                            # Create a tempfilename for this store request
 		                            $request->{'metadata'}{'tempfile'}=$request->{'metadata'}{'rid'} . ".pcap";
-#		                            $request->{'metadata'}{'tempfile'}=time() . "-" . $request->{'metadata'}{'rid'} . ".pcap";
 		                            print $client "FILENAME: $request->{'metadata'}{'tempfile'}\n";
 		                           	print $client "RID: $request->{'metadata'}{'rid'}\n"; 
 		                            $queue->enqueue($request);
@@ -1846,14 +1852,18 @@ sub comms{
 		                            }
 		                            
 							} elsif ($request->{'action'}{'val'} eq "status") {
-		    	                wlog("Recieved status request");	
+		    	                wlog("Received status request");	
 		                            
 			                    my $s=OFPC::Common::getstatus($request);
 			                    my $sj = encode_json($s);
-		    	                wlog("Status response sent to client") if $debug;	
 		        	            print $client "STATUS: $sj";
+		    	                wlog("Status response sent to client") if $debug;	
 			        	        shutdown($client,2);
-										                    
+							} elsif ($request->{'action'}{'val'} eq "apikey") {
+								wlog("Received request for user API key for user $state{'user'}");
+								print $client "MESSAGE: $userlist->{$state{'user'}}{'apikey'}\n";
+								wlog("Sent API key back for user $state{'user'}: $userlist->{$state{'user'}}{'apikey'}");
+								shutdown($client,2);
 							} elsif ($request->{'action'}{'val'} eq "search") {
 								wlog("COMMS: $client_ip: RID: $request->{'metadata'}{'rid'} Search Request\n");
 		                        wlog("COMMS: $client_ip: RID: $request->{'metadata'}{'rid'} Start time=$request->{'stime'}{'val'} End time=$request->{'etime'}{'val'}");
@@ -1895,7 +1905,7 @@ sub comms{
 	            
 	        case /OFPC-v1/ {
 				wlog("DEBUG $client_ip: GOT version, sending OFPC-v1 OK\n") if $debug;
-	     	    print $client "ERROR: Request format OFPC-v1 is depricated and no longer compatable with OFPC. Please update your OpenFPC Client\n" ;
+	     	    print $client "ERROR: Request format OFPC-v1 is deprecated and no longer compatible with OFPC. Please update your OpenFPC Client\n" ;
 	        } 
 	        case /OFPC-v2/ {
 				wlog("DEBUG $client_ip: GOT version, sending OFPC-v2 OK\n") if $debug;
@@ -2008,32 +2018,31 @@ sub readroutes{
 }
 
 =head readpasswd
-    Read in the config file, store it in the %config global variable.
+    Read in the passwd file, and return a hash of the contents
     - Leon Ward 2011
     
-    Expects: $configfile
-    Returns: 1 for success, 0 for fail.
-    Depends on: A global %userlist
+    Expects: $filename
+    Returns: $hash_ref of passwords and API keys by user
 =cut
 
 sub readpasswd{
-    my $configfile=shift;
+    my $pf=shift;
 	my $debug=wantdebug();
-    
-    open my $config, '<', $configfile or die "ERROR: Unable to open passwd file $configfile $!\n";
-    while(<$config>) {
+   	my $h=(); 
+    open my $fh, '<', $pf or die "ERROR: Unable to open passwd file $pf $!\n";
+    while(<$fh>) {
         chomp;
         if ( $_ =~ m/^[a-zA-Z]/) {
-            (my $key, my @value) = split /=/, $_;
-            if ($key eq "SHA1") {
-                wlog("DEBUG: Adding user \"$value[0]\" PassHash \"$value[1]\"\n") if ($debug);
-                $userlist{$value[0]} = $value[1] ;
+            (my $s, my $u, my $p, my $k) = split /=/, $_;
+            if ($s eq "SHA1") {
+                wlog("DEBUG: Adding user \"$u\"") if $debug; 
+                $h->{$u}{'apikey'} = $k if $k;
+                $h->{$u}{'pass'} = $p if $p;
             }
         }
     }
-    close $config;
-    
-    return(%config);    
+    close $fh;
+    return($h);    
 }
 
 =head readconfig
@@ -2058,14 +2067,9 @@ sub readconfig{
         chomp;
         if ( $_ =~ m/^[a-zA-Z]/) {
             (my $key, my @value) = split /=/, $_;
-            unless ($key eq "USER") {
-		if ($value[0]){
+			if ($value[0]){
 		    $config{$key} = join '=', @value;
-		}
-            } else {
-                wlog("DEBUG: Adding user \"$value[0]\" Pass \"$value[1]\"\n") if ($debug);
-                $userlist{$value[0]} = $value[1] ;
-            }
+        	}
         }
     }
     close $config;

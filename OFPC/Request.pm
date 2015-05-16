@@ -378,9 +378,9 @@ sub request{
 
 	while(my $connection = $socket->connected) { # While we are connected to the server
 		my $data=<$socket>;
-		print "DEBUG: Waiting for Data\n" if ($debug);
+	#	print "DEBUG: Waiting for Data\n" if ($debug);
 		chomp $data;
-		print "DEBUG: GOT DATA: $data\n\n" if ($debug);
+	#	print "DEBUG: GOT DATA: $data\n\n" if ($debug);
 
 		switch($data) {
 			case /OFPC READY/ { 
@@ -403,17 +403,6 @@ sub request{
 					print $socket "ERROR Problem with challenge\n";
 				}
 			} 
-			#case /WAIT/ {
-			#	if ($data =~ /^WAIT:*\s*(\d+)/) {
-			#		$result{'position'} = $	1;
-			#		if ( $r->{'showposition'}{'val'} ){
-			#			print "Queue position $result{'position'}. Wait...\n";
-			#		}
-			#		print "DEBUG: Position: $result{'position'}\n" if ($debug);
-			#	} else {
-			#		print "DEBUG: Request accepted. Queue position $result{'position'}  Waiting.....\n" if ($debug);
-			#	}
-			#} 
 			case /STATUS/ {
 				my $sr=0;
 				if ($data =~ /^STATUS:\s*(.*)/) {
@@ -499,6 +488,15 @@ sub request{
 				if ($data =~ /^FILENAME:\s*(.*)/) {
 					$result{'filename'} = $1;
 					print "DEBUG: Got Filename: $result{'filename'}\n" if ($debug);
+				}
+			} 
+			case /MESSAGE/ {
+				if ($data =~ /^MESSAGE:\s*(.*)/) {
+					$result{'message'} = $1;
+					print "DEBUG: Got message: $result{'message'}\n" if ($debug);
+					shutdown($socket,2);
+					$result{'success'} = 1;
+					return %result;
 				}
 			} 
 			case /QUEUED/ {

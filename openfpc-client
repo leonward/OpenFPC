@@ -72,6 +72,7 @@ my %result=(
 		expected_md5 => 0,
 		message => 0,
 		size => 0,
+		message => 0,
 	);
 
 sub showhelp{
@@ -89,6 +90,7 @@ sub showhelp{
       fetch                                  Fetch PCAP of traffic that matches constraints
       store                                  Extract PCAP of traffic, and store it on the OpenFPC Node
       search                                 Search for traffic that matches constraints
+      apikey                                 Return the API for the user
   -write    or -w                        Output PCAP file to write to
   -quiet    or -q                        Quiet. Only print saved filename||error
   -comment  or -m                        Comment for the extraction (will be stored with the output)
@@ -293,7 +295,7 @@ sub displayTable{
 	print " Node : $t->{'nodename'}\n"							if (defined $t->{'nodename'});
 	print " Rows : $t->{'size'}\n";
 	print " SQL  : $t->{'sql'}\n";
-	print " Warnings: $t->{'warning'}\n";
+	print " Warnings: $t->{'warning'}\n" if defined $t->{'warning'};
 	bar($blen,"=");	
 
 	# Column heads. Line number is added after
@@ -438,40 +440,27 @@ sub displayResult{
 	# TODO, why did I make $result a global?
 
 	if ($result{'success'} == 1) { 			# Request is Okay and being processed
-		unless ($cmdargs{'gui'}) {  		# Command line output
-			if ($r2->{'action'}{'val'} eq "fetch") {	
-				print 	"#####################################\n" .
-					"Date    : " . localtime($now) . "\n" .
-					"Filename: $result{'filename'} \n" .
-					"Size    : $result{'size'}\n" .
-					"MD5     : $result{'md5'}\n";
-			} elsif ($r2->{'action'}{'val'} eq "store") {
-				print 	"#####################################\n" .
-				 	"Queue Position: $result{'position'} \n".
-					"Remote File   : $result{'filename'}\n" .
-					"Result        : $result{'message'}\n";
-			} else {
-				die("Results: Unknown action: $r2->{'action'}{'val'}\nSorry I don't know how to display this data.");
-			}
-		} else {	
-			# GUI friendly output
-			# Provide output that is easy to parse
-			# result=0  Fail
-			# result=1	success
-			# result,action,filename,size,md5,expected_md5,position,message
-
-			print "1,$r2->{'action'}{'val'},$result{'filename'},$result{'size'},$result{'md5'},$result{'expected_md5'}," .
-				"$result{'position'},$result{'message'}\n";
+		if ($r2->{'action'}{'val'} eq "fetch") {	
+			print 	"#####################################\n" .
+				"Date    : " . localtime($now) . "\n" .
+				"Filename: $result{'filename'} \n" .
+				"Size    : $result{'size'}\n" .
+				"MD5     : $result{'md5'}\n";
+		} elsif ($r2->{'action'}{'val'} eq "store") {
+			print 	"#####################################\n" .
+			 	"Queue Position: $result{'position'} \n".
+				"Remote File   : $result{'filename'}\n" .
+				"Result        : $result{'message'}\n";
+		} elsif ($r2->{'action'}{'val'} eq "apikey") {
+			print 	"#####################################\n" .
+			 		"OpenFPC API key for user $r2->{'user'}->{'val'}: $result{'message'}\n";
+		} else {
+			die("Results: Unknown action: $r2->{'action'}{'val'}\nSorry I don't know how to display this data.");
 		}
 	} else {				# Problem with request, provide fail info
-		if ($cmdargs{'gui'}) {
-			print "0,$r2->{'action'}{'val'},$result{'filename'},$result{'size'},$result{'md5'},$result{'expected_md5'}," .
-				"$result{'position'},$result{'message'}\n";
-		} else {
-			print "Problem processing request: $result{'message'}\n";
-			print "Expected: $result{'expected_md5'}\n" if ($result{'expected_md5'});
-			print "Got     : $result{'md5'}\n" if ($result{'md5'});
-		}
+		print "Problem processing request: $result{'message'}\n";
+		print "Expected: $result{'expected_md5'}\n" if ($result{'expected_md5'});
+		print "Got     : $result{'md5'}\n" if ($result{'md5'});
 	}
 }
 
@@ -581,9 +570,11 @@ if ($r2->{'action'}{'val'} =~ m/(fetch|store)/)  {
 } elsif ($r2->{'action'}{'val'} eq "status" ) {
 	print "DEBUG: Sending status request\n" if ($debug);
 } elsif ($r2->{'action'}{'val'} eq "search" ) {
-	print "DEBUG: Sending Search request" if ($debug);
+	print "DEBUG: Sending Search request\n" if ($debug);
+} elsif ($r2->{'action'}{'val'} eq "apikey" ) {
+	print "DEBUG: Requesting API for user\n" if ($debug);
 } else {
-	die("Action must be one of \"status\" \"search\" \"fetch\" \"store\". Invalid input: \"$r2->{'action'}{'val'}\".\nSee --help for more information\n");
+	die("Action must be one of \"status\" \"search\" \"fetch\" \"store\" \"apikey\". Invalid input: \"$r2->{'action'}{'val'}\".\nSee --help for more information\n");
 }
 
 # If we are in GUI mode, PHP's escapecmd function could have broken out logline, lets unescape it
@@ -619,9 +610,9 @@ unless ($cmdargs{'hash'}) {
 
 my $sock = IO::Socket::INET->new(
 				PeerAddr => $config{'server'},
-                                PeerPort => $config{'port'},
-                                Proto => 'tcp',
-                                );  
+                PeerPort => $config{'port'},
+                Proto => 'tcp',
+                );  
 unless ($sock) { 
 	$result{'message'} = "Unable to create socket to server $config{'server'} on TCP:$config{'port'}\n($@)\n"; 
 	displayResult($cmdargs{'gui'});

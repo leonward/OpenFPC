@@ -155,13 +155,6 @@ foreach (@wdirs) {
 	}
 }
 
-my $numofusers=keys(%userlist);
-unless ($numofusers) {
-   print("ERROR: $numofusers users defined in config file. You need to add some.\n");
-   print("Shutting down....\n");
-   exit(1);
-}
-
 if ($config{'PROXY'}) {
         wlog("START: Starting OFPC Node \"$config{'NODENAME'}\" as a Proxy");
 	OFPC::Common::readroutes;

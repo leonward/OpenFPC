@@ -28,7 +28,6 @@ use Exporter;
 use threads::shared;
 our @ISA = qw(Exporter);
 @EXPORT = qw(%config
-    %userlist
     %route
     %pcaps
     $verbose
@@ -69,7 +68,6 @@ our %config=(
     SESSION_DB_HOST => "localhost",
     );
 
-our %userlist=();  			# Global cache of users
 our %route=();				# Hash to contain OFPC routing data for nodes
 our $mrid : shared =1; $mrid=1;		# Master request counter. Quick way to identify  request
 our $queue = Thread::Queue->new();	# Queue shared over all threads
