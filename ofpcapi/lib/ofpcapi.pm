@@ -29,7 +29,6 @@ my %config=(
 	ofpc_savedir => '/tmp/',
 	ofpc_passwd => '/etc/openfpc/openfpc.passwd',
 	pidpath => '/var/run/openfpc-restapi',
-	logfile => '/tmp/tmplog.log',
 );    
 
 =head2 readusers
@@ -257,32 +256,6 @@ info "CONFIG: OpenFPC Save Directory: " . $config{'ofpc_savedir'};
 
 
 my $api_keys=read_apikeys($config{'ofpc_passwd'});
-
-
-
-
-#if ($daemon) {
-#	my $pid=$$;
-#	print "Starting API pid is $pid\n";
-#	chdir '/' or die "Can't chdir to /: $!";
-#	umask 0;
-#	open STDIN, '/dev/null'   or die "Can't read /dev/null: $!";
-#	open (STDOUT, "> /tmp/tmplog.txt") or die "Can't open Log for STDOUT /tmp/tmplog.txt - change this log file!$!\n";
-#	defined(my $pid = fork)   or die "Can't fork: $!";
-	#if ($pid) {
-#		my $pidfile=$config{'pidpath'} . "/openfpc-restapi.pid";
-#		open (PID, "> $pidfile") or die("Unable write to pid file $pidfile\n");
-#      		print PID $pid, "\n";
-#      		close (PID);
-	#	exit 0;
-	#}
-#	print "Started up!\n";
-	# Redirect STDERR Last to catch any error in the fork() process.
-	#open (STDERR, "> $config{'logfile'}") or die "Can't open Log for STDERR $config{'logfile'}: $!\n";
-	#setsid or die "Can't start a new session: $!";
-#}
-
-
 
 get '/api/1/status' => sub {
 	info "Received Status request";

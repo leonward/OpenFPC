@@ -201,12 +201,12 @@ sub readrcfile{
 
 	foreach my $file (@rcfiles) {
 		if (-e $file) {
-			print "DEBUG: Found rc file $file\n";
+			print "DEBUG: Found rc file $file\n" if $debug;
 			print "* Reading configuration from $file\n";
 			$rcfile=$file;
 			last;
 		}
-		print "DEBUG: No rc file found: $file\n";
+		print "DEBUG: No rc file found: $file\n" if $debug;
 	}
 
 	if ($rcfile) {

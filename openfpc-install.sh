@@ -259,14 +259,12 @@ function doinstall()
 	##################################
 	# Check for Dirs
 	# Check for, and create if required a /etc/openfpc dir
-    if [ -d $CONF_DIR ] 
-	then
-		echo -e " -  Found existing config dir $CONF_DIR "
-	else
-		mkdir -p $CONF_DIR/restapi || die "[!] Unable to mkdir $CONF_DIR/restapi"
-	fi
-
-	
+    #if [ -d $CONF_DIR ] 
+	#then
+	#	echo -e " -  Found existing config dir $CONF_DIR "
+	#else
+	#	mkdir -p $CONF_DIR/restapi || die "[!] Unable to mkdir $CONF_DIR/restapi"
+	#fi
 
 	# Check the perl_lib_dir is in the Perl path
 	if  perl -V | grep "$PERL_LIB_DIR" > /dev/null
@@ -338,8 +336,7 @@ function doinstall()
 	#	cp -r www/$file $WWW_DIR/$file
 	# done
 	echo -----------------
-	###### API files #######
-	cp -r ofpcapi/* $APIDIR
+
 
 	echo -----------------
 	###### init #######
@@ -572,13 +569,17 @@ enrestapi()
 {
 	echo -e "[*] Installing files for OpenFPC RestAPI"
 	# Deploy the OpenFPC rest api into /opt
-	if [ -d $/opt/ofpcapi ] 
+	###### API files #######
+
+	if [ -d $APIDIR ] 
 	then
 		echo -e " -  Found existing OpenFPC API dir $APIDIR"
 	else
 		mkdir -p $APIDIR || die "[!] Unable to mkdir $APIDIR"
 	fi
 
+	###### API files #######
+	cp -r ofpcapi/* $APIDIR
 }
 
 disrestapi()
@@ -637,11 +638,12 @@ case $1 in
     	installstatus
     ;;
 	reinstall)
+		checkdeps
 		echo [*] Running reinstall remove
 		remove
 		disrestapi
 		echo [*] Running reinstall install
-		t
+		enrestapi	
 		doinstall
 		genkeys
 		endmessage
