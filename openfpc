@@ -77,7 +77,7 @@ sub checkconfig{
 	my @ports=();
 	my @errs=();
 
-	foreach my $file (keys $c) {
+	foreach my $file (keys %$c) {
 		my $bad=0;
 		if ($c->{$file}{NODENAME} =~ /[-\?\\\/\.;]/ ) {
 			my $err="Invalid characters found in NODENAME \"$c->{$file}{NODENAME}\"";

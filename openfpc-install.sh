@@ -148,6 +148,12 @@ Here are a couple of tips to get started.
 
 function checkdeps()
 {
+	force=$1
+	if [ "$force" == "1" ] 
+	then
+		echo "[*] Won't stop on failed deps, forceinstall set"	
+	fi
+
 	missdeps=""
 	if [ "$DISTRO" == "DEBIAN" ] 
 	then
@@ -207,7 +213,12 @@ function checkdeps()
 			echo -e "Hint 3) sudo yum --enablerepo=rpmforge install perl-DateTime perl-Filesys-Df "	
 		fi
 
-		exit 1
+		if [ $force == "1" ]
+		then
+			echo "[!] Force install selected, won't stop here..."
+		else
+			exit 1
+		fi
 	fi
 
 	# Extra warning for cxtracker as it's not included in either of the distros we work with
@@ -259,12 +270,12 @@ function doinstall()
 	##################################
 	# Check for Dirs
 	# Check for, and create if required a /etc/openfpc dir
-    #if [ -d $CONF_DIR ] 
-	#then
-	#	echo -e " -  Found existing config dir $CONF_DIR "
-	#else
-	#	mkdir -p $CONF_DIR/restapi || die "[!] Unable to mkdir $CONF_DIR/restapi"
-	#fi
+    if [ -d $CONF_DIR ] 
+	then
+		echo -e " -  Found existing config dir $CONF_DIR "
+	else
+		mkdir -p $CONF_DIR || die "[!] Unable to mkdir $CONF_DIR"
+	fi
 
 	# Check the perl_lib_dir is in the Perl path
 	if  perl -V | grep "$PERL_LIB_DIR" > /dev/null
@@ -373,8 +384,6 @@ function doinstall()
 		echo "[*] Performing a RedHat Install"
 		echo "[-] RedHat install is un-tested by me, I don't use use: Your millage may vary."
 		PERL_LIB_DIR="/usr/local/share/perl5"
-
-
 	fi
 
 	
@@ -588,11 +597,11 @@ disrestapi()
 
 	echo -e "[*] Removing API files"
 	APIPARENT=$(dirname $APIDIR)
-	if [ -f $APIPARENT ]
+	if [ -d $APIDIR ]
 	then	
 		rm $APIPARENT/ofpcapi -rf  || echo -e "[!] Unable to delete $APIPARENT/ofpcapi"
 	else
-		echo -e "    Cannot Find ofpcapi directory in path $APIPARENT"
+		echo -e "    Cannot Find ofpcapi directory in path $APIPARENT. Looking for $APIPARENT/ofpcapi"
 	fi
 }
  
@@ -622,13 +631,21 @@ fi
 
 case $1 in  
     files)
-		checkdeps
+		checkdeps 0
         doinstall
+        genkeys
+        enrestapi
         endmessage
     ;;
     forceinstall)
-    	doinstall
-    	endmessage
+		echo [*] Installing OpenFPC
+		checkdeps 1
+		doinstall
+		enrestapi
+		genkeys
+		mkuser
+		mksession
+		easymessage
     ;;
     remove)
     	remove
@@ -638,21 +655,22 @@ case $1 in
     	installstatus
     ;;
 	reinstall)
-		checkdeps
 		echo [*] Running reinstall remove
 		remove
 		disrestapi
 		echo [*] Running reinstall install
-		enrestapi	
+		checkdeps 0
 		doinstall
+		enrestapi	
 		genkeys
 		endmessage
 	;;
 	install)
 		echo [*] Installing OpenFPC
-		checkdeps
+		checkdeps 0
 		doinstall
 		enrestapi
+		genkeys
 		mkuser
 		mksession
 		easymessage
@@ -669,6 +687,7 @@ case $1 in
     remove        - Uninstall OpenFPC 
     status        - Check installation status
     reinstall     - Re-install OpenFPC (remove then install in one command)
+                    Note that dependencies will not be checked in reinstall
 
 [*] Examples: 
     Easy Install: Get OpenFPC running for the 1st time, many defaults are 
