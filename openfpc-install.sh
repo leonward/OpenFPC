@@ -31,7 +31,7 @@ PROG_DIR="/usr/bin"
 CONF_DIR="/etc/openfpc"
 CONF_FILES="etc/openfpc-default.conf etc/openfpc-example-proxy.conf etc/routes.ofpc"
 PROG_FILES="openfpc-client openfpc-queued openfpc-cx2db openfpc openfpc-dbmaint openfpc-password"
-APIDIR="/opt/ofpcapi"
+APIDIR="/opt/openfpc-restapi"
 
 PERL_MODULES="Parse.pm Request.pm CXDB.pm Common.pm Config.pm"
 INIT_SCRIPTS="openfpc-daemonlogger openfpc-cx2db openfpc-cxtracker openfpc-queued openfpc-restapi"
@@ -588,7 +588,7 @@ enrestapi()
 	fi
 
 	###### API files #######
-	cp -r ofpcapi/* $APIDIR
+	cp -r openfpc-restapi/* $APIDIR
 }
 
 disrestapi()
@@ -599,9 +599,9 @@ disrestapi()
 	APIPARENT=$(dirname $APIDIR)
 	if [ -d $APIDIR ]
 	then	
-		rm $APIPARENT/ofpcapi -rf  || echo -e "[!] Unable to delete $APIPARENT/ofpcapi"
+		rm $APIPARENT/openfpc-restapi -rf  || echo -e "[!] Unable to delete $APIPARENT/openfpc-restapi"
 	else
-		echo -e "    Cannot Find ofpcapi directory in path $APIPARENT. Looking for $APIPARENT/ofpcapi"
+		echo -e "    Cannot Find ofpcapi directory in path $APIPARENT. Looking for $APIPARENT/openfpc-restapi"
 	fi
 }
  
