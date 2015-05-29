@@ -56,16 +56,25 @@ start()
         --ssl-cert $SSL_CERT \
         --ssl-key $SSL_KEY \
         --enable-ssl \
+        --error-log logs/error.log \
         ./bin/app.psgi "
 
-        $CMD
+    $CMD
 
-    if [ $? != 0 ]; then
+    # Found that starman in daemon mode returns 0 when we have errors like no SSL cert found.
+    # using pid to check execution has started
+    sleep 0.2 # This creates a race condition, but it's the only way I can think of to test if 
+    # starman in daemon started up.
+
+    CPID=$(cat $PIDDIR/$PIDFILE)
+    if ps $CPID > /dev/null
+    then
+        log_end_msg 0 
+    else
         log_end_msg 1
         exit 1
-    else
-        log_end_msg 0
     fi
+
 }
 
 stop()

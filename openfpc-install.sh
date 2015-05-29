@@ -601,7 +601,7 @@ disrestapi()
 	then	
 		rm $APIPARENT/openfpc-restapi -rf  || echo -e "[!] Unable to delete $APIPARENT/openfpc-restapi"
 	else
-		echo -e "    Cannot Find ofpcapi directory in path $APIPARENT. Looking for $APIPARENT/openfpc-restapi"
+		echo -e "    Cannot Find openfpc-restapi directory in path $APIPARENT. Looking for $APIPARENT/openfpc-restapi"
 	fi
 }
  
