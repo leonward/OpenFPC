@@ -10,7 +10,9 @@ Package: openfpc
 Section: net
 Priority: optional
 Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, libarchive-zip-perl, libfilesys-df-perl, libdatetime-perl, libdate-simple-perl, daemonlogger, tshark, tcpdump, libdbi-perl, mysql-server, libswitch-perl, libdata-uuid-perl, libprivileges-drop-perl
+Depends: ${shlibs:Depends}, ${misc:Depends}, libarchive-zip-perl, libterm-readkey-perl, libfilesys-df-perl, libdatetime-perl, libdate-simple-perl, daemonlogger, tshark, tcpdump, libdbi-perl, mysql-server, libswitch-perl, libdata-uuid-perl, libprivileges-drop-perl
+Conflicts: openfpc-client
+Replaces: openfpc-client
 Recommends: wireshark
 Description: OpenFPC - An Open Full Packet Capture Setup
  OpenFPC is a set of scripts that combine to provide
@@ -27,8 +29,9 @@ Package: openfpc-client
 Section: net
 Priority: optional
 Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, libarchive-zip-perl, libfilesys-df-perl, libdatetime-perl, libdate-simple-perl, libswitch-perl, libdata-uuid-perl
+Depends: ${shlibs:Depends}, ${misc:Depends}, libterm-readkey-perl, libarchive-zip-perl, libfilesys-df-perl, libdatetime-perl, libdate-simple-perl, libswitch-perl, libdata-uuid-perl
 Recommends: wireshark, unzip
+Conflicts: openfpc
 Description: OpenFPC - An Open Full Packet Capture Setup
  OpenFPC is a set of scripts that combine to provide
  a lightweight full-packet network traffic recorder
@@ -42,6 +45,19 @@ Description: OpenFPC - An Open Full Packet Capture Setup
  a openfpc installation.
  openfpc-client can be installed on the same host as the
  openfpc-proxy or openfpc-node.
+ .
+ For more information, visit the OpenFPC project home at
+ http://www.openfpc.org
+
+Package: openfpc-restapi
+Section: net
+Priority: optional
+Architecture: all
+Depends: openfpc, starman, libdancer2-perl, openssl
+Recommends: wireshark, unzip
+Description: A restful API for OpenFPC. Enables external
+ systems to query the status, search, and extract pcaps from
+ an OpenFPC Node.
  .
  For more information, visit the OpenFPC project home at
  http://www.openfpc.org

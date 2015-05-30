@@ -5,7 +5,7 @@
 # see /usr/doc/packaging-manual/
 
 set -e
-echo "Stopping all OpenFPC instances before uninstalling package:" 
+echo "Stopping all OpenFPC instances before removing package:" 
 openfpc -a stop
 
 # dh_installdeb will replace this with shell code automatically

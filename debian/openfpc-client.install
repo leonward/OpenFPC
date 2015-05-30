@@ -1,1 +1,3 @@
 openfpc-client usr/bin/
+OFPC/Request.pm usr/share/perl5/OFPC
+OFPC/Parse.pm usr/share/perl5/OFPC
