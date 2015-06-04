@@ -21,6 +21,7 @@ PIDFILE="ofpcapi.pid"
 DESC="OpenFPC Rest API"
 CWD="/opt/openfpc-restapi"
 PORT="4222"
+SSL_PORT="4223"
 SSL_CERT="/etc/openfpc/ofpcapi.cert.pem"
 SSL_KEY="/etc/openfpc/ofpcapi.key.pem"
 
@@ -48,14 +49,14 @@ start()
     CMD="/usr/bin/starman \
         -D \
         --workers 2 \
-        --port $PORT \
         --pid $PIDDIR/$PIDFILE \
         -E production \
         --user $USER \
         --group $GROUP \
         --ssl-cert $SSL_CERT \
         --ssl-key $SSL_KEY \
-        --enable-ssl \
+        --listen :$PORT \
+        --listen :$SSL_PORT:ssl \
         --error-log logs/error.log \
         ./bin/app.psgi "
 
