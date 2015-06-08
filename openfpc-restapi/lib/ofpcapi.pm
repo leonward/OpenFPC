@@ -98,8 +98,11 @@ sub doit{
     my %q=(
     	error => '0',
     	);
+    # Force the ofpc_savedir to a value that is configured for the RestAPI
+    $r->{'savedir'}{'val'}="/tmp/mytmp";
+
 	unless ($sock) { 
-		$q{'error'} = "Internal error: Unable to create socket to ofpc_server. Check error log for details\n"; 
+		$q{'error'} = "Internal error: Unable to create socket to the OpenFPC Queue daemon (ofpc_server). Check error log for details\n"; 
 		error "Unable to create socket to $config{'ofpc_server'} on port $config{'ofpc_port'}";
 		return(\%q);
 	} else {
@@ -149,7 +152,6 @@ sub checkinput{
 	my %q=();
 
 	debug "Performing API input validation for $f action";
-	debug "Request is $_";
 
 	unless (params->{'apikey'}) {
 		info "No API key included in request";
@@ -157,6 +159,12 @@ sub checkinput{
 		return(\%q);
 	} else {
 		$q{'apikey'} = params->{'apikey'};
+		unless ($q{'apikey'}=~/^[A-Za-z0-9-]+$/) {
+				$q{'error'} = "Error. API key failed input validation";
+				error $q{'error'};
+				warn "APIkey failed input validation: Key tested was \"" . params->{'rid'} . "\"";
+				return(\%q);
+		}
 	}
 
 	if ($f eq "retrieve") {
