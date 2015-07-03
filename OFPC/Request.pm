@@ -1,7 +1,7 @@
 package OFPC::Request;
 
 #########################################################################################
-# Copyright (C) 2013 Leon Ward 
+# Copyright (C) 2013 Leon Ward
 # OFPC::Request - Part of the OpenFPC - (Full Packet Capture) project
 #
 # Contact: leon@rm-rf.co.uk
@@ -40,13 +40,13 @@ $VERSION = '0.2';
 	Check if debug is enabled via a shell variable OFPCDEBUG=1
 	If so, return a value that enables debug in this function.
 =cut
-	
+
 sub wantdebug{
 	my $var="OFPCDEBUG";
 
-	my $debug=$ENV{$var}; 
-	return($debug); 
-	return(1); 
+	my $debug=$ENV{$var};
+	return($debug);
+	return(1);
 }
 
 =head2
@@ -219,7 +219,7 @@ sub receivefile{
 		rid => 0,
 	};
 	print "Debug enabled in Request::receivefile\n" if ($debug);
-    print "Expecting MD5 for file is $svrmd5\n" if ($debug); 
+    print "Expecting MD5 for file is $svrmd5\n" if ($debug);
 
 	if ( $filetype eq "ZIP" ) {
 		$result{'ext'} = ".zip";
@@ -235,7 +235,7 @@ sub receivefile{
 
 	$r->{'filename'}{'val'} = $rid unless $r->{'filename'}{'val'};
 	# Update $filename with new extension.
-	# XXX May have use in proxy mode	
+	# XXX May have use in proxy mode
 	$r->{'filename'}{'val'} = $r->{'filename'}{'val'} . $result{'ext'};
 	#$result{'filename'} = $r->{'filename'}{'val'} . $result{'ext'};
 
@@ -253,7 +253,7 @@ sub receivefile{
 	$result{'filename'} = $savefile;
     if (open (FILE,'>',$savefile)) {
 
-		FILE->autoflush(1);	
+		FILE->autoflush(1);
     	binmode(FILE);
 		binmode($socket);
 
@@ -271,7 +271,7 @@ sub receivefile{
 		close($socket);
 		close(FILE);
 	} else {
-		$result{'message'} = "Error: Unable to write file $savefile";
+		$result{'message'} = "Error: Unable to write file $savefile to $r->{'savedir'}{'val'}";
 		return(\%result);
 	}
 	unless (open(FILEMD5, '<', $savefile)) {
@@ -301,11 +301,11 @@ sub receivefile{
 	return(\%result);
 }
 
-=head request 
+=head request
 	Request version 2. Communicate with the queue daemon and request data.
 =cut
 sub request{
-	# Take a request hash, and a socket, do as asked and return 
+	# Take a request hash, and a socket, do as asked and return
 	# a hash of the result
 
 	my $socket=shift;
@@ -332,9 +332,9 @@ sub request{
 	# Selecting buffer device related to event src isn't dont yet.
 	if ($debug) {
 		foreach(keys %$r) {
-			print "      $r->{$_}{'text'}:\t $r->{$_}{'val'}\n" if $r->{$_}{'val'};
+			print "  Key    $r->{$_}{'text'}:\t $r->{$_}{'val'}\n" if $r->{$_}{'val'};
 		}
-    } 
+    }
     print "-------------------\n" if $debug;
 
 	# Check that a request contains all of the data we require
@@ -356,13 +356,13 @@ sub request{
 	}
 
 	foreach(keys %$r) {
-		if ($r->{$_}{'required'}) { 
-			unless ($r->{$_}{'val'}) { 
+		if ($r->{$_}{'required'}) {
+			unless ($r->{$_}{'val'}) {
 				$result{'message'} = "ERROR: $r->{$_}{'text'} is manditory for any type of request";
 				return %result;
 			}
-		}	
-    } 
+		}
+    }
 
 	if ($r->{'action'}{'val'} =~ m/(fetch)/ ) {
 		unless ($r->{'filename'}{'val'} and $r->{'savedir'}{'val'} ) {
@@ -383,14 +383,14 @@ sub request{
 	#	print "DEBUG: GOT DATA: $data\n\n" if ($debug);
 
 		switch($data) {
-			case /OFPC READY/ { 
+			case /OFPC READY/ {
 				print "DEBUG: Got banner: $data: Sending my protover $protover\n" if ($debug);
 				print $socket "$protover\n";
 			}
-			case /OFPC-v2 OK/ { 
+			case /OFPC-v2 OK/ {
 				print "DEBUG: Sending User $r->{'user'}{'val'}\n" if ($debug);
 				print $socket "USER: $r->{'user'}{'val'}\n" ;
-			}   
+			}
 			case /CHALLENGE/ {
 				if ($data =~ /CHALLENGE:\s+(\d+)/) {
 					my $challenge=$1;
@@ -402,7 +402,7 @@ sub request{
 					print "DEBUG: CHALLENGE ERROR\n" if ($debug);
 					print $socket "ERROR Problem with challenge\n";
 				}
-			} 
+			}
 			case /STATUS/ {
 				my $sr=0;
 				if ($data =~ /^STATUS:\s*(.*)/) {
@@ -412,7 +412,7 @@ sub request{
 				} else {
 					print "ERROR: Received status response that didn't decode\n";
 				}
-			} 
+			}
 			case /RESULTS/ {
 				if ($data =~ /^RESULTS:\s*(.*)/) {
 					( $result{'success'},
@@ -420,7 +420,7 @@ sub request{
 					$result{'time'}) = split(/\|\|/, $1);
 				}
 				return(%result);
-			} 
+			}
 			case /RID/ {
 				if ($data =~ /^RID:\s*(.*)/) {
 					$result{'rid'} = $1;
@@ -447,7 +447,7 @@ sub request{
 				}
 				shutdown($socket,2);
 				return %result;
-			} 
+			}
 			case /ZIP/ {
 				print "DEBUG: Incoming ZIP\n" if ($debug);
 				my $filetype;
@@ -467,9 +467,9 @@ sub request{
 				}
 				shutdown($socket,2);
 				return %result;
-			} 
+			}
 			case /TABLE/ {
-				my @table=();	
+				my @table=();
 				print "DEBUG: Incoming Table of data\n" if ($debug);
 				$result{'success'} = 1;
 				my $tj=<$socket>;
@@ -481,15 +481,15 @@ sub request{
 				}
 
 				shutdown($socket,$2);
-				$result{'table'}=$tj; 
+				$result{'table'}=$tj;
 				return %result;
-			} 
+			}
 			case /FILENAME/ {
 				if ($data =~ /^FILENAME:\s*(.*)/) {
 					$result{'filename'} = $1;
 					print "DEBUG: Got Filename: $result{'filename'}\n" if ($debug);
 				}
-			} 
+			}
 			case /MESSAGE/ {
 				if ($data =~ /^MESSAGE:\s*(.*)/) {
 					$result{'message'} = $1;
@@ -498,7 +498,7 @@ sub request{
 					$result{'success'} = 1;
 					return %result;
 				}
-			} 
+			}
 			case /QUEUED/ {
 				if ($data =~ /^QUEUED:*\s*(\d+)/) {
 					$result{'position'} = $1;
@@ -514,7 +514,7 @@ sub request{
 					shutdown($socket,2);
 					return %result;
 				}
-			} 
+			}
 			case /ERROR/ {
 				my $error;
 				if ($data =~ m/ERROR:*\s(.*)/) {
@@ -523,7 +523,7 @@ sub request{
 				}
 				shutdown($socket,2);
 				return %result;
-			} 
+			}
 			case /AUTH OK/ {
 				# If auth is okay, send the request
 				print "DEBUG: Password OK\n" if ($debug);
@@ -540,7 +540,7 @@ sub request{
 		}
 	}
 
-	$result{'message'} = "Something has gone wrong. You should never see this message - Leon";	
+	$result{'message'} = "Something has gone wrong. You should never see this message - Leon";
 	return %result;
 }
 
@@ -553,11 +553,11 @@ sub mkhash{
 	my ($digest,$hash);
 
 	die("ERROR: Can't make a hash without user and pass set") unless ($user and $pass);
-	
+
 	$digest = Digest::SHA->new(1);
 	$digest->add($user,$pass);
 	$hash = $digest->hexdigest;
-	
+
 	return($hash);
 }
 

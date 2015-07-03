@@ -1,7 +1,7 @@
-#!/bin/bash 
+#!/bin/bash
 
 #########################################################################################
-# Copyright (C) 2010 - 2014 Leon Ward 
+# Copyright (C) 2010 - 2014 Leon Ward
 # install-openfpc.sh - Part of the OpenFPC - (Full Packet Capture) project
 #
 # Contact: leon@openfpc.org
@@ -35,7 +35,7 @@ APIDIR="/opt/openfpc-restapi"
 
 PERL_MODULES="Parse.pm Request.pm CXDB.pm Common.pm Config.pm"
 INIT_SCRIPTS="openfpc-daemonlogger openfpc-cx2db openfpc-cxtracker openfpc-queued openfpc-restapi"
-INIT_DIR="/etc/init.d/" 
+INIT_DIR="/etc/init.d/"
 REQUIRED_BINS="tcpdump date mergecap perl tshark test"
 LOCAL_CONFIG="/etc/openfpc/openfpc.conf"
 PERL_LIB_DIR="/usr/share/perl5"
@@ -76,11 +76,17 @@ function mkuser(){
 	echo "    OpenFPC user & password management is controlled by the application openfpc-passwd. "
 	echo "    The default OpenFPC passwd file is $PASSFILE"
 
-	for i in 1 2 3
-	do
-		openfpc-password -f $PASSFILE -a add && break
-		echo [!] Problem creating user, will try again.
-	done
+
+  if [ -f $PASSFILE ]
+    then
+      echo "[-] Found existing password file $PASSFILE, wont add new user"
+    else
+	   for i in 1 2 3
+	    do
+		      openfpc-password -f $PASSFILE -a add && break
+		      echo [!] Problem creating user, will try again.
+	    done
+  fi
 }
 
 function mksession(){
@@ -90,30 +96,34 @@ function mksession(){
 	echo "    All of the databases used in OpenFPC are controlled by an application called openfpc-dbmaint. "
 	echo "    - Note that you will need to enter the credentials of a mysql user that has privileges to creted/drop databases (most likely root)"
 
+	sudo openfpc-dbmaint -a create -t session -c /etc/openfpc/openfpc-default.conf
 	if [ $CXINSTALLED == "1" ]
 	then
-		sudo openfpc-dbmaint -a create -t session -c /etc/openfpc/openfpc-default.conf
-	else 
-		echo "[!] WARNING: cxtracker does not appear to be installed on this system, therefore I won't create a session database."
-		echo "    OpenFPC can operate without session searching, but it's a pretty useful feature. You're missing out without it!"
+    echo "[-] Cxtracker is installed."
+	else
+		echo "[!] ***************************************"
+    echo "    WARNING: cxtracker does not appear to be installed on this system."
+		echo "    OpenFPC can operate without session searching, but it's a pretty useful feature."
+    echo "    You're missing out."
+		echo "[!] ***************************************"
 	fi
 }
 
 function endmessage(){
 	echo -e "
 --------------------------------------------------------------------------
-[*] Installation Complete 
+[*] Installation Complete
 
  ************************
  **      IMPORTANT     **
  ************************
  OpenFPC should now be installed and ready for *configuration*.
-   
+
  1) Go configure /etc/openfpc/openfpc-default.conf
  2) Add a user E.g.
 
-    $ sudo openfpc-password -a add -u admin \ 
-	-f /etc/openfpc/openfpc.passwd  
+    $ sudo openfpc-password -a add -u admin \
+	-f /etc/openfpc/openfpc.passwd
 
  3) Make a database for connection:
     $ sudo openfpc-dbmaint -a create -t session -c /etc/openfpc/openfpc-default.conf
@@ -135,8 +145,8 @@ function easymessage(){
 	sudo service openfpc-restapi start
 
 	echo "==============================================
-[*] Installation complete. 
-Now would be a good time to read of docs/usage.md. 
+[*] Installation complete.
+Now would be a good time to read of docs/usage.md.
 Here are a couple of tips to get started.
 
   $ openfpc-client -a status --server localhost --port 4242
@@ -149,17 +159,17 @@ Here are a couple of tips to get started.
 function checkdeps()
 {
 	force=$1
-	if [ "$force" == "1" ] 
+	if [ "$force" == "1" ]
 	then
-		echo "[*] Won't stop on failed deps, forceinstall set"	
+		echo "[*] Won't stop on failed deps, forceinstall set"
 	fi
 
 	missdeps=""
-	if [ "$DISTRO" == "DEBIAN" ] 
+	if [ "$DISTRO" == "DEBIAN" ]
 	then
-		DEPS="daemonlogger tcpdump tshark libdatetime-perl libprivileges-drop-perl libarchive-zip-perl libfilesys-df-perl mysql-server libdbi-perl libterm-readkey-perl libdate-simple-perl libdigest-sha-perl libjson-pp-perl libdatetime-perl libswitch-perl libdatetime-format-strptime-perl libdata-uuid-perl libdancer2-perl starman" 
+		DEPS="daemonlogger tcpdump tshark libdatetime-perl libprivileges-drop-perl libarchive-zip-perl libfilesys-df-perl mysql-server libdbi-perl libterm-readkey-perl libdate-simple-perl libdigest-sha-perl libjson-pp-perl libdatetime-perl libswitch-perl libdatetime-format-strptime-perl libdata-uuid-perl libdancer2-perl starman"
 
-		# Check if some obvious dependencies are met	
+		# Check if some obvious dependencies are met
 		for dep in $DEPS
 		do
 			echo -e "[-] Checking for $dep ..."
@@ -171,14 +181,14 @@ function checkdeps()
 				echo -e "    ERROR: Package $dep is not installed."
 				missdeps="$missdeps $dep"
 			fi
-		done	
+		done
 
-	elif [ "$DISTRO" == "REDHAT" ] 
+	elif [ "$DISTRO" == "REDHAT" ]
 	then
 		DEPS="httpd perl-Archive-Zip perl-DateTime perl-Filesys-Df perl-DateTime-Format-DateParse perl-TermReadKey perl-Date-Simple tcpdump wireshark"
 		echo -e "[-] Checking status on RedHat"
 
-		# Check if some obvious dependencies are met	
+		# Check if some obvious dependencies are met
 		for dep in $DEPS
 		do
 			echo -e "[-] Checking for $dep ..."
@@ -190,7 +200,7 @@ function checkdeps()
 				echo -e "[!] ERROR: Package $dep is not installed."
 				missdeps="$missdeps $dep"
 			fi
-		done	
+		done
 	else
 		echo -e "Package checking only supported on Debian/Redhat OSs"
 		echo "Use --force to skip package checks, and fix any problems by hand"
@@ -201,16 +211,16 @@ function checkdeps()
 	then
 		echo -e "[-] --------------------------------"
 		echo -e "Problem with above dependencies, please install them before continuing"
-		if [ "$DISTRO" == "DEBIAN" ] 
+		if [ "$DISTRO" == "DEBIAN" ]
 		then
 			echo -e "As you're running a distro based on Debian..."
 			echo -e "Hint: sudo apt-get install the stuff that's missing above\n"
 			echo -e " apt-get install $missdeps\n"
-		else 
+		else
 			echo -e "As you're running a distro based on RedHat..."
 			echo -e "Hine 1) Enable rpmforge"
 			echo -e "Hint 2) sudo yum install httpd perl-Archive-Zip"
-			echo -e "Hint 3) sudo yum --enablerepo=rpmforge install perl-DateTime perl-Filesys-Df "	
+			echo -e "Hint 3) sudo yum --enablerepo=rpmforge install perl-DateTime perl-Filesys-Df "
 		fi
 
 		if [ $force == "1" ]
@@ -222,7 +232,7 @@ function checkdeps()
 	fi
 
 	# Extra warning for cxtracker as it's not included in either of the distros we work with
-	# 
+	#
 	if which cxtracker
 	then
 		echo "[*] Found cxtracker in your \$PATH (good)"
@@ -232,19 +242,31 @@ function checkdeps()
 ###########################################################
 # WARNING: No cxtracker found in path!
 ###########################################################
-# Don't Panic! 
+# Don't Panic!
 # This may be Okay if you expect it not to be found.
 # cxtracker likely isn't included as part of your Operating System's
 # package manager. Go grab it from www.openfpc.org/downloads.
-# Without cxtracker OpenFPC will function, but you loose 
+# Without cxtracker OpenFPC will function, but you loose
 # the ability to search flow/connection data.
 #
-# All full packet capture and extraction capabilities will 
+# All full packet capture and extraction capabilities will
 # still function without cxtracker.
 # -Leon
 ###########################################################
 "
-	fi 
+	fi
+}
+
+function purge()
+{
+  echo "[*] Removing all content in $CONF_DIR"
+  if [ -d $CONF_DIR ]
+    then
+    rm -rf $CONF_DIR
+  else
+    echo "[!] Unable to find conf_dir $CONF_DIR, won't unlink"
+  fi
+
 }
 
 function doinstall()
@@ -270,7 +292,7 @@ function doinstall()
 	##################################
 	# Check for Dirs
 	# Check for, and create if required a /etc/openfpc dir
-    if [ -d $CONF_DIR ] 
+    if [ -d $CONF_DIR ]
 	then
 		echo -e " -  Found existing config dir $CONF_DIR "
 	else
@@ -283,10 +305,10 @@ function doinstall()
 		echo " -  Installing modules to $PERL_LIB_DIR"
 	else
 		die "[!] Perl include path problem. Cannot find $PERL_LIB_DIR in Perl's @INC (perl -V to check)"
-	fi	
+	fi
 
-	# Check four our include dir	
-    if [ -d $OFPC_LIB_DIR ] 
+	# Check four our include dir
+    if [ -d $OFPC_LIB_DIR ]
 	then
 		echo -e " -  $OFPC_LIB_DIR exists"
 	else
@@ -297,7 +319,7 @@ function doinstall()
 	[ -d $INIT_DIR ] || die "[!] Cannot find init.d directory $INIT_DIR. Something bad must have happened."
 
 	# Splitting GUI apart from main program
-	#if [ -d $WWW_DIR ] 
+	#if [ -d $WWW_DIR ]
 	#then
 	#	echo -e " *  Found $WWW_DIR"
 	#else
@@ -329,7 +351,7 @@ function doinstall()
 	for file in $CONF_FILES
 	do
 		basefile=$(basename $file)
-		if [ -f $CONF_DIR/$basefile ] 
+		if [ -f $CONF_DIR/$basefile ]
 		then
 			echo -e " -  Skipping Config file $CONF_DIR/$basefile already exists!"
 		else
@@ -340,7 +362,7 @@ function doinstall()
 
 	###### WWW files #####
 	# I'm separating the GUI out from the main program.
-	# 
+	#
 	# for file in $GUI_FILES
 	# do
 	#	echo -e " -  Installing $file"
@@ -370,7 +392,7 @@ function doinstall()
 
 		for file in $INIT_SCRIPTS
 		do
-		 	update-rc.d $file defaults 
+		 	update-rc.d $file defaults
 
 			if ! getent passwd openfpc >/dev/null
 			then
@@ -386,7 +408,7 @@ function doinstall()
 		PERL_LIB_DIR="/usr/local/share/perl5"
 	fi
 
-	
+
 }
 
 function remove()
@@ -395,8 +417,8 @@ function remove()
 	chkroot
 	for file in $INIT_SCRIPTS
 	do
-		if [ -f $INIT_DIR/$file ] 
-		then 
+		if [ -f $INIT_DIR/$file ]
+		then
 			echo -e "Stopping $file"
 			$INIT_DIR/$file stop || echo -e " -  $file didn't stop, removing anyway"
 		else
@@ -408,20 +430,20 @@ function remove()
 
 	for file in $PROG_FILES
 	do
-		if [ -f $PROG_DIR/$file ] 
+		if [ -f $PROG_DIR/$file ]
 		then
 			echo -e "    Removed   $PROG_DIR/$file"
 			rm $PROG_DIR/$file || echo -e "unable to delete $PROG_DIR/$file"
 		else
-			echo -e "    Cannot Find $PROG_DIR/$file"	
+			echo -e "    Cannot Find $PROG_DIR/$file"
 		fi
 	done
-	
+
 	echo -e "[*] Removing PERL modules"
 	for file in $PERL_MODULES
 	do
 		if [ -f $OFPC_LIB_DIR/$file ]
-		then	
+		then
 			rm $OFPC_LIB_DIR/$file  || echo -e "[!] Unable to delete $file"
 		else
 			echo -e "    Cannot Find $OFPC_LIB_DIR/$file"
@@ -432,37 +454,37 @@ function remove()
 	for file in $WWW_FILES
 	do
 		if [ -f $WWW_DIR/$file ]
-		then	
+		then
 			rm $WWW_DIR/$file  || echo -e "[!] Unable to delete $WWW_DIR/$file"
 		else
 			echo -e "    Cannot Find $WWW_DIR/$file"
 		fi
 	done
-	
 
-	echo -e "[-] Updating init sciprts"
+
+	echo -e "[*] Updating init sciprts"
     if [ "$DISTRO" == "DEBIAN" ]
     then
     	for file in $INIT_SCRIPTS
         do
 			update-rc.d -f $file remove
                 done
-	
+
 		if getent passwd openfpc >/dev/null
 		then
 			echo "[*] Removing user openfpc"
 			deluser openfpc  > /dev/null
 		fi
-	
+
         elif [ "$DISTRO" == "REDHAT" ]
 	then
-		echo NOT DONE	
+		echo NOT DONE
 	fi
 	echo -e "[-] -----------------------------------------------"
 
         for file in $INIT_SCRIPTS
         do
-		if [ -f $INIT_DIR/$file ] 
+		if [ -f $INIT_DIR/$file ]
 		then
 			echo -e " -  Removing $INIT_DIR/$file"
 			rm $INIT_DIR/$file
@@ -477,9 +499,9 @@ function installstatus()
 	SUCCESS=1
 
 	echo -e "* Status"
-	if [ -d $PROG_DIR ] 
+	if [ -d $PROG_DIR ]
 	then
-		echo -e "  Yes Target install dir $PROG_DIR Exists"	
+		echo -e "  Yes Target install dir $PROG_DIR Exists"
 	else
 		echo -e "  No  Target install dir $PROG_DIR does not exist"
 		SUCCESS=0
@@ -495,10 +517,10 @@ function installstatus()
 		else
 			echo -e "  No  $INIT_DIR/$file does not exist"
 			SUCCESS=0
-		fi	
+		fi
 	done
 
-	echo -e "- Perl modules"	
+	echo -e "- Perl modules"
 	for file in $PERL_MODULES
 	do
 		if [ -f $OFPC_LIB_DIR/$file ]
@@ -507,7 +529,7 @@ function installstatus()
 		else
 			echo -e "  No  $OFPC_LIB_DIR/$file does not exist"
 			SUCCESS=0
-		fi	
+		fi
 	done
 	echo -e "- Program Files"
 	for file in $PROG_FILES
@@ -518,26 +540,26 @@ function installstatus()
 		else
 			echo -e "  No  $PROG_DIR/$file does not exist"
 			SUCCESS=0
-		fi	
+		fi
 	done
 
 	echo -e "- Dependencies "
 	for file in $REQUIRED_BINS
 	do
 		which $file > /dev/null
-		if [ $? -ne 0 ] 
+		if [ $? -ne 0 ]
 		then
 			echo -e "  No  Application $file is not installed"
 			SUCCESS=0
 		else
 			echo -e "  Yes Application $file is installed"
-		fi	
+		fi
 	done
 
-	echo 
-	if [ $SUCCESS == 1 ] 
+	echo
+	if [ $SUCCESS == 1 ]
 	then
-	
+
 		echo -e "  Installation looks Okay"
 	else
 		echo -e "  OpenFPC is not installed correctly. Check the above for missing things."
@@ -555,9 +577,9 @@ function genkeys()
 	if [ -f $CONF_DIR/$COMBINED ]
 	then
 		echo -e " -  Found existing key and cert: $COMBINED"
-	else 
-		echo -e " -  Generating temporary key $KEYFILE."		
-		echo -e " -  Please remember to change this to something real. Should not be used in production."		
+	else
+		echo -e " -  Generating temporary key $KEYFILE."
+		echo -e " -  Please remember to change this to something real. Should not be used in production."
 		pushd $CONF_DIR
 		openssl genrsa -out $KEYFILE 2048
 		echo -e " - Generating Certificate $CERTFILE"
@@ -580,7 +602,7 @@ enrestapi()
 	# Deploy the OpenFPC rest api into /opt
 	###### API files #######
 
-	if [ -d $APIDIR ] 
+	if [ -d $APIDIR ]
 	then
 		echo -e " -  Found existing OpenFPC API dir $APIDIR"
 	else
@@ -593,27 +615,29 @@ enrestapi()
 
 disrestapi()
 {
+	echo -e "[*] Stopping OpenFPC RestAPI"
+  service openfpc-restapi stop
 	echo -e "[*] Removing files for OpenFPC RestAPI"
 
 	echo -e "[*] Removing API files"
 	APIPARENT=$(dirname $APIDIR)
 	if [ -d $APIDIR ]
-	then	
+	then
 		rm $APIPARENT/openfpc-restapi -rf  || echo -e "[!] Unable to delete $APIPARENT/openfpc-restapi"
 	else
 		echo -e "    Cannot Find openfpc-restapi directory in path $APIPARENT. Looking for $APIPARENT/openfpc-restapi"
 	fi
 }
- 
+
 echo -e "
  *************************************************************************
  *  OpenFPC installer - Leon Ward (leon@openfpc.org) v$openfpcver
  *  A set if scripts to help manage and find data in a large network traffic
- *  archive. 
+ *  archive.
 
- *  http://www.openfpc.org 
+ *  http://www.openfpc.org
 "
-	
+
 
 
 if  [ "$DISTRO" == "AUTO" ]
@@ -621,7 +645,7 @@ then
 	[ -f /etc/debian_version ]  && DISTRO="DEBIAN"
 	[ -f /etc/redhat-release ] && DISTRO="REDHAT"
 
-	if [ "$DISTRO" == "AUTO" ] 
+	if [ "$DISTRO" == "AUTO" ]
 	then
 		die "[*] Unable to detect distribution. Please set it manually in the install script. Variable: DISTRO=<>"
 	fi
@@ -629,7 +653,7 @@ then
 	echo -e "[*] Detected distribution as $DISTRO-like \n"
 fi
 
-case $1 in  
+case $1 in
     files)
 		checkdeps 0
         doinstall
@@ -649,7 +673,12 @@ case $1 in
     ;;
     remove)
     	remove
-		disrestapi
+		  disrestapi
+    ;;
+    purge)
+      remove
+      purge
+      disrestapi
     ;;
     status)
     	installstatus
@@ -661,7 +690,7 @@ case $1 in
 		echo [*] Running reinstall install
 		checkdeps 0
 		doinstall
-		enrestapi	
+		enrestapi
 		genkeys
 		endmessage
 	;;
@@ -680,22 +709,23 @@ case $1 in
 [*] openfpc-install.sh usage:
     $ openfpc-install <action> <gui>
 
-    Where <action> is one of the below: 
+    Where <action> is one of the below:
     install       - Install and auto-configure. Good for first time users
-    files         - Only install OpenFPC programs, don't auto-configure 
+    files         - Only install OpenFPC programs, don't auto-configure
     forceinstall  - Install OpenFPC without checking for dependencies
-    remove        - Uninstall OpenFPC 
+    remove        - Uninstall OpenFPC
+    purge         - Uninstall OpenFPC and purge all config from /etc/openfpc
     status        - Check installation status
     reinstall     - Re-install OpenFPC (remove then install in one command)
                     Note that dependencies will not be checked in reinstall
 
-[*] Examples: 
-    Easy Install: Get OpenFPC running for the 1st time, many defaults are 
+[*] Examples:
+    Easy Install: Get OpenFPC running for the 1st time, many defaults are
     selected for you. Just answer a couple of questions.
     $ sudo ./openfpc-install install
 
-    Remove OpenFPC: 
+    Remove OpenFPC:
     $ sudo ./openfpc-install remove
-"	
+"
     ;;
 esac

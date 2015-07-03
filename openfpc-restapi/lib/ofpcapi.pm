@@ -26,9 +26,10 @@ my $configfile=shift;
 my %config=(
 	ofpc_server => 'localhost',
 	ofpc_port => 4242,
-	ofpc_savedir => '/tmp/',
+	ofpc_savedir => '/var/tmp/openfpc/extracted',
 	ofpc_passwd => '/etc/openfpc/openfpc.passwd',
 	pidpath => '/var/run/openfpc-restapi',
+	savedir => '/var/tmp/openfpc/api-pcaps',
 );    
 
 =head2 readusers
@@ -99,7 +100,7 @@ sub doit{
     	error => '0',
     	);
     # Force the ofpc_savedir to a value that is configured for the RestAPI
-    $r->{'savedir'}{'val'}="/tmp/mytmp";
+    $r->{'savedir'}{'val'}=$config{'savedir'};
 
 	unless ($sock) { 
 		$q{'error'} = "Internal error: Unable to create socket to the OpenFPC Queue daemon (ofpc_server). Check error log for details\n"; 

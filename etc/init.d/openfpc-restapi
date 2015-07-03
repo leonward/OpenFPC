@@ -24,6 +24,7 @@ PORT="4222"
 SSL_PORT="4223"
 SSL_CERT="/etc/openfpc/ofpcapi.cert.pem"
 SSL_KEY="/etc/openfpc/ofpcapi.key.pem"
+PCAPDIR="/var/tmp/openfpc/rest-pcaps"
 
 IAM=`whoami`;
 
@@ -38,6 +39,14 @@ if [ "$IAM" != "root" ]; then
     die "[!] Must be root to run this script"
 fi
  
+# Check if PCAPDIR exists and owned by the right user
+
+if  [ ! -d $PCAPDIR ] ; then
+    mkdir --parent $PCAPDIR
+    chown $USER:$GROUP $PCAPDIR
+fi
+
+
 start()
 {
     log_daemon_msg "Starting" "$DESC"
