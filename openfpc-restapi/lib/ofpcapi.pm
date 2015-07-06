@@ -230,15 +230,25 @@ sub checkinput{
 			debug "Decoded destination port is $q{'dpt'}";
 		}
 
+		if (params->{'limit'}) {
+			$q{'limit'}=uri_unescape(params->{'limit'});
+			unless ($q{'limit'} =~ m/^(\d{1,5})$/) {
+				$q{'error'} = "Error. Limit too large for search result";
+				error $q{'error'};
+				return(\%q);
+			}	
+			debug "Accepted limit as $q{'limit'}";
+		}
+
 		foreach ('stime', 'etime', 'timestamp') {
 			if (params->{$_}) {
 				$q{$_}=uri_unescape(params->{$_});
-				unless ($q{$_}=~/^[A-Za-z0-9 :\.\[\]\(\)\/]+$/) {
+				unless ($q{$_}=~/^[A-Za-z0-9 :\.\[\]\(\)\/\-]+$/) {
 					$q{'error'} = "Error. $_ failed input validation.";
 					error $q{'error'};
 					return(\%q);
 				}	
-				debug "Decoded $_ as $q{$_}";
+				debug "Accepted $_ as $q{$_}";
 			}
 		}
 	}
@@ -373,6 +383,7 @@ get '/api/1/search' => sub {
 	$r->{'stime'}{'val'} = $e->{'stime'};
 	$r->{'etime'}{'val'} = $e->{'etime'};
 	$r->{'timestamp'}{'val'} = $e->{'timestamp'};
+	$r->{'limit'}{'val'} = $e->{'limit'};
 
 	my $auth=checkauth(params->{'apikey'}, $api_keys);
 	return { error => $auth->{'error'}} unless $auth->{'auth'};
