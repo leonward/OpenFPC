@@ -93,9 +93,8 @@ sub cx_search{
 		my $q=buildQuery($r);
 		wlog("DEBUG: Query is $q") if $debug;
 	    
-	    my $dsn = "DBI:mysql:database=$config{'PROXY_DB_NAME'};
-	    					host=$config{'PROXY_DB_HOST'}";
-
+	    my $dsn = "DBI:mysql:database=$config{'PROXY_DB_NAME'};host=$config{'PROXY_DB_HOST'}";
+	    
 	    if (my $dbh = DBI->connect($dsn, $config{'PROXY_DB_USER'}, $config{'PROXY_DB_PASS'})) {
 	    	wlog("SEARCH: DEBUG: Proxy connected to DB $config{'PROXY_DB_NAME'}");
 			my $rt=OFPC::Common::readroutes();

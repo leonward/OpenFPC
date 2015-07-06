@@ -1,7 +1,7 @@
 package OFPC::Config;
 
 #########################################################################################
-# Copyright (C) 2009 Leon Ward 
+# Copyright (C) 2009 Leon Ward
 # OFPC::Parse - Part of the OpenFPC - (Full Packet Capture) project
 #
 # Contact: leon@rm-rf.co.uk
@@ -36,7 +36,7 @@ our @ISA = qw(Exporter);
     $openfpcver
     $mrid
     $daemon
-    $queue);		
+    $queue);
 @EXPORT_OK = qw(ALL);
 $VERSION = '0.7';
 
@@ -49,7 +49,7 @@ our %config=(
     CONFIGURED  => 0,
     NODENAME    => "NONAME",
     DESCRIPTION => "",
-    NODE_ROUTE => 0,
+    NODEROUTE => 0,
     BUFFER_PATH => 0,
     PROXY       => 0,
     SAVEDIR     => 0,
@@ -58,7 +58,7 @@ our %config=(
     MERGECAP    => "/usr/bin/mergecap",
     PIDPATH     => "/var/run",
     KEEPFILES   => "0",
-    TASK_INTERVAL => 600,       
+    TASK_INTERVAL => 600,
     PASSWD	=> 0,
     DROP_USER => "openfpc",
     DROP_GROUP => "openfpc",
@@ -66,6 +66,11 @@ our %config=(
     SESSION_DB_USER => "openfpc",
     SESSION_DB_PASS => "openfpc",
     SESSION_DB_HOST => "localhost",
+    PROXY_DB_NAME => 'openfpc_proxy',
+    PROXY_DB_USER => 'openfpc_proxy',
+    PROXY_DB_PASS => 'openfpc',
+    PROXY_DB_HOST => 'localhost',
+
     );
 
 our %route=();				# Hash to contain OFPC routing data for nodes
