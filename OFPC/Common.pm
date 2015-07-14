@@ -1,7 +1,7 @@
 package OFPC::Common;
 
 #########################################################################################
-# Copyright (C) 2011 - 2014 Leon Ward 
+# Copyright (C) 2011 - 2014 Leon Ward
 # OFPC::Parse - Part of the OpenFPC - (Full Packet Capture) project
 #
 # Contact: leon@rm-rf.co.uk
@@ -48,12 +48,12 @@ $VERSION = '0.5';
 	Check if debug is enabled via a shell variable OFPCDEBUG=1
 	If so, return a value that enables debug in this function.
 =cut
-	
+
 sub wantdebug{
 	my $var="OFPCDEBUG";
 
-	my $debug=$ENV{$var}; 
-	return($debug); 
+	my $debug=$ENV{$var};
+	return($debug);
 }
 
 =head2 initlog
@@ -66,7 +66,7 @@ sub wantdebug{
 
 sub initlog{
     # Open and start syslog
-    openlog("OpenfpcQ","pid", "daemon");    
+    openlog("OpenfpcQ","pid", "daemon");
 }
 
 
@@ -84,7 +84,7 @@ sub closedown{
 }
 
 =head2 getmd5
-	Get the md5 for a file. 
+	Get the md5 for a file.
 	Takes: filename (including path)
 	Returns: md5sum or 0 for fail.
         Leon - 2010
@@ -106,7 +106,7 @@ sub getmd5{
 	Write the string passed to the function as a log
 	e.g. wlog("Something just went down");
 =cut
-                        
+
 sub wlog{
         my $msg =  shift;
         chomp $msg;
@@ -125,13 +125,46 @@ sub wlog{
 
 sub getrequestid{
 	$mrid++;
-	my $ug = new Data::UUID; 
+	my $ug = new Data::UUID;
 	my $rguid=$ug->create_str();
 
 	wlog("COMMS: Request GUID is $rguid\n") if $debug;
 	return($rguid);
 }
 
+
+sub validatepcaplist{
+	# Take a list of pcap file, check none are 0 bytes long and they can all be read
+	# returns a list of the valid files only
+	my @inlist = @_;
+	my @filelist=(); 	# Chomped version of inlist;
+	my $debug=1;
+	my @goodfiles=();
+
+	foreach (@inlist){
+		chomp $_;
+		push(@filelist, $_);
+	}
+
+	wlog("DEBUG: Validating list of pcap files @filelist") if $debug;
+
+	foreach (@filelist) {
+		if ( -s $_ ) {
+			my $tdrc=system("$config{'TCPDUMP'} -r $_ -c 1 -w /dev/null 2>/dev/null");
+			if ($tdrc) {
+	    		wlog("ERROR: Problem with tcpdump reading $_. Got tcpdump error code $tdrc.");
+	    		wlog("ERROR: Hint: This must work $config{'TCPDUMP'} -r $_ -c 1 -w /dev/null") if $debug;
+			} else {
+				wlog("DEBUG: Looks like $_ reads fine, keeping file on list") if $debug;
+				push(@goodfiles, $_);
+			}
+		} else {
+			wlog("DEBUG: PCAP validation: $_ is 0 bytes long, removing it from the list") if $debug;
+		}
+	}
+	wlog("DEBUG: PCAP validation: Clean file list provided back is @goodfiles") if $debug;
+	return(@goodfiles);
+}
 
 sub checkbpf{
         my $bpf=shift;
@@ -148,6 +181,8 @@ sub checkbpf{
         	return(1);
         }
         my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-$config{'NODENAME'}.pcap.*`;
+        @pcaptemp = validatepcaplist(@pcaptemp);  # check for any bad files and remove them form the list
+
         if (@pcaptemp) {
                 my $p=shift(@pcaptemp);
                 chomp $p;
@@ -171,7 +206,7 @@ sub checkbpf{
     Generate a BPF compatable filter string from the values found in an event hash.
     Takes: \%request
     Returns: $bpf
-    
+
 =cut
 sub mkBPF($) {
 	my $r=shift;
@@ -187,42 +222,42 @@ sub mkBPF($) {
 
         if ($r->{'proto'}{'val'}) {
                 $r->{'proto'}{'val'} = lc $r->{'proto'}{'val'}; 				# In case the tool provides a protocol in upper case
-        }   
+        }
 
         if ( $r->{'sip'}{'val'} xor $r->{'dip'}{'val'} ) { # One sided bpf
-                if ($r->{'sip'}{'val'} ) { push(@eventbpf, "host $r->{'sip'}{'val'}" ) } 
-                if ($r->{'dip'}{'val'} ) { push(@eventbpf, "host $r->{'dip'}{'val'}" ) } 
-        }   
+                if ($r->{'sip'}{'val'} ) { push(@eventbpf, "host $r->{'sip'}{'val'}" ) }
+                if ($r->{'dip'}{'val'} ) { push(@eventbpf, "host $r->{'dip'}{'val'}" ) }
+        }
 
-        if ( $r->{'sip'}{'val'} and $r->{'dip'}{'val'} ) { 
+        if ( $r->{'sip'}{'val'} and $r->{'dip'}{'val'} ) {
                  push(@eventbpf, "host $r->{'sip'}{'val'}" );
                  push(@eventbpf, "host $r->{'dip'}{'val'}" );
-        }   
-   
-        if ( $r->{'proto'}{'val'} ) { 
+        }
+
+        if ( $r->{'proto'}{'val'} ) {
                  push(@eventbpf, "$r->{'proto'}{'val'}" );
 		}
- 
-        if ( $r->{'spt'}{'val'} xor $r->{'dpt'}{'val'} ) { 
-                if ($r->{'spt'}{'val'} ) { push(@eventbpf, "port $r->{'spt'}{'val'}" ) } 
-                if ($r->{'dpt'}{'val'} ) { push(@eventbpf, "port $r->{'dpt'}{'val'}" ) } 
-        }   
 
-        if ( $r->{'spt'}{'val'} and $r->{'dpt'}{'val'} ) { 
+        if ( $r->{'spt'}{'val'} xor $r->{'dpt'}{'val'} ) {
+                if ($r->{'spt'}{'val'} ) { push(@eventbpf, "port $r->{'spt'}{'val'}" ) }
+                if ($r->{'dpt'}{'val'} ) { push(@eventbpf, "port $r->{'dpt'}{'val'}" ) }
+        }
+
+        if ( $r->{'spt'}{'val'} and $r->{'dpt'}{'val'} ) {
                  push(@eventbpf, "port $r->{'spt'}{'val'}" );
                  push(@eventbpf, "port $r->{'dpt'}{'val'}" );
-        }   
+        }
 
         # cat the eventbpf array into a string
         foreach (@eventbpf) {
-                if ($bpfstring) { 
-                        $bpfstring = $bpfstring . " and "; 
+                if ($bpfstring) {
+                        $bpfstring = $bpfstring . " and ";
                 } else {
                         $bpfstring = $_ ;
                         next;
-                }   
+                }
                 $bpfstring = $bpfstring . $_ . " ";
-        } 
+        }
 
         wlog("MKBPF: Built bpf \"$bpfstring\"") if $debug;;
         my $valid=checkbpf($bpfstring);
@@ -251,7 +286,7 @@ sub getstatus{
 	);
 	my $debug=wantdebug();
 	wlog("STATU: Getting node status data") if $debug;
-	# Supported types for text format conversion are 
+	# Supported types for text format conversion are
 		# e = time epoch
 		# t = text
 		# b = binary
@@ -259,7 +294,7 @@ sub getstatus{
 		# p = %a
 
 	my $ltz=DateTime::TimeZone->new( name => 'local' )->name();
-	my %s = (   
+	my %s = (
 		success => {
 			val => 0,
 			text => "Request Status                 ",
@@ -302,7 +337,7 @@ sub getstatus{
 			type => "b",
 		},
 		sessionspace => {
-			val => 0,		
+			val => 0,
 			text => "Session storage utilization    ",
 			type => "p",
 		},
@@ -338,7 +373,7 @@ sub getstatus{
 		},
 		comms => {
 			val => 0,
-			text => "Communication with nodes       ",		
+			text => "Communication with nodes       ",
 			type => "t",
 		},
 		ld1 => {
@@ -351,12 +386,12 @@ sub getstatus{
 			text => "Load average 5                 ",
 			type => "t",
 		},
-		ld15 => { 
+		ld15 => {
 			val => 0,
 			text => "Load average 15                ",
 			type => "t",
 		},
-		message => { 
+		message => {
 			val => 0,
 			text => "Message                        ",
 			type => "t",
@@ -396,7 +431,7 @@ sub getstatus{
 			$s{'message'}{'val'} = "Unable to open buffer path $config{'BUFFER_PATH'}";
 			wlog("STATU: Error, unable to open buffer path $config{'BUFFER_PATH'}");
 			return \%s;
-		} 
+		}
 		my @files=readdir(DIR);
 		unless (@files) {
 			$s{'message'}{'val'}= "Unable to open buffer path $config{'BUFFER_PATH'}";
@@ -462,12 +497,12 @@ sub getstatus{
 		$s{'savespace'}{'val'} = $saveref->{'per'};
 		$s{'saveused'}{'val'} = $saveref->{'used'};
 		wlog("STATU: DEBUG: Savespace in $config{'SAVEDIR'} is $s{'savespace'}{'val'} \n") if $debug;
-	
+
 		# Grab uptime and load average data
-		####################################	
+		####################################
 		my $uptime=`uptime`;
 		chomp $uptime;
-		if ($uptime =~ /load average.*:\s*([0-9]\.[0-9]+),*\s*([0-9]\.[0-9]+),*\s*([0-9]\.[0-9]+)/){ 
+		if ($uptime =~ /load average.*:\s*([0-9]\.[0-9]+),*\s*([0-9]\.[0-9]+),*\s*([0-9]\.[0-9]+)/){
 			$s{'ld1'}{'val'} = $1;
 			$s{'ld5'}{'val'} = $2;
 			$s{'ld15'}{'val'} = $3;
@@ -479,7 +514,7 @@ sub getstatus{
 		if ($config{'ENABLE_SESSION'}) {
 			wlog("STATU: DEBUG: Session data enabled on this node. Checking DB status") if $debug;
 			if ( my $dbh= DBI->connect("dbi:mysql:database=$config{'SESSION_DB_NAME'};host=localhost",$config{'SESSION_DB_USER'},$config{'SESSION_DB_PASS'}) ) {
-			    
+
 			    # Get count of sessions in DB
 			    my $sth= $dbh->prepare("SELECT COUNT(*) FROM session") or wlog("STATUS: ERROR: Unable to get session table size $DBI::errstr");
 			    if ( $sth->execute() ) {
@@ -510,7 +545,7 @@ sub getstatus{
 			    wlog("STATU: DEBUG: Newest connection in session DB is $s{'lastctx'}{'val'}\n") if $debug;
 
 			    $dbh->disconnect or wlog("Unable to disconnect from DB $DBI::errstr");
-			    if (opendir(SESSION_DIR,$config{'SESSION_DIR'}) ) { 
+			    if (opendir(SESSION_DIR,$config{'SESSION_DIR'}) ) {
 					while (my $filename=readdir(SESSION_DIR)) {
 				      	$s{'sessionlag'}{'val'}++ unless $filename =~ /^(\.|failed)/;
 			    	}
@@ -543,7 +578,7 @@ sub getstatus{
 
 		# Check we are providing back some valid data
 		if ( $s{'ld1'}{'val'} and $s{'nodename'}{'val'} ) {
-			$s{'success'}{'val'} = 1; 	
+			$s{'success'}{'val'} = 1;
 		}
 
 		# Put the node status hash into a container that can scale for multiple nodes
@@ -560,7 +595,7 @@ sub getstatus{
 		# DB size
 		# etc etc
 
-		my %ps = (   
+		my %ps = (
 			success => {
 				val => 1,
 				text => "Request Status                 ",
@@ -605,27 +640,31 @@ sub getstatus{
 		# Add the proxy node to the node list
 		push (@{$sc{'nodelist'}},$config{'NODENAME'});
 
+		#print Dumper $request;
+		
 		foreach (keys %$rt) {
-
 			wlog("Proxy making status request to node $rt->{$_}{'name'}");
 			my $rn=$rt->{$_}{'name'};
-
-			#push (@{$sc{'nodelist'}},$config{'NODENAME'});
 			push (@{$sc{'nodelist'}},$rt->{$_}{'name'});
-
  			my $r2=OFPC::Request::mkreqv2();
     		my $nodesock = IO::Socket::INET->new(
-                                PeerAddr => $rt->{$_}{'ip'}, 
-                                PeerPort => $rt->{$_}{'port'}, 
+                                PeerAddr => $rt->{$_}{'ip'},
+                                PeerPort => $rt->{$_}{'port'},
                                 Proto => 'tcp',
                                 );
-    		if ($nodesock) {
-    			wlog("Connected to node $rt->{$_}{'name'}");
-	    	 	$r2->{'user'}{'val'} =  $rt->{$_}{'user'}; 
-    			$r2->{'password'}{'val'} = OFPC::Request::mkhash($rt->{$_}{'user'},$rt->{$_}{'password'}); 
+	    	if ($nodesock) {
+				wlog("Connected to node $rt->{$_}{'name'}");
+	    		$r2->{'user'}{'val'} =  $request->{'user'}{'val'};
+    			$r2->{'password'}{'val'} = $request->{'password'}{'val'};
     			$r2->{'action'}{'val'} = "status";
-
+    			print Dumper $request;
     			my %s=OFPC::Request::request($nodesock,$r2);
+
+    			unless ($s{'success'}) {
+    				wlog("ERROR: issue found with making status request to node");
+    				wlog($s{'message'});
+    			}
+    			print Dumper \%s;
     			# Add node to Live list
     			$ps{'upnodes'}{'val'} = $ps{'upnodes'}{'val'} . $rt->{$_}{'name'} . " ";
     			my $sr = \%s;
@@ -661,7 +700,7 @@ sub trimsessiondb(){
 	wlog("TRIM: Trimming Session DB from: $fc (" . localtime($fc) . ") to $fp (". localtime($fp) . ")") if $debug;
 
 	if (my $dbh= DBI->connect("dbi:mysql:database=$config{'SESSION_DB_NAME'};host=localhost",$config{'SESSION_DB_USER'},$config{'SESSION_DB_PASS'})) {
-		my $sth= $dbh->prepare("DELETE FROM session WHERE unix_timestamp(start_time) < $fp") 
+		my $sth= $dbh->prepare("DELETE FROM session WHERE unix_timestamp(start_time) < $fp")
 			or wlog("STATUS: ERROR: Unable to prep query $DBI::errstr");
 		if ($sth->execute()) {
 			$trimtime=$fp;
@@ -677,7 +716,7 @@ sub trimsessiondb(){
 
 =head2 backgroundtasks
 	Perform regular tasks every X seconds.
-        
+
 	Tasks Include:
             - Clean up CTX table (trim to oldest packet).
         Takes:   $seconds (count of how many seconds to sleep for)
@@ -724,7 +763,7 @@ sub decoderequest($){
     my $r;								# Request href, filled from the rj json
     my $debug=wantdebug();
     wlog("DECOD: Decoding request");
-    unless ($r=decode_json($rj)) {	
+    unless ($r=decode_json($rj)) {
     	wlog("DECOD: ERROR: Failed to decode request JSON");
     	$gr->{'msg'}{'val'} = "Bad request. Unable to parse JSON.";
     	$gr->{'fail'}{'val'} = 1;
@@ -739,7 +778,7 @@ sub decoderequest($){
 	$gr->{'password'}{'val'}	=	$r->{'password'}{'val'};
 	$gr->{'action'}{'val'}		=	$r->{'action'}{'val'}; 			# Action (store,status,fetch,etc)
 	$gr->{'device'}{'val'} 		=	$r->{'device'}{'val'};			# Device to request from i.e openfpc-node
-	$gr->{'filename'}{'val'} 	= 	$r->{'filename'}{'val'};		# Filename to save file as 
+	$gr->{'filename'}{'val'} 	= 	$r->{'filename'}{'val'};		# Filename to save file as
 	$gr->{'filetype'}{'val'} 	= 	$r->{'filetype'}{'val'};		# Filetype zip or pcap?
 	$gr->{'logtype'}{'val'} 	= 	$r->{'logtype'}{'val'};			# Type of log being processed
 	$gr->{'logline'}{'val'}		= 	$r->{'logline'}{'val'};			# The log-line (including one made from session identifiers # KILL
@@ -750,7 +789,7 @@ sub decoderequest($){
 	wlog("DECOD: DEBUG: Received action $gr->{'action'}{'val'}") if ($debug);
 
 
-	# fetch, store and search all have the same time constraints. 
+	# fetch, store and search all have the same time constraints.
 	# normalizing them once and only once.
 
 	if ($gr->{'action'}{'val'} =~/(fetch|store|search)/) {
@@ -885,9 +924,9 @@ sub decoderequest($){
 
 
 
-=head2 prepfile 
+=head2 prepfile
 	prepare a file to deliver back to the client.
-            
+
 	Call with:
 		\$request
 	This consists of:
@@ -896,8 +935,8 @@ sub decoderequest($){
 		- Call the extract functions (if we are to do it now)
                 - Prep the files (zip, get md5, size data etc)
 		- Return a hashref containing
-                
-		( 
+
+		(
 		  success => 0,
 		  filename => 0,
 		  message => 0,
@@ -937,12 +976,13 @@ sub prepfile{
         	searchspace => 0,
         	searchtime => 0,
         },
-    );	
+    );
+	my $debug=wantdebug();
 
-    # If a specific filetype is requested, set prep to gather it 
+    # If a specific filetype is requested, set prep to gather it
     if ($r->{'filetype'}{'val'} eq "ZIP") {
         $multifile=1;
-        $prep{'filetype'} = "ZIP";		
+        $prep{'filetype'} = "ZIP";
     }
 
     # If we are an openfpc-proxy, check if we need to frag this req into smaller ones, and get the data back from each node
@@ -951,34 +991,35 @@ sub prepfile{
     # Return the filename of the data that is to be sent back to the client.
 
     if ( $config{'PROXY'} ) {
-		# Check if we can route this request
+			# Check if we can route this request
 
- 		(my $nodehost,my $nodeport,my $nodeuser,my $nodepass)=routereq($r->{'device'}{'val'});
-		unless ($nodehost) { 	# If request isn't routeable....
+ 			(my $nodehost,my $nodeport,my $nodeuser,my $nodepass)=routereq($r->{'device'}{'val'});
+			unless ($nodehost) { 	# If request isn't routeable....
 			# Request from all devices
-            wlog("PREP : Request is NOT routable. Requesting from all nodes SOUTH from this proxy");
-	    	$multifile=1;	# Fraged request will be a multi-file return so we use a ZIP to combine
-	    	foreach (keys %route) {
- 				($nodehost,$nodeport,$nodeuser,$nodepass)=routereq($_);
+      wlog("PREP : Request is NOT routable. Requesting from all nodes SOUTH from this proxy");
+	    $multifile=1;	# Fraged request will be a multi-file return so we use a ZIP to combine
+	    print Dumper $r;
+	    foreach (keys %route) {
+ 				($nodehost,$nodeport)=routereq($_);
 				$r->{'metadata'}{'nodehost'}= $nodehost;
-				$r->{'metadata'}{'nodeuser'}= $nodeuser;
+				$r->{'metadata'}{'nodeuser'}= $r->{'user'}{'val'};
 				$r->{'metadata'}{'nodeport'}= $nodeport;
-				$r->{'metadata'}{'nodepass'}= $nodepass;
-                
+				$r->{'metadata'}{'nodepass'}= $r->{'password'}{'val'};
+
 				my $result=doproxy($r);
 				if ($result->{'success'}) {
-                    wlog("DEBUG: Adding $result->{'filename'} to zip list") if ($debug);
-                    push (@nodefiles, $result->{'filename'});
+      		wlog("DEBUG: Adding $result->{'filename'} to zip list") if ($debug);
+      		push (@nodefiles, $result->{'filename'});
 				} else {
-                    $prep{'message'} = $result->{'message'};
+        	$prep{'message'} = $result->{'message'};
 				}
-            }
-		} else { 					# Route-able, do the proxy action 
+      }
+		} else { 					# Route-able, do the proxy action
         	$r->{'metadata'}{'nodehost'} = $nodehost;
         	$r->{'metadata'}{'nodeuser'} = $nodeuser;
         	$r->{'metadata'}{'nodeport'} = $nodeport;
         	$r->{'metadata'}{'nodepass'} = $nodepass;
-			wlog("PREP: DEBUG: Taking proxy action on this request\n") if $debug;            
+					wlog("PREP: DEBUG: Taking proxy action on this request\n") if $debug;
         	my $result=doproxy($r);
 
         	if ($result->{'success'}) {
@@ -994,13 +1035,13 @@ sub prepfile{
 				wlog("Error: $result->{'message'}");
         	}
 		}
-        
+
 		# If we are sending back a zip, add the report file
 		if ($prep{'filetype'} eq "ZIP") {
         	push (@nodefiles,"$r->{'filename'}.txt");
    		}
 
-    } else { 	
+    } else {
 		#####################################
 		# Node stuff
 		# Do node stuff, no routing etc just extract the data and make a report
@@ -1018,7 +1059,7 @@ sub prepfile{
 	    	$prep{'error'} = $result->{'message'};
 			return(\%prep);
 		}
-        
+
 		my $reportfilename=mkreport(0,$r,\%prep);
 		mkjlog($r, \%prep);
 
@@ -1029,46 +1070,43 @@ sub prepfile{
 		}
 		push(@nodefiles,$r->{'metadata'}{'tempfile'});
     }
-   
+
     # Now we have the file(s) we want to rtn to the client, lets zip or merge into a single p cap as requested
     if ($multifile) {
+    	wlog("DEBUG: Merging pcap files");
 		if ( $prep{'filetype'} eq "PCAP" ) {
             # @nodefiles is a list of pcaps w/o a path, we need then with a path to merge
             # @mergefiles is a temp array of just that.
             my @mergefiles=();
-            
+            wlog("DEBUG: Merge file list is..");
             foreach (@nodefiles) {
 				push(@mergefiles, "$config{'SAVEDIR'}/$_");
             }
-            
+
             my $mergecmd="$config{'MERGECAP'} -w $config{'SAVEDIR'}/$r->{'metadata'}{'tempfile'}.pcap @mergefiles";
             wlog("DEBUG: Merge cmd is $mergecmd\n") if $debug;
-            if (@mergefiles) {
                 unless (system($mergecmd)) {
-                    wlog("DEBUG: Created $config{'SAVEDIR'}/$r->{'metadata'}{'tempfile'}.pcap") if $debug;	
-                    $prep{'filename'}="$r->{'tempfile'}.pcap";
+                    wlog("DEBUG: Created $config{'SAVEDIR'}/$r->{'metadata'}{'tempfile'}.pcap") if $debug;
+                    $prep{'filename'}="$r->{'metadata'}{'tempfile'}.pcap";
                     $prep{'success'} = 1;
-                    $prep{'md5'} = getmd5("$config{'SAVEDIR'}/$prep{'filename'}");
+                    $prep{'md5'} = getmd5("$config{'SAVEDIR'}/$r->{'metadata'}{'tempfile'}.pcap");
+                    wlog("DEBUG: MD5 of merged pcap file is $prep{'md5'}");
                 } else {
-                    wlog("PREP: ERROR merging $config{'SAVEDIR'}/$r->{'metadata'}{'tempfile'}.pcap");	
-                    $prep{'message'} = "PREP : Unable to proxy-merge!";
+                    wlog("PREP: ERROR merging $config{'SAVEDIR'}/$r->{'metadata'}{'tempfile'}.pcap");
+                    $prep{'message'} = "PREP : Unable to proxy-merge the pcap files.";
                 }
-            } else {
-                wlog("ERROR: No files in merge queue. Did we get anything back from the client?");
-                $prep{'message'} = "ERROR: No pcap files returned from any NODE";
-            }
-				
+
 		} else {
             my $zip = Archive::Zip->new();
-          	wlog("DEBUG: Prepping a ZIP file") if $debug; 
+          	wlog("DEBUG: Prepping a ZIP file") if $debug;
             foreach my $filename (@nodefiles) {
                 if ( -f "$config{'SAVEDIR'}/$filename" ) {
                     $zip->addFile("$config{'SAVEDIR'}/$filename","$filename");
 				} else {
-                    wlog("ZIP : Cant find $config{'SAVEDIR'}/$filename to add to zip! - Skipping"); 
+                    wlog("ZIP : Cant find $config{'SAVEDIR'}/$filename to add to zip! - Skipping");
 				}
             }
-            
+
             if ($zip->writeToFileNamed("$config{'SAVEDIR'}/$r->{'metadata'}{'tempfile'}.zip") !=AZ_OK ) {
 				wlog("PREP: ERROR: Problem creating $config{'SAVEDIR'}/$r->{'tempfile'}.zip");
             } else {
@@ -1076,7 +1114,7 @@ sub prepfile{
 				$prep{'filename'}="$r->{'metadata'}{'tempfile'}.zip";
 				$prep{'success'} = 1;
 				$prep{'md5'} = getmd5("$config{'SAVEDIR'}/$prep{'filename'}");
-                
+
                 unless ($config{'KEEPFILES'}) {
                     wlog("DEBUG: Cleaning zip contents..\n") if ($debug);
 					foreach (@nodefiles) {
@@ -1087,25 +1125,25 @@ sub prepfile{
 					}
 				}
             }
-		}	
-    }	
+		}
+    }
     return(\%prep);
 }
 
 =head2 donode
 	It takes a decoded request as it's input, and returns a filename when the extraction has been done.
-        
+
 	A node action is one that will be processed on this device.
 	It will perform the action itself rather than pass it on to another device.
-	
+
 	Returns a hash of
-        
+
             success => 0,
             filename => 0,
             md5 => 0,
             size => 0,
             message => 0,
-            
+
 =cut
 
 sub donode{
@@ -1113,7 +1151,7 @@ sub donode{
 	my $r=shift;
 	my @cmdargs=();
 	my $bpf;
-	my %result=( 
+	my %result=(
 		filename => 0,
         success => 0,
         message => 0,
@@ -1130,7 +1168,7 @@ sub donode{
 	} else {
             $bpf=$r->{'bpf'}{'val'};
 	}
-        
+
     # If for some reason we have failed to get a BPF, lets return an error
 	unless ($bpf) {
             $result{'message'} = "Insufficient constraints for request (Null or invalid BPF)";
@@ -1138,15 +1176,15 @@ sub donode{
             wlog("NODE : Request: $r->{'metadata'}{'rid'} " . $result{'message'});
             return(\%result);
 	}
-        
+
 	wlog("NODE : Request: $r->{'metadata'}{'rid'} User: $r->{'user'}{'val'} Action: $r->{'action'}{'val'} BPF: $bpf");
-        
+
 	# Do we have a single timestamp or pair of them?
 	# Single= event sometime in the middle of a session
 	# stime/etime = a search time window to look for data over
 	my @pcaproster=();
 	if ( $r->{'stime'}{'val'} && $r->{'etime'}{'val'} ) {
-			wlog("NODE : Getting a bunch of pcap files between $r->{'stime'}{'val'} (" . localtime($r->{'stime'}{'val'}) . 
+			wlog("NODE : Getting a bunch of pcap files between $r->{'stime'}{'val'} (" . localtime($r->{'stime'}{'val'}) .
 				") and $r->{'etime'}{'val'} (" . localtime($r->{'etime'}{'val'}) . ")") if $debug;
             @pcaproster=bufferRange($r->{'stime'}{'val'}, $r->{'etime'}{'val'});
 
@@ -1162,11 +1200,11 @@ sub donode{
             $result{'message'} = "No suitable pcap files found in $config{'BUFFER_PATH'}";
             return(\%result);
 	}
-        
+
 	wlog("DEBUG: Final PCAP roster ($pcapcount files in total) for extract is: @pcaproster\n") if $debug;
-        
+
 	(my $filename, my $size, my $md5, my $err) = doExtract($bpf,\@pcaproster,$r->{'metadata'}{'tempfile'});
-        
+
 	if ($filename) {
             $result{'filename'} = $filename;
             $result{'success'} = 1;
@@ -1174,20 +1212,20 @@ sub donode{
 	    	$result{'md5'} = $md5;
 	    	$result{'size'} = $size;
 	    	$result{'err'} = $err;
-	    wlog("NODE : Request: $r->{'metadata'}{'rid'} User: $r->{'user'}{'val'} Result: $filename, $size, $md5");   
+	    wlog("NODE : Request: $r->{'metadata'}{'rid'} User: $r->{'user'}{'val'} Result: $filename, $size, $md5");
 	} else {
 	    	$result{'err'} = $err;
-            wlog("NODE : Request: $r->{'metadata'}{'rid'} User: $r->{'user'}{'val'} Result: Problem performing doExtract $err.");   
+            wlog("NODE : Request: $r->{'metadata'}{'rid'} User: $r->{'user'}{'val'} Result: Problem performing doExtract $err.");
 	}
-	
+
 	# Create extraction Metadata file
-	
-	unless ( open METADATA , '>', "$config{'SAVEDIR'}/$filename.txt" ) { 
+
+	unless ( open METADATA , '>', "$config{'SAVEDIR'}/$filename.txt" ) {
             $result{'message'} = "Unable to open Metadata file  $config{'SAVEDIR'}/$r->{'metadata'}{'tempfile'}.txt for writing";
             wlog("PREP: ERROR: $result{'message'}");
             return(\%result);
 	}
-        
+
 	print METADATA "Extract Report - OpenFPC Node $r->{'device'}{'val'}\n";
 	print METADATA "User: $r->{'user'}{'val'}\n" .
             "Filename: $r->{'filename'}{'val'}\n" .
@@ -1216,18 +1254,18 @@ sub routereq{
     my $nodevalue=0;
     if (exists $route{$device} ) {
         $nodevalue=$route{$device};
-        ($nodehost, $nodeport, $nodeuser, $nodepass) = split(/:/, $nodevalue);
-        wlog("ROUTE: Routing equest to node: $device ( $nodehost : $nodeport User: $nodeuser )");
+        ($nodehost, $nodeport) = split(/:/, $nodevalue);
+        wlog("ROUTE: Routing equest to node: $device");
     } else {
         wlog("ROUTE: No openfpc-route entry found for $device in routing table\n");
-        return(0,0,0,0);
+        return(0,0);
     }
-        
-    unless ($nodehost and $nodeport and $nodepass and $nodeuser) {
+
+    unless ($nodehost and $nodeport) {
         wlog("ROUTE: ERROR: Unable to pass route line $nodevalue");
-        return(0,0,0,0);		
+        return(0,0);
     } else {
-        return($nodehost,$nodeport,$nodeuser,$nodepass);
+        return($nodehost,$nodeport);
     }
 }
 
@@ -1265,7 +1303,7 @@ sub getBufferInfo{
         This of course expects the filenames to be in the format created by
         daemonlogger.
         filename.pcap.$epoch
-        
+
 	Takes: $startfilename, $endfilename
         Returns: @files
 =cut
@@ -1292,7 +1330,7 @@ sub bufferRange {
 		wlog("DEBUG: starttimestamp to early for buffer range. Using first file $bufferinfo->{'firstfilename'}\n");
 		$startfile=$bufferinfo->{'firstfilename'};
 	}
-        
+
 	wlog("Getting Last file in buffer range") if $debug;
 	my @endtmp=findBuffers($endtimestamp,0);
 	if (defined $endtmp[0] ) {
@@ -1304,9 +1342,9 @@ sub bufferRange {
 	wlog("DEBUG: Starting search in file $startfile ($starttimestamp)\n") if ($debug);
 	wlog("DEBUG: Ending   search in file $endfile ($endtimestamp)\n") if ($debug);
 	# Look for files between startfile and endfile if startfile is not the same as endfile
-        
+
 	my @pcaptemp = `ls -rt $config{'BUFFER_PATH'}/openfpc-$config{'NODENAME'}.pcap.*`;
-        
+
 	unless ($startfile eq $endfile) {
         foreach(@pcaptemp) {
 	        chomp $_;
@@ -1323,7 +1361,7 @@ sub bufferRange {
 		}
     } else {
 		# Add this single file to the @pcaps array
-		push(@pcaps,$startfile);	
+		push(@pcaps,$startfile);
 	}
 	return(@pcaps);
 }
@@ -1354,7 +1392,7 @@ sub findBuffers {
 
         wlog("DEBUG: Request is to look in $numberOfFiles files each side of target timestamp ($targetTimeStamp) (" . localtime($targetTimeStamp) . ")\n") if $debug;
 
-        $targetTimeStamp=$targetTimeStamp-0.5;                  # Remove risk of TARGET conflict with file timestamp.   
+        $targetTimeStamp=$targetTimeStamp-0.5;                  # Remove risk of TARGET conflict with file timestamp.
         push(@timestampArray, $targetTimeStamp);                # Add target timestamp to an array of all file timestamps
         $timeHash{$targetTimeStamp} = "TARGET";                 # Method to identify our target timestamp in the hash
         wlog("DEBUG: Requested timestamp is $targetTimeStamp " . localtime $targetTimeStamp) if $debug;
@@ -1386,7 +1424,7 @@ sub findBuffers {
             print " + $count - $_ $timeHash{$_}\n" if ($debug and $vdebug);
             if ( "$timeHash{$_}" eq "TARGET" ) {
             	# Problem is that the we're not finding the first file correctly when looking for something too old.
-                wlog("DEBUG: Got TARGET match of $_ in array location $count\n") if $debug; 
+                wlog("DEBUG: Got TARGET match of $_ in array location $count\n") if $debug;
                 if ($count == 1) {
                    	wlog("DEBUG: Count ($count), is already at the lowest location in the file list. won't go any lower.");
                    	$location=$count;
@@ -1480,47 +1518,45 @@ sub doExtract{
 	my $mergefile=shift;
 	my @filelist=@{$filelistref};
 	my $tempdir=tempdir(CLEANUP => 1);
-	my $err;	
+	my $err;
     my @outputpcaps=();
+    my $debug=1;
+
     wlog("DEBUG: Doing Extraction with BPF $bpf into tempdir $tempdir\n") if ($debug);
 
 	# Test if tcpdump can read files, it's a common problem with apparmor - here we can catch it with a nice error
-	my $tdrc=system("$config{'TCPDUMP'} -r $filelist[0] -c 1 -w /dev/null 2>/dev/null");
-	if ($tdrc) {
-	    wlog("ERROR: Problem with tcpdump reading $filelist[0]. Got tcpdump error code $tdrc.");
-	    wlog("ERROR: Hint: This must work $config{'TCPDUMP'} -r $filelist[0] -c 1 -w /dev/null") if $debug;
-	    return(0,0,0,"Got tcpdump error code $tdrc");
-	}
-	
+	# Check that file isn't 0 bytes long before testing tcpdump read
+	@filelist = validatepcaplist(@filelist);
+
     foreach (@filelist){
 		my $splitstring="$config{'NODENAME'}\.pcap\.";
         (my $pcappath, my $pcapid)=split(/$splitstring/, $_);
         chomp $_;
         my $filename="$tempdir/$mergefile-$pcapid.pcap";
         push(@outputpcaps,$filename);
-		
+
 		my $exec="$config{'TCPDUMP'} -r $_ -w $filename $bpf > /dev/null 2>&1";
         $exec="$config{'TCPDUMP'} -r $_ -w $filename $bpf" if ($vdebug) ; # Show tcpdump o/p if debug is on
-                
+
 		wlog("DEBUG: Exec was: $exec\n") if ($vdebug);
             `$exec`;
-        }
+    }
 
-        # Now that we have some pcaps, lets concatinate them into a single file
-        unless ( -d "$tempdir" ) {
-        	die("Tempdir $tempdir not found!")
-		}
+    # Now that we have some pcaps, lets concatinate them into a single file
+    unless ( -d "$tempdir" ) {
+      	die("Tempdir $tempdir not found!")
+	}
 
-        wlog("EXTR : Merge command is \"$config{'MERGECAP'} -w $config{'SAVEDIR'}/$mergefile  @outputpcaps\"") if $debug;
+    wlog("EXTR : Merge command is \"$config{'MERGECAP'} -w $config{'SAVEDIR'}/$mergefile  @outputpcaps\"") if $debug;
 
-        if (system("$config{'MERGECAP'} -w $config{'SAVEDIR'}/$mergefile @outputpcaps")) {
-            wlog("ERROR: Unable to merge pcap files.  Verify that merge command exists at $config{'MERGECAP'}");
-            return(0,0,0);
-        }
+    if (system("$config{'MERGECAP'} -w $config{'SAVEDIR'}/$mergefile @outputpcaps")) {
+        wlog("ERROR: Unable to merge pcap files.  Verify that merge command exists at $config{'MERGECAP'}");
+        return(0,0,0);
+    }
 
 	# Calculate a filesize (in human readable format), and a MD5
-        my $filesize=`ls -lh $config{'SAVEDIR'}/$mergefile |awk '{print \$5}'`; 
-        chomp $filesize;
+    my $filesize=`ls -lh $config{'SAVEDIR'}/$mergefile |awk '{print \$5}'`;
+    chomp $filesize;
 	open(PCAPMD5, '<', "$config{'SAVEDIR'}/$mergefile") or die("cant open pcap file $config{'SAVEDIR'}/$mergefile to create MD5");
 	my $md5=Digest::MD5->new->addfile(*PCAPMD5)->hexdigest;
 	close(PCAPMD5);
@@ -1537,7 +1573,7 @@ sub doExtract{
 =cut
 
 sub mkjlog{
-	my $r=shift; 	
+	my $r=shift;
 	my $q=shift;
 	my %jlog=(
 		request => $r,
@@ -1546,7 +1582,7 @@ sub mkjlog{
 	my $log_json=encode_json(\%jlog);
 	my $filename="$config{'SAVEDIR'}/$r->{'metadata'}{'rid'}.json";
 
-	if (open JSON , '>', $filename)  { 
+	if (open JSON , '>', $filename)  {
 		print JSON $log_json;
 		close(JSON);
 		wlog("JSON : Created log JSON log for session $r->{'metadata'}{'rid'}");
@@ -1561,7 +1597,7 @@ sub mkjlog{
 
 sub mkreport{
 	my $filename=shift;	# Filename to create
-	my $r=shift;	# HashRef to request data.	
+	my $r=shift;	# HashRef to request data.
 	my $extract=shift;	# Details about the extract process
 	my $bpf=0;
 
@@ -1573,8 +1609,8 @@ sub mkreport{
 
 	$filename="$config{'SAVEDIR'}/$r->{'metadata'}{'rid'}.txt" unless ($filename);
 
-	if (open REPORT , '>', $filename)  { 
-	
+	if (open REPORT , '>', $filename)  {
+
        		print REPORT "###################################\nOFPC Extract report\n" .
 			"User: $r->{'user'}{'val'}\n" .
       		       	"User comment: $r->{'comment'}{'val'}\n"  .
@@ -1584,11 +1620,11 @@ sub mkreport{
 			"Request time  : $r->{'rtime'}{'val'}\n" .
 			"Comment       : $r->{'comment'}{'val'}\n" .
 			"---------------------------\n" ;
-		print REPORT "Timestamp     : $r->{'timestamp'}{'val'} (" . localtime($r->{'timestamp'}{'val'}) . ")\n" if $r->{'timestamp'}{'val'};  
-		print REPORT "Start Time    : $r->{'stime'}{'val'} (" . localtime($r->{'stime'}{'val'}) . ")\n" if $r->{'stime'}{'val'};  
-		print REPORT "End Time      : $r->{'etime'}{'val'} (" . localtime($r->{'etime'}{'val'}) . ")\n" if $r->{'etime'}{'val'};  
+		print REPORT "Timestamp     : $r->{'timestamp'}{'val'} (" . localtime($r->{'timestamp'}{'val'}) . ")\n" if $r->{'timestamp'}{'val'};
+		print REPORT "Start Time    : $r->{'stime'}{'val'} (" . localtime($r->{'stime'}{'val'}) . ")\n" if $r->{'stime'}{'val'};
+		print REPORT "End Time      : $r->{'etime'}{'val'} (" . localtime($r->{'etime'}{'val'}) . ")\n" if $r->{'etime'}{'val'};
 		print REPORT "BPF Used      : $bpf\n";
-	
+
 		print REPORT "Filename:     : $extract->{'filename'} \n" .
 			"Size          : $extract->{'size'} \n" .
 			"MD5           : $extract->{'md5'} \n" .
@@ -1612,7 +1648,7 @@ sub mkreport{
 
 	Expects a hashref of the request
 	Returns a hash of result data
-	%result( 
+	%result(
 		filename => 0,
 		md5 => 0,
 		size => 0,
@@ -1637,23 +1673,31 @@ sub doproxy{
                                 Proto => 'tcp',
                                 );
 
-    unless ($nodesock) { 
+    unless ($nodesock) {
 		wlog("PROXY: Unable to open socket to node $r->{'metadata'}{'nodehost'}:$r->{'metadata'}{'nodeport'}");
 		$result{'message'} = "Node: $config{'NODENAME'} unable to connect to node $r->{'metadata'}{'nodehost'}:$r->{'metadata'}{'nodeport'}";
-		$result{'success'} = 0;	
+		$result{'success'} = 0;
 		return(\%result);
     }
     # This is an openfpc-proxy request, we don't want the user to control what file we will
     # write on the proxy. Create our own tempfile.
     $r2->{'filename'}{'val'}="M-$r->{'metadata'}{'nodehost'}-$r->{'metadata'}{'nodeport'}-" . time() . "-" . $r->{'metadata'}{'rid'};
     $r2->{'user'}{'val'} = $r->{'metadata'}{'nodeuser'};
-    $r2->{'password'}{'val'} = OFPC::Request::mkhash($r->{'metadata'}{'nodeuser'},$r->{'metadata'}{'nodepass'});
-    $r2->{'metadata'}{'savedir'} = $config{'SAVEDIR'};
+    $r2->{'password'}{'val'} = $r->{'metadata'}{'nodepass'};
+    $r2->{'savedir'}{'val'} = $config{'SAVEDIR'};
     $r2->{'action'}{'val'} = "fetch";
-    $r2->{'bpf'}{'val'} = $r->{'bpf'}{'val'};
+    # pre-make the bpf at the proxy for use on all nodes
+    if ($r->{'bpf'}{'val'}) {
+    	# BPF specified in request, no need to build one
+    	$r2->{'bpf'}{'val'} = $r->{'bpf'}{'val'};	
+    } else {
+    	# Make a bpf from the session IDs passed
+	    $r2->{'bpf'}{'val'} = OFPC::Common::mkBPF($r);
+    }
+
 
     %result=OFPC::Request::request($nodesock,$r2);
-	
+
     # Return the name of the file that we have been passed by the node
     if ($result{'success'} == 1) {
 		wlog("PROXY: Success: Received file $result{'filename'} MD5: $result{'md5'} Size $result{'size'} from $r->{'device'}{'val'} ($r->{'metadata'}{'nodehost'})\n");
@@ -1695,28 +1739,28 @@ sub comms{
     	$buf =~ s/\r//;
     	# Display everything received in the socket for debug
 		#print "$client_ip -> Got data $buf :\n" if ($debug);
-        
+
 		switch($buf) {
-	            
+
 		    case /USER/ {	# Start authentication process
-	                
+
 	                if ($buf =~ /USER:\s+([a-zA-Z1-9]+)/) {
-	                    $state{'user'}=$1;	
+	                    $state{'user'}=$1;
 	                    wlog("COMMS: $client_ip: GOT USER $state{'user'}") if ($debug);
-	                        
+
 	                    if ($userlist->{$state{'user'}}) {	# If we have a user account for this user
-	                            
+
 	        	        my $clen=20; #Length of challenge to send
 	                        my $challenge="";
 	                        for (1..$clen) {
 	                            $challenge="$challenge" . int(rand(99));
 	                        }
-	                     
+
 	                        wlog("DEBUG: $client_ip: Sending challenge: $challenge\n") if $debug;
 	                        print $client "CHALLENGE: $challenge\n";
-	                        
+
 	                        wlog("DEBUG: $client_ip: Waiting for response to challenge\n") if $debug;
-	                        # Expected response to the challenge is a hex MD5 of the challenge appended with the users password hash    
+	                        # Expected response to the challenge is a hex MD5 of the challenge appended with the users password hash
 	                        $state{'response'}=md5_hex("$challenge$userlist->{$state{'user'}}{'pass'}");
 
 	                    } else {
@@ -1728,22 +1772,22 @@ sub comms{
 	                    print $client "AUTH FAIL: Bad user $state{'user'}\n";
 	                }
 	            }
-	            
+
 	        case /RESPONSE/ {
 				wlog("DEBUG: $client_ip: Got RESPONSE\n") if ($debug);
-	                
+
 				if ($buf =~ /RESPONSE:*\s*(.*)/) {
-	                    
+
 	                    my $response=$1;
 	                    if ($debug) {
 	                        wlog("DEBUG: $client_ip: Expected resp: \'$state{'response'}\'\n");
 	                        wlog("DEBUG: $client_ip: Actual resp  : \'$response\'\n");
 	                    }
-	                    
+
 	                    # Check response hash
-	                    if ( $response eq $state{'response'} ) {	
+	                    if ( $response eq $state{'response'} ) {
 							wlog("AUTH : $client_ip: Pass Okay") if ($debug);
-							$state{'response'}=0;		# Reset the response hash. Don't know why I need to, but it sounds like a good idea. 
+							$state{'response'}=0;		# Reset the response hash. Don't know why I need to, but it sounds like a good idea.
 							$state{'auth'}=1;		# Mark as authed
 							print $client "AUTH OK\n";
 	                    } else {
@@ -1755,13 +1799,13 @@ sub comms{
 	                print $client "ERROR: Bad password request\n";
 				}
 	        }
-	            
+
 	        case /ERROR/ {
 	            wlog("DEBUG $client_ip: Got error. Closing connection\n");
 	            shutdown($client,2);
 	        }
-	            
-	        case /^REQ/ {	
+
+	        case /^REQ/ {
 				my $reqcmd;
 
 				if ($state{'auth'}) {
@@ -1769,78 +1813,78 @@ sub comms{
 					if ($buf =~ /REQ:\s*(.*)/) {
 		                $reqcmd=$1;
 		                # wlog("DEBUG: $client_ip: REQ -> $reqcmd\n") if $debug;
-		                    
+
 		                my $request=OFPC::Common::decoderequest($reqcmd);
-		                if ($request->{'valid'}{'val'} == 1) {	# Valid request then...		
+		                if ($request->{'valid'}{'val'} == 1) {	# Valid request then...
 							# Generate a rid (request ID for this.... request!).
 							# Unless action is something we need to wait for, lets close connection
-		                        
+
 							my $position=$queue->pending();
-		                        
+
 							if ("$request->{'action'}{'val'}" eq "store") {
 									wlog("REQ: Action Store");
 		                            # Create a tempfilename for this store request
 		                            $request->{'metadata'}{'tempfile'}=$request->{'metadata'}{'rid'} . ".pcap";
 		                            print $client "FILENAME: $request->{'metadata'}{'tempfile'}\n";
-		                           	print $client "RID: $request->{'metadata'}{'rid'}\n"; 
+		                           	print $client "RID: $request->{'metadata'}{'rid'}\n";
 		                            $queue->enqueue($request);
-		                            
+
 		                            #Say thanks and disconnect
 		                            wlog("DEBUG: $client_ip: RID: $request->{'metadata'}{'rid'}: Queue action requested. Position $position. Disconnecting\n");
 		                            print $client "QUEUED: $position\n";
 		                            shutdown($client,2);
-		                            
+
 							} elsif ($request->{'action'}{'val'} eq "fetch") {
 									wlog("REQ: Action Fetch");
 		                            # Create a tempfilename for this store request
 		                            $request->{'metadata'}{'tempfile'}=time() . "-" . $request->{'metadata'}{'rid'} . ".pcap";
 					    			wlog("COMMS: $client_ip: RID: $request->{'metadata'}{'rid'} Fetch Request OK, sending RID\n");
 					    			print $client "RID: $request->{'metadata'}{'rid'}\n";
-		                            
+
 					    			# Prep result of the request for delivery (route/extract/compress etc etc)
 		                            my $prep = OFPC::Common::prepfile($request);
 		                            my $xferfile=$prep->{'filename'};
-		                            
+
 		                            if ($prep->{'success'}) {
 										wlog("COMMS: $request->{'metadata'}{'rid'} $client_ip Sending File:$config{'SAVEDIR'}/$xferfile MD5: $prep->{'md5'}");
 										# Get client ready to recieve binary PCAP or zip file
-		                                
+
 										if ($prep->{'filetype'} eq "ZIP") {
 		                                    print $client "ZIP: $prep->{'md5'}\n";
 										} elsif ($prep->{'filetype'} eq "PCAP") {
 		                                    print $client "PCAP: $prep->{'md5'}\n";
 										} else {
 		                                    print $client "ERROR: Bad filetype extracted : $prep->{'filetype'}\n";
-		                                    shutdown($client,2);	
+		                                    shutdown($client,2);
 										}
-		                                
+
 										$client->flush();
-		                             
+
 										# Wait for client to share its ready state
 										# Any data sent from the client will be fine.
 										my $ready=<$client>;
 										open(XFER, '<', "$config{'SAVEDIR'}/$xferfile") or die("cant open pcap file $config{'SAVEDIR'}/$xferfile");
 										binmode(XFER);
 										binmode($client);
-		                                
+
 										my $data;
 										# Read and send pcap data to client
 										my $a=0;
-		                                
+
 										while(sysread(XFER, $data, 1024)) {
 		                                    syswrite($client,$data,1024);
 		                                    $a++;
 										}
-						
+
 		                                wlog("COMMS: Uploaded $a x 1KB chunks\n");
 										close(XFER);		# Close file
 			                        	shutdown($client,2);	# CLose client
-										
+
 										wlog("COMMS: $client_ip Request: $request->{'metadata'}{'rid'} : Transfer complete") if $debug;
-		                                
+
 										# unless configured to keep it, delete the pcap file from
 										# this queue instance
-		                                
+
 										unless ($config{'KEEPFILES'}) {
 		                                    wlog("COMMS: $client_ip Request: $request->{'metadata'}{'rid'} : Cleaning up.") if $debug;
 		                                    unlink("$config{'SAVEDIR'}/$xferfile") or
@@ -1850,14 +1894,14 @@ sub comms{
 										print $client "ERROR: $prep->{'message'}\n";
 			                        	shutdown($client,2);	# CLose client
 		                            }
-		                            
+
 							} elsif ($request->{'action'}{'val'} eq "status") {
-		    	                wlog("Received status request");	
-		                            
+		    	                wlog("Received status request");
+
 			                    my $s=OFPC::Common::getstatus($request);
 			                    my $sj = encode_json($s);
 		        	            print $client "STATUS: $sj";
-		    	                wlog("Status response sent to client") if $debug;	
+		    	                wlog("Status response sent to client") if $debug;
 			        	        shutdown($client,2);
 							} elsif ($request->{'action'}{'val'} eq "apikey") {
 								wlog("Received request for user API key for user $state{'user'}");
@@ -1869,14 +1913,14 @@ sub comms{
 		                        wlog("COMMS: $client_ip: RID: $request->{'metadata'}{'rid'} Start time=$request->{'stime'}{'val'} End time=$request->{'etime'}{'val'}");
 
 		                        (my $t)=OFPC::CXDB::cx_search($request);
-		                        unless ($t->{'error'}) { 
-		                        	my $tj=encode_json($t);	
+		                        unless ($t->{'error'}) {
+		                        	my $tj=encode_json($t);
 									print $client "TABLE:\n";
 									wlog("DEBUG: Sending table JSON....\n") if ($debug);
 									print $client $tj . "\n";
-		                                    
+
 		                            print $client "\n";
-		                        } else {	
+		                        } else {
 									print $client "ERROR: $t->{'error'}\n";
 		                        }
 		                        wlog("COMMS: $client_ip: RID: $request->{'metadata'}{'rid'} Table Sent. Closing connection\n");
@@ -1900,17 +1944,17 @@ sub comms{
 					print $client "ERROR: Authentication required\n";
 					shutdown($client,2);
 				}
-	                
+
 	        }
-	            
+
 	        case /OFPC-v1/ {
 				wlog("DEBUG $client_ip: GOT version, sending OFPC-v1 OK\n") if $debug;
 	     	    print $client "ERROR: Request format OFPC-v1 is deprecated and no longer compatible with OFPC. Please update your OpenFPC Client\n" ;
-	        } 
+	        }
 	        case /OFPC-v2/ {
 				wlog("DEBUG $client_ip: GOT version, sending OFPC-v2 OK\n") if $debug;
 	     	    print $client "OFPC-v2 OK\n" ;
-	        } 
+	        }
 	        else {
 	        	wlog("COMMS: $client_ip : Bad Request");
 				wlog("DEBUG: $client_ip : Bad request was: \"$buf\"\n") if $debug;
@@ -1923,57 +1967,57 @@ sub comms{
 =head2 runq
 	The runq function operates as a thread waiting for an entry to appear in
 	the extraction queue. When found, it then takes action on it.
-	
+
 	Takes: Nothing
 	Returns: Nothing
 	Expects: A shared global var across multiple threads called "queue"
 =cut
 
 sub runq {
-    
+
     while (1) {
         sleep(1);                               # Pause between polls of queue
        	my $qlen=$queue->pending();             # Length of extract queue
-        
+
        	if ($qlen >= 1) {                       # If we have something waiting in the queue for processing...
             my $request=$queue->dequeue();      # Pop the request out of the queue, and do something with it.
-            
+
             wlog("RUNQ : Found request: $request->{'metadata'}{'rid'} Queue length: $qlen");
             wlog("RUNQ : Request: $request->{'metadata'}{'rid'} User: $request->{'user'} Found in queue:");
-            
+
             if ($config{'PROXY'}) {
                 # The proxy mode routes the request to a Node,
                 # routereq takes a device name, and provides all data required to
                 # route the request to said device.
-               
-				(my $nodehost,my $nodeport,my $nodeuser,my $nodepass)=routereq($request->{'device'});
-				if ($nodehost) { 		# If this request is routable....
+
+								(my $nodehost,my $nodeport,my $nodeuser,my $nodepass)=routereq($request->{'device'});
+								if ($nodehost) { 		# If this request is routable....
                     $request->{'nodehost'} = $nodehost;
                     $request->{'nodeuser'} = $nodeuser;
                     $request->{'nodeport'} = $nodeport;
                     $request->{'nodepass'} = $nodepass;
-                    
-                    wlog("RUNQ : PROXY: Request: $request->{'rid'} Routable (to $nodehost)");    
+
+                    wlog("RUNQ : PROXY: Request: $request->{'rid'} Routable (to $nodehost)");
                     my $result=doproxy($request);
                     wlog("RUNQ : PROXY: Request: $request->{'rid'} Result: $result->{'success'} Message: $result->{'message'}");
-                    
+
                     if ($result->{'success'} ) {
-						$pcaps{$request->{'rid'}}=$request->{'filename'} ; # Report done
+											$pcaps{$request->{'rid'}}=$request->{'filename'} ; # Report done
                     } else {
-						$pcaps{$request->{'rid'}}="ERROR" ; # Report FAIL 
+											$pcaps{$request->{'rid'}}="ERROR" ; # Report FAIL
                     }
-				} else {
+									} else {
                     wlog("RUNQ : No openfpc-route to $request->{'device'}. Cant extract.");
-                    $pcaps{$request->{'rid'}}="NOROUTE"; # Report FAIL 
+                    $pcaps{$request->{'rid'}}="NOROUTE"; # Report FAIL
 				}
             } else {    # If this device is not a proxy, it must be a NODE.
-                
+
 				my $result = donode($request,$request->{'rid'});
 				if ($result->{'success'}) {
-                    wlog("RUNQ : NODE: Request: $request->{'metadata'}{'rid'} Success. File: $result->{'filename'} $result->{'size'} now cached on NODE in $config{'SAVEDIR'}"); 
+                    wlog("RUNQ : NODE: Request: $request->{'metadata'}{'rid'} Success. File: $result->{'filename'} $result->{'size'} now cached on NODE in $config{'SAVEDIR'}");
                     $pcaps{$request->{'metadata'}{'rid'}}=$result->{'filename'};
                 } else {
-                    wlog("RUNQ: NODE: Request: $request->{'metadata'}{'rid'} Result: Failed, $result->{'message'}.");    
+                    wlog("RUNQ: NODE: Request: $request->{'metadata'}{'rid'} Result: Failed, $result->{'message'}.");
                 }
             }
       	}
@@ -1992,27 +2036,25 @@ sub readroutes{
 	my $debug=wantdebug();
 	my %rt;						# Route table
 
-
     wlog("ROUTE: Reading route data from file: $config{'NODEROUTE'}");
-    if ($config{'NODEROUTE'}) {
-	
-		open NODEROUTE, '<', $config{'NODEROUTE'} or die "Unable to open node route file $config{'NODEROUTE'} \n";
-		wlog("ROUTE: Reading route file $config{'NODEROUTE'}");
-	
-		while(<NODEROUTE>) {
+    if ( -f $config{'NODEROUTE'}) {
+			open NODEROUTE, '<', $config{'NODEROUTE'} or die "Unable to open node route file $config{'NODEROUTE'} \n";
+			wlog("ROUTE: Reading route file $config{'NODEROUTE'}");
+			while(<NODEROUTE>) {
 		    chomp $_;
 	    	unless ($_ =~ /^[# \$\n]/) {
 	    		if ( (my $key, my $value) = split /=/, $_ ) {
-		   	 		$route{$key} = $value;	
+		   	 		$route{$key} = $value;
 					wlog("ROUTE: Adding route for $key as $value");
 					($rt{$key}{'ip'}, $rt{$key}{'port'}) = split/:/, $value;
 					$rt{$key}{'name'} = $key;
 	    		}
 	    	}
-		}
+			}
     	close NODEROUTE;
     } else {
-		die("No route file defined\n");
+			wlog("Error, unable to find routes file $config{'NODEROUTE'}");
+			die("No route file defined\n");
     }
     return(\%rt);
 }
@@ -2020,7 +2062,7 @@ sub readroutes{
 =head readpasswd
     Read in the passwd file, and return a hash of the contents
     - Leon Ward 2011
-    
+
     Expects: $filename
     Returns: $hash_ref of passwords and API keys by user
 =cut
@@ -2028,27 +2070,37 @@ sub readroutes{
 sub readpasswd{
     my $pf=shift;
 	my $debug=wantdebug();
-   	my $h=(); 
+   	my $h=();
     open my $fh, '<', $pf or die "ERROR: Unable to open passwd file $pf $!\n";
     while(<$fh>) {
         chomp;
         if ( $_ =~ m/^[a-zA-Z]/) {
             (my $s, my $u, my $p, my $k) = split /=/, $_;
             if ($s eq "SHA1") {
-                wlog("DEBUG: Adding user \"$u\"") if $debug; 
+                wlog("DEBUG: Adding user \"$u\"") if $debug;
                 $h->{$u}{'apikey'} = $k if $k;
                 $h->{$u}{'pass'} = $p if $p;
             }
         }
     }
     close $fh;
-    return($h);    
+    return($h);
+}
+
+=head logdie
+	Log a message and then die with the same error
+=cut
+
+sub logdie{
+	my $msg=shift;
+	wlog($msg);
+	die($msg);
 }
 
 =head readconfig
     Read in the config file, store it in the %config global variable.
     - Leon Ward 2011
-    
+
     Expects: $configfile
     Returns: 1 for success, 0 for fail.
     Depends on: A global %config
@@ -2057,11 +2109,11 @@ sub readpasswd{
 sub readconfig{
 
     my $configfile=shift;
-    
+
     unless ($configfile) {
         die "Please specify a config file. See help (--help)\n";
     }
-    
+
     open my $config, '<', $configfile or die "Unable to open config file $configfile $!";
     while(<$config>) {
         chomp;
@@ -2072,8 +2124,30 @@ sub readconfig{
         	}
         }
     }
-    close $config;
-    return(%config);    
+
+    my @ce=();
+
+    # Check that important things are all set in the config
+    if ( $config{'PROXY'}) {
+    	# Proxy device
+    	@ce=('PROXY_DB_USER',
+    		'PROXY_DB_PASS',
+    		'PROXY_DB_HOST',
+    		'PROXY_DB_NAME',
+    		);
+
+    } else {
+    	# normal node
+    	@ce=('DESCRIPTION',
+    		'BUFFER_PATH',
+    		);
+    }
+
+    foreach (@ce) {
+    	logdie("ERROR: $_ is not defined in configuration") unless $config{$_};
+    }
+
+    return(%config);
 }
 
 1;
