@@ -57,10 +57,7 @@ my %logs=(
 			"ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp timestamp:1274864808 msg:Some freeform text" ,
 			"ofpc-v1 type:event sip:192.168.222.1 timestamp:1285142949" 
 			] ,
-	#ofpcv1BPF => 	[  #DEPRICATED
-	#		"ofpc-v1-bpf bpf: host 1.1.1.1 and host 2.2.2.2 not tcp port 23 stime:1274864808 etime:1274864899" 
-	#		] ,
-	pradslog => 	[
+	PradsLog => 	[
 			"192.168.42.5,0,22,6,SERVER,[ssh:OpenSSH 5.3p1 (Protocol 2.0)],0,1290888581",
 			"192.168.42.107,0,443,6,CLIENT,[unknown:\@https],0,1290816603",
 			"173.194.36.83,0,443,6,SERVER,[unknown:\@https],10,1290816603",
@@ -81,15 +78,15 @@ my %logs=(
     	"  3   2014-01-10 13:00:00      192.168.42.1     138    192.168.42.255     138      udp      0      0",
     	"4   2014-01-10 08:24:14      192.168.42.1     138    192.168.42.255     138      tcp      0      0",
 	],
-	passive_dns_gl => [
+	passive_dns_1 => [
 		"1410118731.439740||192.168.1.1||192.168.1.1||IN||id.l.google.com.||A||7.15.23.88||259||1",
 		"1410118748.301084||192.168.2.1||192.168.1.1||IN||something.co.uk.||A||7.2.2.6||600||1",
 	],
-	unknown_with_ports => [
+	generic_with_ports => [
 		"Blah blah blah blah 668jj6a57^%4t garbage 192.168.0.1:1234 wibble wibble 192.168.0.2:2345",
-		"1/24-10-10:43:38.846134  [**] [1:2000:0] Snort Alert [1:2000:0] [**] [Priority: 0] {TCP} 10.0.0.2:3941 -> 10.10.20.53:80",
+		"11.1.1.1:4321 -> 2.2.2.2:34455 aksdjfhkalsjdh fk asdkfh ksah dfkajsh df",
 	],
-	unknown_without_ports => [
+	generic_without_ports => [
 		"Blah blah blah blah 668jj6a57^%4t garbage 192.168.0.1 wibble wibble 192.168.0.2",
 		"192.168.0.1 192.168.0.2",
 		"192.168.0.1	tab tab	192.168.0.2 asdf asdf asdf tab	",
@@ -117,7 +114,7 @@ sub checkParse{
 	);
 	my $p=OFPC::Parse::parselog($logline, $r);
 	if ($p->{'parsed'}) {
-		print ": Detected and parsed as $p->{'type'}\n" if ($verbose);
+	
 		return($p);
 	} else {
 		print "[*] ERROR Cant parse event!\n";
@@ -178,8 +175,9 @@ unless ($oneline) {
 		foreach my $type (keys(%logs)) {		# For every log type
 			my $te=0;
 			foreach(@{$logs{$type}}) {		# For each log line of that type
-				print " -  Testing: $type\n";
+				print " -  Testing: $type ";
 				my $result=checkParse($_);
+
 				#if ($result->{'parsed'}){
 				#	if ($verbose) {
 				#		print "\n";
@@ -192,6 +190,15 @@ unless ($oneline) {
 					$te=1;	# Set type error to 1
 					$problem=1;
 					push(@bad, $type);
+				} else {
+					print ": Detected and parsed as $result->{'type'}\n";
+					unless ($result->{'type'} eq  $type) {
+						print "[!] WARNING: Type mismatch!\n";
+						push(@bad, $type);
+						print $_ if ($verbose);
+						$te=1;	# Set type error to 1
+
+					}
 				}
 			}
 			if ($te) {

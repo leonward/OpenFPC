@@ -154,6 +154,8 @@ sub parselog{
                 %eventdata=OFPC::Parse::nftracker($logline,$r->{'tz'}{'val'}); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=OFPC::Parse::cxsearch($logline,$r->{'tz'}{'val'}); if ($eventdata{'parsed'} ) { last; }
                 %eventdata=OFPC::Parse::ofpc_search($logline, $r->{'tz'}{'val'}); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OFPC::Parse::generic_with_ports($logline, $r->{'tz'}{'val'}); if ($eventdata{'parsed'} ) { last; }
+                %eventdata=OFPC::Parse::generic_without_ports($logline, $r->{'tz'}{'val'}); if ($eventdata{'parsed'} ) { last; }
 
                 return(\%eventdata);
         }   
@@ -194,7 +196,7 @@ sub OFPC1Event{
 	# OFPC-v1 Client request (text or GUI)
 
 	my %event=(
-		'type' => "OFPC Generic",
+		'type' => "OFPC1Event",
 		'spt' => 0,
 		'dpt' => 0,
 		'sip' => 0,
@@ -285,7 +287,7 @@ sub SF49IPS{
 
 
 	my %event=(
-		'type' => "SFIPS",
+		'type' => "SF49IPS",
 		'spt' => 0,
 		'dpt' => 0,
 		'sip' => 0,
@@ -532,14 +534,13 @@ sub SnortFast{
                 if ($logline =~ /-> *((\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b):(\d+))/) {
                         $event{'dpt'} = $3;
 		}
-		# Here
 		
 	}
 
 	if ( ($event{'sip'} or $event{'dip'}) and $event{'proto'} and $event{'timestamp'} ) {
 		$event{'parsed'}=1;
 	}
-	
+
 	return(%event);
 
 }
@@ -617,9 +618,6 @@ sub pradslog{
 	} else {
 		print "Failed to decode prads event\n" if ($debug);
 	}
-
-
-	
 	return(%event);
 }
 
@@ -633,7 +631,7 @@ sub pradslog{
 sub nftracker{
 	my $logline=shift;
 	my %event=initevent();
-	$event{'type'} = "nftracker log";
+	$event{'type'} = "nftracker";
 	my $debug=0;
 
 	($event{'timestamp'},
@@ -651,13 +649,14 @@ sub nftracker{
 
 	return(%event);
 }
+
 =head2 cxsearch
 	OpenFPC connection search tool, found in /tools/
 =cut
 sub cxsearch{
 	my $logline=shift;
 	my %e=initevent();
-	$e{'type'} = "ofpc-cxsearch";
+	$e{'type'} = "ofpccxsearch";
 	my $debug=wantdebug();
 
 	my @d=();
@@ -685,31 +684,6 @@ sub cxsearch{
 	return(%e);
 }
 
-
-#sub nt{
-#
-#	my $i=shift;	# input hash
-#	my $ts = 0;		# timestamp
-#	my $stz = "local";
-#	my $dtz = "local";
-#	my $dtf = "%h";		# for now 
-#	my $stf = "Y-%m-%d %k:%H:%S";		# for now
-#
-#	if (defined $i->{ts}) {$ts = $i->{ts}; }
-#	if (defined $i->{stz}) {$stz = 	$i->{stz}; }
-#	if (defined $i->{dtz}) {$dtz = 	$i->{dtz}; }
-#	if (defined $i->{dtf}) {$dtf = 	$i->{dtf}; }
-#	if (defined $i->{stf}) {
-#		$stf = 	$i->{dsf}; 
-#	} else {
-#			# don't know what format it is...
-#			my $nts = time2str($ts);
-#			print "New Nts is $nts\n";
-#	}
-
-
-
-#}
 
 =head2 ofpc_search
 	OpenFPC connection search via the queue daemon
@@ -790,5 +764,50 @@ sub passive_dns_1{
 
 	return(%e);
 }
+
+
+sub generic_with_ports{
+
+	my $logline=shift;
+	my $logtz=shift;
+
+	my %e=initevent();
+	$e{'type'} = "generic_with_ports";
+	my $debug=wantdebug();
+
+    if ($logline =~ /((\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b):(\d+)).*((\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b):(\d+))/) {
+        $e{'sip'} = $2;
+        $e{'spt'} = $3;
+        $e{'dip'} = $5;
+        $e{'dpt'} = $6;
+    }
+
+    if ($e{'sip'} and $e{'dip'} and $e{'spt'} and $e{'dpt'}) {
+    	$e{'parsed'}=1;
+    }
+
+	return(%e);
+}
+
+sub generic_without_ports{
+
+	my $logline=shift;
+	my $logtz=shift;
+
+	my %e=initevent();
+	$e{'type'} = "generic_without_ports";
+
+    if ($logline =~ /(\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b).*(\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b)/) {
+        $e{'sip'} = $1;
+        $e{'dip'} = $2;
+    }
+
+    if ($e{'sip'} and $e{'dip'}) {
+ 	  	$e{'parsed'}=1;
+    }
+
+	return(%e);
+}
+
 
 1;
