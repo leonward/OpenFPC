@@ -137,7 +137,7 @@ sub parselog{
         my $logline=shift;
         my $r=shift;
 		my $debug=wantdebug();
-        if ($debug) { print "\nParsing the logline :$logline\n"; }
+        if ($debug) { print "\nDEBUG: Parsing the logline :$logline\n"; }
         my %eventdata = (
         		parsed => 0,
         		);     # Hash of decoded event
@@ -273,7 +273,6 @@ sub OFPC1Event{
 		$event{'parsed'}=1;
 	}
 
-	print Dumper %event;
 	return(%event);
 
 }
@@ -598,7 +597,6 @@ sub pradslog{
 		my $hops,
 		$event{'timestamp'} ) = split(/,/, $logline)) { 
 
-		print "Got a good split\n" if ($debug);
 
 		if ($clisvr eq "CLIENT") {
 			$event{'sip'} = $ip;
@@ -777,9 +775,6 @@ sub passive_dns_1{
 
 	(my @d)=split(/\|\|/,$logline);
 
-	foreach (@d) {
-		print "- $_\n";
-	}
 	my $t;
 	if ($d[0] =~ m/(^[0-9]+)/) {
 		$t = $1;

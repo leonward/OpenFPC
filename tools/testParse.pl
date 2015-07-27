@@ -20,7 +20,9 @@ my $quiet=0;
 my $mtype=0;
 my $help;
 my $r;
+
 $r->{'tz'}{'val'} = "UTC";
+my @bad=();   #list of bad types that fail to parse
 
 my %logs=(
 	SnortSyslog => [ 
@@ -83,6 +85,16 @@ my %logs=(
 		"1410118731.439740||192.168.1.1||192.168.1.1||IN||id.l.google.com.||A||7.15.23.88||259||1",
 		"1410118748.301084||192.168.2.1||192.168.1.1||IN||something.co.uk.||A||7.2.2.6||600||1",
 	],
+	unknown_with_ports => [
+		"Blah blah blah blah 668jj6a57^%4t garbage 192.168.0.1:1234 wibble wibble 192.168.0.2:2345",
+		"1/24-10-10:43:38.846134  [**] [1:2000:0] Snort Alert [1:2000:0] [**] [Priority: 0] {TCP} 10.0.0.2:3941 -> 10.10.20.53:80",
+	],
+	unknown_without_ports => [
+		"Blah blah blah blah 668jj6a57^%4t garbage 192.168.0.1 wibble wibble 192.168.0.2",
+		"192.168.0.1 192.168.0.2",
+		"192.168.0.1	tab tab	192.168.0.2 asdf asdf asdf tab	",
+	]
+
 );
 
 sub checkParse{
@@ -103,15 +115,13 @@ sub checkParse{
                 'stime' => 0,
                 'etime' => 0,
 	);
-
 	my $p=OFPC::Parse::parselog($logline, $r);
 	if ($p->{'parsed'}) {
-		print ": Detected and parsed as $p->{'type'}\n" unless ($quiet);
+		print ": Detected and parsed as $p->{'type'}\n" if ($verbose);
 		return($p);
 	} else {
 		print "[*] ERROR Cant parse event!\n";
 		print "    $logline\n";
-		print "------------------------------\n";
 		return($p);
 	}
 }
@@ -161,26 +171,35 @@ if ($help) {
 }
 
 unless ($oneline) {
+	print "\n\n";
+	print "---------------------------------\n[*] Processing all log tests: ";
 	unless ($mtype) {
-
-		print "* Autodetect type\n" unless ($quiet);
+		print " against all parsers\n--------------------------\n";
 		foreach my $type (keys(%logs)) {		# For every log type
+			my $te=0;
 			foreach(@{$logs{$type}}) {		# For each log line of that type
-				print "- Testing $type";
+				print " -  Testing: $type\n";
 				my $result=checkParse($_);
-				if ($result->{'parsed'}){
-					if ($verbose) {
-						print "\n";
-							displayEvent($result) if ($verbose);
-					}
-				} else {
-					print "ERROR: Unable to Parse something!!!\n";
-					exit(1)
+				#if ($result->{'parsed'}){
+				#	if ($verbose) {
+				#		print "\n";
+				#			displayEvent($result) if ($verbose);
+				#	}
+				#} else {
+				#	print "[!] ERROR: Unable to Parse $type!\n";
+				#}
+				unless ($result->{'parsed'}) {
+					$te=1;	# Set type error to 1
+					$problem=1;
+					push(@bad, $type);
 				}
+			}
+			if ($te) {
+				print "[!] ERROR: One or more of $type failed to parse. Enable verbose mode to find out more...\n";
 			}
 		}
 	} else { 
-		print "Working only on type $mtype\n";
+		print " but only against one parser of type: $mtype\n---------------------------------\n";
 		foreach(@{$logs{$mtype}}) {		# For each log line of that type
 			print "- Testing $mtype";
 			my $result=checkParse($_);
@@ -211,8 +230,12 @@ if ($oneline)  {
 		displayEvent(\%tmpdata);
 	}
 }
-
+print "\n------------------------------------\n";
 if ($problem) {
-	print "ERROR, problem found with one or more logs !\n";
-	exit 1;
+		print "[!] Error found while parsing:\n";
+	foreach (@bad) {
+		print "     $_\n";
+	}
+} else {
+	print "[*] All okay\n";
 }
