@@ -24,7 +24,7 @@ PORT="4222"
 SSL_PORT="4223"
 SSL_CERT="/etc/openfpc/ofpcapi.cert.pem"
 SSL_KEY="/etc/openfpc/ofpcapi.key.pem"
-PCAPDIR="/var/tmp/openfpc/rest-pcaps"
+PCAPDIR="/var/tmp/openfpc/api-pcaps"
 
 IAM=`whoami`;
 
