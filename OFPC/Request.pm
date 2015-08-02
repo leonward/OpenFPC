@@ -144,6 +144,11 @@ sub mkreqv2{
 			val => 0,
 			required => 0,
 		},
+		last => {
+			text => "Last Seconds",
+			val => 0,
+			required => 0,
+		},
 		comment => {
 			text => "Comment",
 			val => 0,

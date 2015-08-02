@@ -12,6 +12,7 @@ Vagrant.configure(2) do |config|
   config.vm.network :forwarded_port, host: 4242, guest: 4242
   config.vm.network :forwarded_port, host: 4243, guest: 4243
   config.vm.network :forwarded_port, host: 4222, guest: 4222
+  config.vm.network :forwarded_port, host: 4223, guest: 4223
   
   # Create a private network, which allows host-only access to the machine
   # using a specific IP.

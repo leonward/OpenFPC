@@ -155,14 +155,14 @@ sub validatepcaplist{
 	    		wlog("ERROR: Problem with tcpdump reading $_. Got tcpdump error code $tdrc.");
 	    		wlog("ERROR: Hint: This must work $config{'TCPDUMP'} -r $_ -c 1 -w /dev/null") if $debug;
 			} else {
-				wlog("DEBUG: Looks like $_ reads fine, keeping file on list") if $debug;
+				wlog("DEBUG: Looks like $_ reads fine, keeping file on list") if $vdebug;
 				push(@goodfiles, $_);
 			}
 		} else {
 			wlog("DEBUG: PCAP validation: $_ is 0 bytes long, removing it from the list") if $debug;
 		}
 	}
-	wlog("DEBUG: PCAP validation: Clean file list provided back is @goodfiles") if $debug;
+	wlog("DEBUG: PCAP validation: Clean file list provided back is @goodfiles") if $vdebug;
 	return(@goodfiles);
 }
 
@@ -187,6 +187,7 @@ sub checkbpf{
                 my $p=shift(@pcaptemp);
                 chomp $p;
                 my $bc="$config{'TCPDUMP'} -nnr $p -c 1 \"$bpf or not($bpf)\" > /dev/null 2>&1";
+                wlog("DEBUG: Now extracting from $p");
                 my $i=system($bc);
                 if ($i) {
                         wlog("WARN : BPF failed to validate - $bpf");
@@ -910,11 +911,30 @@ sub decoderequest($){
 		if ($r->{'stime'}{'val'} and $r->{'etime'}{'val'}) {
 			wlog("DECOD: Final stime and etime are set in request as $r->{'stime'}{'val'} / $r->{'etime'}{'val'}\n") if $debug;
 		} else {
-			wlog("DECOD: Neither timestamp or stime/etime are set, setting timestamp to $now, it was $r->{'timestamp'}{'val'}\n") if $debug;
-			$gr->{'timestamp'}{'val'} = $now;
+			wlog("DECOD: Neither timestamp or stime/etime are set in request, setting timestamp to now ($now)" . localtime($now)) if $debug;
+			if ($r->{'last'}{'val'}) {
+				wlog("DECOD: DBEUG: Last value set in request. Updating stime and etime to skew now ($now)");
+				$gr->{'stime'}{'val'} = $r->{'timestamp'}{'val'} - $r->{'last'}{'val'};
+				$gr->{'etime'}{'val'} = $r->{'timestamp'}{'val'};
+				wlog("DECOD: DEBUG: stime now " . localtime($gr->{'stime'}{'val'})) if $debug;
+				wlog("DECOD: DEBUG: etime now " . localtime($gr->{'etime'}{'val'})) if $debug;
+			} else {
+				wlog("DECOD: DEBUG: Last not set, defaulting to now") if $debug;
+				$gr->{'timestamp'}{'val'} = $now;
+			}
 		}
 	} else {
-		wlog("DECOD: DEBUG: Final timestamp used in request is epoch $r->{'timestamp'}{'val'}") if $debug;
+		wlog("DECOD: DEBUG: Timestamp was passed in initial request as $r->{'timestamp'}{'val'}" . localtime($r->{'timestamp'}{'val'})) if $debug;
+		if ($r->{'last'}{'val'}) {
+			wlog("DECOD: DEBUG: ** Last value set in request as $r->{'last'}{'val'}. Updating stime and etime to skew times from timestamp $r->{'timestamp'}{'val'} " . localtime($r->{'timestamp'}{'val'}));
+			$gr->{'stime'}{'val'} = $r->{'timestamp'}{'val'} - $r->{'last'}{'val'};
+			$gr->{'etime'}{'val'} = $r->{'timestamp'}{'val'};
+			wlog("DECOD: DEBUG: stime now $gr->{'stime'}{'val'} " . localtime($gr->{'stime'}{'val'}));
+			wlog("DECOD: DEBUG: etime now $gr->{'etime'}{'val'} " . localtime($gr->{'etime'}{'val'}));
+		} else {
+			wlog("DECOD: DEBUG: Last not set, defaulting to now") if $debug;
+			$gr->{'timestamp'}{'val'} = $now;
+		}
 	}
 
     return($gr);
@@ -1352,9 +1372,10 @@ sub bufferRange {
 			$include=1;
 		} elsif ($_ =~ /$endfile/ ) {
 			$include=0;
+			push(@pcaps,$_); # catch the last file before unset of include
 		}
 	        push(@pcaps,$_) if ($include);
-			if ($vdebug) {
+			if ($debug) {
 				wlog("VDBEUG: +Include $_ \n") if ($include);
 				wlog("VDEBUG: -Include $_ \n") unless ($include);
 			}
@@ -1534,7 +1555,7 @@ sub doExtract{
         chomp $_;
         my $filename="$tempdir/$mergefile-$pcapid.pcap";
         push(@outputpcaps,$filename);
-
+        wlog("DBEUG: doExtract: Extracting from $_");
 		my $exec="$config{'TCPDUMP'} -r $_ -w $filename $bpf > /dev/null 2>&1";
         $exec="$config{'TCPDUMP'} -r $_ -w $filename $bpf" if ($vdebug) ; # Show tcpdump o/p if debug is on
 

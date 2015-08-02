@@ -231,15 +231,30 @@ sub checkinput{
 			debug "Decoded destination port is $q{'dpt'}";
 		}
 
-		foreach ('stime', 'etime', 'timestamp') {
+		if (params->{'logline'}) {
+			$q{'logline'}=uri_unescape(params->{'logline'});
+			debug "Decoded logline is $q{'logline'}";
+		}
+
+		if (params->{'limit'}) {
+			$q{'limit'}=uri_unescape(params->{'limit'});
+			unless ($q{'limit'} =~ m/^(\d{1,5})$/) {
+				$q{'error'} = "Error. Limit too large for search result";
+				error $q{'error'};
+				return(\%q);
+			}	
+			debug "Accepted limit as $q{'limit'}";
+		}
+
+		foreach ('stime', 'etime', 'timestamp', 'last') {
 			if (params->{$_}) {
 				$q{$_}=uri_unescape(params->{$_});
-				unless ($q{$_}=~/^[A-Za-z0-9 :\.\[\]\(\)\/]+$/) {
+				unless ($q{$_}=~/^[A-Za-z0-9 :\.\[\]\(\)\/\-]+$/) {
 					$q{'error'} = "Error. $_ failed input validation.";
 					error $q{'error'};
 					return(\%q);
 				}	
-				debug "Decoded $_ as $q{$_}";
+				warn "Accepted $_ as $q{$_}";
 			}
 		}
 	}
@@ -298,6 +313,11 @@ get '/api/1/fetch' => sub {
 	$r->{'dpt'}{'val'} = $e->{'dpt'};
 	$r->{'spt'}{'val'} = $e->{'spt'};
 	$r->{'bpf'}{'val'} = $e->{'bpf'};
+	$r->{'logline'}{'val'} = $e->{'logline'};
+	$r->{'last'}{'val'} = $e->{'last'};
+	debug "last is " . $e->{'last'};
+	debug "logline is " . $e->{'logline'};
+	debug $e;
 
 	my $auth=checkauth(params->{'apikey'}, $api_keys);
 	return { error => $auth->{'error'}} unless $auth->{'auth'};
@@ -340,6 +360,8 @@ get '/api/1/store' => sub {
 	$r->{'dpt'}{'val'} = $e->{'dpt'};
 	$r->{'spt'}{'val'} = $e->{'spt'};
 	$r->{'bpf'}{'val'} = $e->{'bpf'};
+	$r->{'logline'}{'val'} = $e->{'logline'};
+	$r->{'last'}{'val'} = $e->{'last'};
 
 	my $auth=checkauth(params->{'apikey'}, $api_keys);
 	return { error => $auth->{'error'}} unless $auth->{'auth'};
@@ -374,6 +396,7 @@ get '/api/1/search' => sub {
 	$r->{'stime'}{'val'} = $e->{'stime'};
 	$r->{'etime'}{'val'} = $e->{'etime'};
 	$r->{'timestamp'}{'val'} = $e->{'timestamp'};
+	$r->{'limit'}{'val'} = $e->{'limit'};
 
 	my $auth=checkauth(params->{'apikey'}, $api_keys);
 	return { error => $auth->{'error'}} unless $auth->{'auth'};
