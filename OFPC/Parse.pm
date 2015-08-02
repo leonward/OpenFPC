@@ -169,7 +169,7 @@ sub parselog{
                 	   "   Parsed: $eventdata{'parsed'}\n" .
                        "   Type: $eventdata{'type'}\n" .
                        "   Log Timezone:  $r->{'tz'}{'val'} \n" .
-                       "   Timestamp: $eventdata{'timestamp'} (" . localtime($eventdata{'timestamp'}) . "$r->{'tz'}{'val'})\n" .
+                       "   Timestamp: $eventdata{'timestamp'} (" . localtime($eventdata{'timestamp'}) . " $r->{'tz'}{'val'})\n" .
 		               "   stime: $eventdata{'stime'} \n" .
 		               "   etime: $eventdata{'etime'} \n" .
                        "   SIP: $eventdata{'sip'}\n" .

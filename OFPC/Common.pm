@@ -658,7 +658,6 @@ sub getstatus{
 	    		$r2->{'user'}{'val'} =  $request->{'user'}{'val'};
     			$r2->{'password'}{'val'} = $request->{'password'}{'val'};
     			$r2->{'action'}{'val'} = "status";
-    			print Dumper $request;
     			my %s=OFPC::Request::request($nodesock,$r2);
 
     			unless ($s{'success'}) {
@@ -852,7 +851,8 @@ sub decoderequest($){
 				$gr->{'dpt'}{'val'} = $eventdata->{'dpt'};
 				$gr->{'msg'}{'val'} = $eventdata->{'msg'};
 				$gr->{'proto'}{'val'} = $eventdata->{'proto'};
-				wlog("DECOD: DEBUG: logline timestamp has been set to $gr->{'timestamp'}{'val'}. Stime is $gr->{'stime'}{'val'}, etime is $gr->{'etime'}{'val'}\n") if $debug;
+				$gr->{'timestamp'}{'val'} = $eventdata->{'timestamp'};
+				wlog("DECOD: DEBUG: logline timestamp has been set to $gr->{'timestamp'}{'val'} (" . localtime($gr->{'timestamp'}{'val'}) . "). Stime is $gr->{'stime'}{'val'}, etime is $gr->{'etime'}{'val'}\n") if $debug;
 			}
 		} else {
 			wlog("DECOD: DEBUG: No BPF or logline detected in request, using session identifiers") if $debug;
@@ -908,6 +908,7 @@ sub decoderequest($){
 
 	# If no timestamp, stime or etime have been specified, set a default range to search
 	unless ($r->{'timestamp'}{'val'}) {
+		wlog("DECOD: DEBUG: No value for timestamp has been passed from the user requets");
 		if ($r->{'stime'}{'val'} and $r->{'etime'}{'val'}) {
 			wlog("DECOD: Final stime and etime are set in request as $r->{'stime'}{'val'} / $r->{'etime'}{'val'}\n") if $debug;
 		} else {
@@ -924,7 +925,7 @@ sub decoderequest($){
 			}
 		}
 	} else {
-		wlog("DECOD: DEBUG: Timestamp was passed in initial request as $r->{'timestamp'}{'val'}" . localtime($r->{'timestamp'}{'val'})) if $debug;
+		wlog("DECOD: DEBUG: Timestamp was passed in initial request from user as $r->{'timestamp'}{'val'}" . localtime($r->{'timestamp'}{'val'})) if $debug;
 		if ($r->{'last'}{'val'}) {
 			wlog("DECOD: DEBUG: ** Last value set in request as $r->{'last'}{'val'}. Updating stime and etime to skew times from timestamp $r->{'timestamp'}{'val'} " . localtime($r->{'timestamp'}{'val'}));
 			$gr->{'stime'}{'val'} = $r->{'timestamp'}{'val'} - $r->{'last'}{'val'};
@@ -1018,7 +1019,6 @@ sub prepfile{
 			# Request from all devices
       wlog("PREP : Request is NOT routable. Requesting from all nodes SOUTH from this proxy");
 	    $multifile=1;	# Fraged request will be a multi-file return so we use a ZIP to combine
-	    print Dumper $r;
 	    foreach (keys %route) {
  				($nodehost,$nodeport)=routereq($_);
 				$r->{'metadata'}{'nodehost'}= $nodehost;
@@ -1950,7 +1950,6 @@ sub comms{
 								wlog("Error: Unknown action $request->{'action'}{'val'}");
 							}
 		                } else {
-		                	print Dumper $request;
 							wlog("COMMS: $client_ip: BAD request $request->{'msg'}{'val'}");
 							print $client "ERROR: $request->{'msg'}{'val'}\n";
 			                shutdown($client,2);
