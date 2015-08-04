@@ -254,7 +254,7 @@ sub checkinput{
 					error $q{'error'};
 					return(\%q);
 				}	
-				warn "Accepted $_ as $q{$_}";
+				debug "Accepted $_ as $q{$_}";
 			}
 		}
 	}
@@ -315,9 +315,10 @@ get '/api/1/fetch' => sub {
 	$r->{'bpf'}{'val'} = $e->{'bpf'};
 	$r->{'logline'}{'val'} = $e->{'logline'};
 	$r->{'last'}{'val'} = $e->{'last'};
-	debug "last is " . $e->{'last'};
-	debug "logline is " . $e->{'logline'};
-	debug $e;
+	$r->{'stime'}{'val'} = $e->{'stime'};
+	$r->{'etime'}{'val'} = $e->{'etime'};
+	$r->{'timestamp'}{'val'} = $e->{'timestamp'};
+
 
 	my $auth=checkauth(params->{'apikey'}, $api_keys);
 	return { error => $auth->{'error'}} unless $auth->{'auth'};
@@ -362,6 +363,9 @@ get '/api/1/store' => sub {
 	$r->{'bpf'}{'val'} = $e->{'bpf'};
 	$r->{'logline'}{'val'} = $e->{'logline'};
 	$r->{'last'}{'val'} = $e->{'last'};
+	$r->{'stime'}{'val'} = $e->{'stime'};
+	$r->{'etime'}{'val'} = $e->{'etime'};
+	$r->{'timestamp'}{'val'} = $e->{'timestamp'};
 
 	my $auth=checkauth(params->{'apikey'}, $api_keys);
 	return { error => $auth->{'error'}} unless $auth->{'auth'};

@@ -791,7 +791,6 @@ sub decoderequest($){
 
 	# fetch, store and search all have the same time constraints.
 	# normalizing them once and only once.
-
 	if ($gr->{'action'}{'val'} =~/(fetch|store|search)/) {
 		wlog("DECOD: DEBUG: Normalizing timestamps") if $debug;
 		foreach ('timestamp', 'stime', 'etime') {
@@ -851,8 +850,8 @@ sub decoderequest($){
 				$gr->{'dpt'}{'val'} = $eventdata->{'dpt'};
 				$gr->{'msg'}{'val'} = $eventdata->{'msg'};
 				$gr->{'proto'}{'val'} = $eventdata->{'proto'};
-				$gr->{'timestamp'}{'val'} = $eventdata->{'timestamp'};
-				wlog("DECOD: DEBUG: logline timestamp has been set to $gr->{'timestamp'}{'val'} (" . localtime($gr->{'timestamp'}{'val'}) . "). Stime is $gr->{'stime'}{'val'}, etime is $gr->{'etime'}{'val'}\n") if $debug;
+				$r->{'timestamp'}{'val'} = $eventdata->{'timestamp'}; # Setting r not gr because of uptdate time section at the end of this function
+				wlog("DECOD: DEBUG: logline timestamp has been set to $r->{'timestamp'}{'val'} (" . localtime($r->{'timestamp'}{'val'}) . "). Stime is $gr->{'stime'}{'val'}, etime is $gr->{'etime'}{'val'}\n") if $debug;
 			}
 		} else {
 			wlog("DECOD: DEBUG: No BPF or logline detected in request, using session identifiers") if $debug;
@@ -933,8 +932,7 @@ sub decoderequest($){
 			wlog("DECOD: DEBUG: stime now $gr->{'stime'}{'val'} " . localtime($gr->{'stime'}{'val'}));
 			wlog("DECOD: DEBUG: etime now $gr->{'etime'}{'val'} " . localtime($gr->{'etime'}{'val'}));
 		} else {
-			wlog("DECOD: DEBUG: Last not set, defaulting to now") if $debug;
-			$gr->{'timestamp'}{'val'} = $now;
+			$gr->{'timestamp'}{'val'} = $r->{'timestamp'}{'val'};
 		}
 	}
 
