@@ -1,7 +1,7 @@
 #!/usr/bin/perl -I.
 
 #########################################################################################
-# Copyright (C) 2010 - 2014 Leon Ward 
+# Copyright (C) 2010 - 2014 Leon Ward
 # openfpc-queued.pl - Part of the OpenFPC - (Full Packet Capture) project
 #
 # Contact: leon@rm-rf.co.uk
@@ -28,7 +28,7 @@ use threads::shared;
 use Thread::Queue;
 use IO::Socket;
 use Getopt::Long;
-use POSIX qw(setsid);		# Required for daemon mode
+use POSIX qw(setsid);    # Required for daemon mode
 use Data::Dumper;
 use File::Temp(qw(tempdir));
 use DateTime;
@@ -48,17 +48,17 @@ use OFPC::CXDB;
 =cut
 
 my $help;
-my %route: shared =();
-my $configfile=0;
-my $debug=OFPC::Common::wantdebug();
-my $ltz=DateTime::TimeZone->new( name => 'local' )->name();
+my %route : shared = ();
+my $configfile     = 0;
+my $debug          = OFPC::Common::wantdebug();
+my $ltz = DateTime::TimeZone->new( name => 'local' )->name();
 
 =head 2 showhelp
 	Show a simple help message.
 =cut
 
-sub showhelp{
-	print <<EOF
+sub showhelp {
+    print <<EOF
 
   * openfpc-queued version $openfpcver *
     Part of the OpenFPC project.
@@ -77,32 +77,32 @@ EOF
 	Deal with clients that disappear rather than have perl die.
 =cut
 
-sub pipeHandler{
+sub pipeHandler {
     my $sig = shift @_;
     print "SIGPIPE -> Bad client went away! $sig \n\n" if ($verbose);
 }
 
 ########### Start Here  ############
 $SIG{PIPE} = \&pipeHandler;
-$SIG{"TERM"}  = sub { closedown("TERM") };
-$SIG{"KILL"}  = sub { closedown("KILL") };
+$SIG{"TERM"} = sub { closedown("TERM") };
+$SIG{"KILL"} = sub { closedown("KILL") };
 
-GetOptions (
-	'c|conf=s' => \$configfile,
-	'd|daemon' => \$daemon,
-	'h|help' => \$help,
-	'v|verbose' => \$verbose,
-	'vdebug' => \$vdebug,
-        );
+GetOptions(
+    'c|conf=s'  => \$configfile,
+    'd|daemon'  => \$daemon,
+    'h|help'    => \$help,
+    'v|verbose' => \$verbose,
+    'vdebug'    => \$vdebug,
+);
 
 if ($vdebug) {
-	$debug=1;
-	wlog("VDEBUG Enabled\n");
+    $debug = 1;
+    wlog("VDEBUG Enabled\n");
 }
 
-if ($help) { 
-	showhelp();
-	exit;
+if ($help) {
+    showhelp();
+    exit;
 }
 
 OFPC::Common::initlog or die("Problem initilizating log subsystem");
@@ -110,120 +110,123 @@ OFPC::Common::readconfig("$configfile") or die("Problem processing config file $
 
 # If PASSWD is set, we have a SHA1 password file, lets read it and use secure passwords.
 
-if ($config{'PASSWD'}) {
-	wlog("DEBUG: SHA1 passwords enabled - Reading $config{'PASSWD'}") if $debug;
-	OFPC::Common::readpasswd("$config{'PASSWD'}") or die("Problem processing users file $config{'PASSWD'}");
+if ( $config{'PASSWD'} ) {
+    wlog("DEBUG: SHA1 passwords enabled - Reading $config{'PASSWD'}") if $debug;
+    OFPC::Common::readpasswd("$config{'PASSWD'}") or die("Problem processing users file $config{'PASSWD'}");
 }
-
 
 wlog("START: *********** OpenFPC $openfpcver **********");
 wlog("START: **    http://www.openfpc.org    **");
 wlog("START: Dropping Privileges to user $config{'DROP_USER'}\n");
 
-
-my $cuser=`whoami`;
+my $cuser = `whoami`;
 wlog("DEBUG: START: Started by user $cuser") if $debug;
-drop_privileges($config{'DROP_USER'});
-$cuser=`whoami`;
+drop_privileges( $config{'DROP_USER'} );
+$cuser = `whoami`;
 wlog("START: Now running as user $cuser");
 
 # Check if all save directories where we are expected to write files can be accessed as DROP_USER
 
-my @wdirs=($config{'SAVEDIR'});
+my @wdirs = ( $config{'SAVEDIR'} );
 
 foreach (@wdirs) {
-	my $t="test.openfpc";
-	wlog "DEBUG: Checking write access to directory $_" if $debug;
-	if (-d $_ ) {
-		if ( open (TESTFILE, "> $_/$t") ){
-			print TESTFILE "OpenFPC Write Test.";
-			close TESTFILE;
-			wlog "DEBUG: Write access to $_ successful" if $debug;
-			if (unlink "$_/$t") {
-				wlog "DEBUG: Unlink access successful for $_" if $debug;
-			} else {
-				wlog "ERROR: Unable to unlink files from $_ and user $cuser. Unable to start.";
-				die "ERROR: Unable to unlink files from $_ and user $cuser. Unable to start.";
-			}
-		} else {
-			wlog "ERROR: Unable write to directory $_ as user $cuser\n";
-			die "ERROR: Unable write to directory $_ as user $cuser\n";
-		}
-	} else {
-		wlog "ERROR: Expected directory $_ does not exist. Unable to start";
-		die "ERROR:, Expected directory $_ does not exist. Unable to start";
-	}
+    my $t = "test.openfpc";
+    wlog "DEBUG: Checking write access to directory $_" if $debug;
+    if ( -d $_ ) {
+        if ( open( TESTFILE, "> $_/$t" ) ) {
+            print TESTFILE "OpenFPC Write Test.";
+            close TESTFILE;
+            wlog "DEBUG: Write access to $_ successful" if $debug;
+            if ( unlink "$_/$t" ) {
+                wlog "DEBUG: Unlink access successful for $_" if $debug;
+            }
+            else {
+                wlog "ERROR: Unable to unlink files from $_ and user $cuser. Unable to start.";
+                die "ERROR: Unable to unlink files from $_ and user $cuser. Unable to start.";
+            }
+        }
+        else {
+            wlog "ERROR: Unable write to directory $_ as user $cuser\n";
+            die "ERROR: Unable write to directory $_ as user $cuser\n";
+        }
+    }
+    else {
+        wlog "ERROR: Expected directory $_ does not exist. Unable to start";
+        die "ERROR:, Expected directory $_ does not exist. Unable to start";
+    }
 }
 
-if ($config{'PROXY'}) {
-        wlog("START: Starting OFPC Node \"$config{'NODENAME'}\" as a Proxy");
-	OFPC::Common::readroutes;
-} else {
-        wlog("START: Starting OFPC Node \"$config{'NODENAME'}\" as a Node");
+if ( $config{'PROXY'} ) {
+    wlog("START: Starting OFPC Node \"$config{'NODENAME'}\" as a Proxy");
+    OFPC::Common::readroutes;
+}
+else {
+    wlog("START: Starting OFPC Node \"$config{'NODENAME'}\" as a Node");
 }
 
 # Print verbose config info if debug is enabled
 if ($debug) {
-	wlog("DEBUG: Node Description: $config{'DESCRIPTION'}");
-	wlog("DEBUG: Enabled : $config{'OFPC_ENABLED'}");
-	wlog("DEBUG: local savedir : $config{'SAVEDIR'}");
-	wlog("DEBUG: Buffer Path : $config{'BUFFER_PATH'}");
-	wlog("DEBUG: mergecap : $config{'MERGECAP'}");
-	wlog("DEBUG: tcpdump : $config{'TCPDUMP'}");
-	wlog("DEBUG: Keep files : $config{'KEEPFILES'}");
-	wlog("DEBUG: Local Timezone for this node is $ltz");
-	wlog("DEBUG: Local time at $ltz is ". localtime());
+    wlog("DEBUG: Node Description: $config{'DESCRIPTION'}");
+    wlog("DEBUG: Enabled : $config{'OFPC_ENABLED'}");
+    wlog("DEBUG: local savedir : $config{'SAVEDIR'}");
+    wlog("DEBUG: Buffer Path : $config{'BUFFER_PATH'}");
+    wlog("DEBUG: mergecap : $config{'MERGECAP'}");
+    wlog("DEBUG: tcpdump : $config{'TCPDUMP'}");
+    wlog("DEBUG: Keep files : $config{'KEEPFILES'}");
+    wlog("DEBUG: Local Timezone for this node is $ltz");
+    wlog( "DEBUG: Local time at $ltz is " . localtime() );
 }
 
 # Start listener
 wlog("START: Starting listener on TCP:$config{'OFPC_PORT'}\n");
 my $listenSocket = IO::Socket::INET->new(
-                                LocalPort => $config{'OFPC_PORT'},
-                                Proto => 'tcp',
-                                Listen => '10',
-                                Reuse => 1,
-                                );
+    LocalPort => $config{'OFPC_PORT'},
+    Proto     => 'tcp',
+    Listen    => '10',
+    Reuse     => 1,
+);
 
-unless ($listenSocket) { 
-	wlog("ERROR: Problem creating socket on $config{'OFPC_PORT'}"); 
-	exit 1;
+unless ($listenSocket) {
+    wlog("ERROR: Problem creating socket on $config{'OFPC_PORT'}");
+    exit 1;
 }
 $listenSocket->autoflush(1);
 
 if ($daemon) {
-	chdir '/' or die "Can't chdir to /: $!";
-	umask 0;
-	open STDIN, '/dev/null'   or die "Can't read /dev/null: $!";
-	open (STDOUT, "> $config{'LOGFILE'}") or die "Can't open Log for STDOUT  $config{'LOGFILE'}: $!\n";
-	defined(my $pid = fork)   or die "Can't fork: $!";
-	if ($pid) {
-		my $pidfile=$config{'PIDPATH'} . "/openfpc-" . $config{'NODENAME'} . "/openfpc-queued.pid";
-		open (PID, "> $pidfile") or die("Unable write to pid file $pidfile\n");
-      		print PID $pid, "\n";
-      		close (PID);
-		exit 0;
-	}
-	# Redirect STDERR Last to catch any error in the fork() process.
-	open (STDERR, "> $config{'LOGFILE'}") or die "Can't open Log for STDERR $config{'LOGFILE'}: $!\n";
-	setsid or die "Can't start a new session: $!";
-}
+    chdir '/' or die "Can't chdir to /: $!";
+    umask 0;
+    open STDIN, '/dev/null' or die "Can't read /dev/null: $!";
+    open( STDOUT, "> $config{'LOGFILE'}" ) or die "Can't open Log for STDOUT  $config{'LOGFILE'}: $!\n";
+    defined( my $pid = fork ) or die "Can't fork: $!";
+    if ($pid) {
+        my $pidfile = $config{'PIDPATH'} . "/openfpc-" . $config{'NODENAME'} . "/openfpc-queued.pid";
+        open( PID, "> $pidfile" ) or die("Unable write to pid file $pidfile\n");
+        print PID $pid, "\n";
+        close(PID);
+        exit 0;
+    }
 
+    # Redirect STDERR Last to catch any error in the fork() process.
+    open( STDERR, "> $config{'LOGFILE'}" ) or die "Can't open Log for STDERR $config{'LOGFILE'}: $!\n";
+    setsid or die "Can't start a new session: $!";
+}
 
 # Create a couple of separate threads.
 threads->create("OFPC::Common::runq");
 threads->create("OFPC::Common::backgroundtasks");
 
-while (my $sock = $listenSocket->accept) {
-	# set client socket to non blocking
-	my $nonblocking = 1;
-	ioctl($sock, 0x8004667e, \\$nonblocking);
-	$sock->autoflush(1);
-	my $client_ip=$sock->peerhost;
-	wlog("COMMS: Accepted new connection from $client_ip") ;
+while ( my $sock = $listenSocket->accept ) {
 
-	# start new thread to process the request from this socket
-	# Suggested fix from Michael Wenthold
-	# threads->create("OFPC::Common::comms", $sock);
-    	my $t = threads->create("OFPC::Common::comms", $sock);
-    	$t->detach();
+    # set client socket to non blocking
+    my $nonblocking = 1;
+    ioctl( $sock, 0x8004667e, \\$nonblocking );
+    $sock->autoflush(1);
+    my $client_ip = $sock->peerhost;
+    wlog("COMMS: Accepted new connection from $client_ip");
+
+    # start new thread to process the request from this socket
+    # Suggested fix from Michael Wenthold
+    # threads->create("OFPC::Common::comms", $sock);
+    my $t = threads->create( "OFPC::Common::comms", $sock );
+    $t->detach();
 }
