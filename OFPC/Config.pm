@@ -28,55 +28,55 @@ use Exporter;
 use threads::shared;
 our @ISA = qw(Exporter);
 @EXPORT = qw(%config
-    %route
-    %pcaps
-    $verbose
-    $debug
-    $vdebug
-    $openfpcver
-    $mrid
-    $daemon
-    $queue);
+  %route
+  %pcaps
+  $verbose
+  $debug
+  $vdebug
+  $openfpcver
+  $mrid
+  $daemon
+  $queue);
 @EXPORT_OK = qw(ALL);
-$VERSION = '0.7';
+$VERSION   = '0.7';
 
-our $debug=0;
-our $daemon=0;		       # Daemon mode
-our $vdebug=0;
-our $openfpcver=0.9;
-our $rid=0;		           # Master request ID. Unique for each instance.
-our %config=(
-    CONFIGURED  => 0,
-    NODENAME    => "NONAME",
-    DESCRIPTION => "",
-    NODEROUTE => 0,
-    BUFFER_PATH => 0,
-    PROXY       => 0,
-    SAVEDIR     => 0,
-    LOGFILE     => "/tmp/openfpc-untitled.log",
-    TCPDUMP     => "/usr/sbin/tcpdump",
-    MERGECAP    => "/usr/bin/mergecap",
-    PIDPATH     => "/var/run",
-    KEEPFILES   => "0",
-    TASK_INTERVAL => 600,
-    PASSWD	=> 0,
-    DROP_USER => "openfpc",
-    DROP_GROUP => "openfpc",
+our $debug      = 0;
+our $daemon     = 0;     # Daemon mode
+our $vdebug     = 0;
+our $openfpcver = 0.9;
+our $rid        = 0;     # Master request ID. Unique for each instance.
+our %config     = (
+    CONFIGURED      => 0,
+    NODENAME        => "NONAME",
+    DESCRIPTION     => "",
+    NODEROUTE       => 0,
+    BUFFER_PATH     => 0,
+    PROXY           => 0,
+    SAVEDIR         => 0,
+    LOGFILE         => "/tmp/openfpc-untitled.log",
+    TCPDUMP         => "/usr/sbin/tcpdump",
+    MERGECAP        => "/usr/bin/mergecap",
+    PIDPATH         => "/var/run",
+    KEEPFILES       => "0",
+    TASK_INTERVAL   => 600,
+    PASSWD          => 0,
+    DROP_USER       => "openfpc",
+    DROP_GROUP      => "openfpc",
     SESSION_DB_NAME => "ofpc_session_default",
     SESSION_DB_USER => "openfpc",
     SESSION_DB_PASS => "openfpc",
     SESSION_DB_HOST => "localhost",
-    PROXY_DB_NAME => 'openfpc_proxy',
-    PROXY_DB_USER => 'openfpc_proxy',
-    PROXY_DB_PASS => 'openfpc',
-    PROXY_DB_HOST => 'localhost',
+    PROXY_DB_NAME   => 'openfpc_proxy',
+    PROXY_DB_USER   => 'openfpc_proxy',
+    PROXY_DB_PASS   => 'openfpc',
+    PROXY_DB_HOST   => 'localhost',
 
-    );
+);
 
-our %route=();				# Hash to contain OFPC routing data for nodes
-our $mrid : shared =1; $mrid=1;		# Master request counter. Quick way to identify  request
-our $queue = Thread::Queue->new();	# Queue shared over all threads
-our %pcaps: shared =();
-
+our %route = ();          # Hash to contain OFPC routing data for nodes
+our $mrid : shared = 1;
+$mrid = 1;                # Master request counter. Quick way to identify  request
+our $queue = Thread::Queue->new();    # Queue shared over all threads
+our %pcaps : shared = ();
 
 1;

@@ -1,6 +1,6 @@
 #!/usr/bin/env perl 
 #########################################################################################
-# Copyright (C) 2013 Leon Ward 
+# Copyright (C) 2013 Leon Ward
 # openfpc-client.pl - Part of the OpenFPC - (Full Packet Capture) project
 #
 # Contact: leon@rm-rf.co.uk
@@ -24,7 +24,7 @@ use strict;
 use warnings;
 use Data::Dumper;
 use IO::Socket::INET;
-use OFPC::Request; 
+use OFPC::Request;
 use OFPC::Parse;
 use Getopt::Long;
 use Switch;
@@ -35,49 +35,50 @@ use JSON::PP;
 use DateTime;
 use Time::Piece;
 
-my $now=time();
-my $ltz=DateTime::TimeZone->new( name => 'local' )->name();
+my $now = time();
+my $ltz = DateTime::TimeZone->new( name => 'local' )->name();
 
-my $openfpcver="0.9";
+my $openfpcver = "0.9";
 my (%config);
-my $password=0;
-my $debug=OFPC::Request::wantdebug();
-my $r2=OFPC::Request::mkreqv2();
-my $stz="America/New_York";
+my $password = 0;
+my $debug    = OFPC::Request::wantdebug();
+my $r2       = OFPC::Request::mkreqv2();
+my $stz      = "America/New_York";
 
 # Hint: "ofpc-v1 type:event sip:192.168.222.1 dip:192.168.222.130 dpt:22 proto:tcp timestamp:1274864808 msg:Some freeform text";
-my %cmdargs=( user => 0,
-	 	password => 0, 
-		server => "localhost",
-		port => "4242",
-		action => "None",
-		logtype => "auto",
-		filetype => "PCAP",
-		debug => 0,
-		filename => "/tmp/pcap-openfpc-$now",
-		logline => 0,
-		quiet => 0,
-		gui => 0,
-		sumtype =>0,
-		last => 0,
-		hash => 0,
-		utc => 0,
-		);
+my %cmdargs = (
+    user     => 0,
+    password => 0,
+    server   => "localhost",
+    port     => "4242",
+    action   => "None",
+    logtype  => "auto",
+    filetype => "PCAP",
+    debug    => 0,
+    filename => "/tmp/pcap-openfpc-$now",
+    logline  => 0,
+    quiet    => 0,
+    gui      => 0,
+    sumtype  => 0,
+    last     => 0,
+    hash     => 0,
+    utc      => 0,
+);
 
-my %result=(
-		success => 0,
-		filename => 0,
-		position => 0,
-		md5 => 0,
-		expected_md5 => 0,
-		message => 0,
-		size => 0,
-		message => 0,
-	);
+my %result = (
+    success      => 0,
+    filename     => 0,
+    position     => 0,
+    md5          => 0,
+    expected_md5 => 0,
+    message      => 0,
+    size         => 0,
+    message      => 0,
+);
 
-sub showhelp{
+sub showhelp {
 
-	print "openfpc-client <options>
+    print "openfpc-client <options>
 
   --------   General   -------
   -server   or -s <server address>       The OpenFPC node to connect to
@@ -126,55 +127,57 @@ sub showhelp{
 ";
 }
 
-sub convertTime($$$$$){
-	# Convert ts from somewhere else to local TZ for local display
-	#  If	
-	my $ts=shift;		# time to convert
-	my $stz=shift;		# time zone to convert from
-	my $dtz=shift;		# dest timezone to convert to
-	my $stf=shift;		# source time format
-	my $otf=shift;		# Output time format 
-	my $ltz=DateTime::TimeZone->new( name => 'local' )->name();	# Local timezone
-	my $debug=OFPC::Request::wantdebug();
+sub convertTime($$$$$) {
 
-		print "Timestamp is $ts
+    # Convert ts from somewhere else to local TZ for local display
+    #  If
+    my $ts    = shift;                                                 # time to convert
+    my $stz   = shift;                                                 # time zone to convert from
+    my $dtz   = shift;                                                 # dest timezone to convert to
+    my $stf   = shift;                                                 # source time format
+    my $otf   = shift;                                                 # Output time format
+    my $ltz   = DateTime::TimeZone->new( name => 'local' )->name();    # Local timezone
+    my $debug = OFPC::Request::wantdebug();
+
+    print "Timestamp is $ts
 		#stz is $stz
 		#dtz is $dtz
 		#stf if $stf
 		#otf is $otf\n" if $debug;
-	# Use Time::Piece to convert the format of the timestamp into an object we can build a DateTime object from.
-	# $of for epoch is "%s"
-	# $of for ofpc search table output is " %Y-%m-%d %k:%H:%S" 
 
-	if ($dtz eq 'local') {
-		$dtz=$ltz;
-	}	
+    # Use Time::Piece to convert the format of the timestamp into an object we can build a DateTime object from.
+    # $of for epoch is "%s"
+    # $of for ofpc search table output is " %Y-%m-%d %k:%H:%S"
 
-	if ($stz eq 'local') {
-		$stz=$ltz;
-	}
+    if ( $dtz eq 'local' ) {
+        $dtz = $ltz;
+    }
 
-	my $tc=0;
-	$tc=Time::Piece->strptime("$ts", $stf);
-	my $sdt=DateTime->new(
-		year => $tc->year,
-		month => $tc->mon,
-		day => $tc->day_of_month,
-		hour => $tc->hour,
-		minute => $tc->minute,
-		second => $tc->second,
-		time_zone => $stz,
-	);
+    if ( $stz eq 'local' ) {
+        $stz = $ltz;
+    }
 
-	my $ddt = $sdt->clone;
-	$ddt->set_time_zone($dtz);
-	my $nts= $ddt->strftime($otf);
+    my $tc = 0;
+    $tc = Time::Piece->strptime( "$ts", $stf );
+    my $sdt = DateTime->new(
+        year      => $tc->year,
+        month     => $tc->mon,
+        day       => $tc->day_of_month,
+        hour      => $tc->hour,
+        minute    => $tc->minute,
+        second    => $tc->second,
+        time_zone => $stz,
+    );
 
-	print "\nDEBUG: Converting '$ts' from $stz to $dtz.\n" if $debug;
-	print "DEBUG: " . $sdt->hour . " o'clock in $stz\n" if $debug;
-	print "DEUBG: " . $ddt->hour . " o'clock in $dtz\n" if $debug;
-	print "\n--------" . $ddt->strftime('%s') . "--------\n" if $debug;
-	return $nts;		# return new timestamp
+    my $ddt = $sdt->clone;
+    $ddt->set_time_zone($dtz);
+    my $nts = $ddt->strftime($otf);
+
+    print "\nDEBUG: Converting '$ts' from $stz to $dtz.\n"   if $debug;
+    print "DEBUG: " . $sdt->hour . " o'clock in $stz\n"      if $debug;
+    print "DEUBG: " . $ddt->hour . " o'clock in $dtz\n"      if $debug;
+    print "\n--------" . $ddt->strftime('%s') . "--------\n" if $debug;
+    return $nts;    # return new timestamp
 
 }
 
@@ -190,454 +193,454 @@ sub convertTime($$$$$){
 	options override those in the rc file.
 	-Leon
 =cut
-sub readrcfile{
-	my $config=shift;
 
-	my @rcfiles=("./openfpc-client.rc",			# CWD
-			"$ENV{HOME}/.openfpc-client.rc",	# Personal
-			"/etc/openfpc/openfpc-client.rc",	# System default
-		);	
-	my $rcfile=0;
+sub readrcfile {
+    my $config = shift;
 
-	foreach my $file (@rcfiles) {
-		if (-e $file) {
-			print "DEBUG: Found rc file $file\n" if $debug;
-			print "* Reading configuration from $file\n";
-			$rcfile=$file;
-			last;
-		}
-		print "DEBUG: No rc file found: $file\n" if $debug;
-	}
+    my @rcfiles = (
+        "./openfpc-client.rc",               # CWD
+        "$ENV{HOME}/.openfpc-client.rc",     # Personal
+        "/etc/openfpc/openfpc-client.rc",    # System default
+    );
+    my $rcfile = 0;
 
-	if ($rcfile) {
-		unless (open(RC, '<', "$rcfile")){
-			return($config);
-			print "* Error, unable to open rc file $rcfile";
-			return(0);
-		} else {
-			while(<RC>) {
-				chomp;
-		        if ( $_ =~ m/^[a-zA-Z]/) {
- 		 	        (my $key, my $value) = split /=/, $_;
-					# If config line looks valid, set it
-					if (defined $config->{$key}) {
-						$config->{$key} = $value;
-						print "DEBUG: $rcfile: Setting $key to $value\n" if $debug;
-					} else {
-						print "* Invalid variable $key found in $rcfile \n";
-					}
-				}
-			}
-		}
-	}
-	return($config);
+    foreach my $file (@rcfiles) {
+        if ( -e $file ) {
+            print "DEBUG: Found rc file $file\n" if $debug;
+            print "* Reading configuration from $file\n";
+            $rcfile = $file;
+            last;
+        }
+        print "DEBUG: No rc file found: $file\n" if $debug;
+    }
+
+    if ($rcfile) {
+        unless ( open( RC, '<', "$rcfile" ) ) {
+            return ($config);
+            print "* Error, unable to open rc file $rcfile";
+            return (0);
+        }
+        else {
+            while (<RC>) {
+                chomp;
+                if ( $_ =~ m/^[a-zA-Z]/ ) {
+                    ( my $key, my $value ) = split /=/, $_;
+
+                    # If config line looks valid, set it
+                    if ( defined $config->{$key} ) {
+                        $config->{$key} = $value;
+                        print "DEBUG: $rcfile: Setting $key to $value\n" if $debug;
+                    }
+                    else {
+                        print "* Invalid variable $key found in $rcfile \n";
+                    }
+                }
+            }
+        }
+    }
+    return ($config);
 }
 
 =head2 convbytes
 	Convert a number of bytes into MB or GB
 =cut
-sub convbytes{
-	my $bytes=shift;
-	my $units="Bytes";
-	if ($bytes =~ /\d+/) {
-		if ($bytes >=1000000 ) {
-			$bytes = sprintf( "%0.2f", $bytes/1000000 );
-			$units = "GB";
-		} elsif ( $bytes >= 1000000 ) {
-			$bytes = sprintf( "%0.2f", $bytes/1000000 );
-			$units = "MB";
-		} 
-	}
-	return("$bytes $units");
+
+sub convbytes {
+    my $bytes = shift;
+    my $units = "Bytes";
+    if ( $bytes =~ /\d+/ ) {
+        if ( $bytes >= 1000000 ) {
+            $bytes = sprintf( "%0.2f", $bytes / 1000000 );
+            $units = "GB";
+        }
+        elsif ( $bytes >= 1000000 ) {
+            $bytes = sprintf( "%0.2f", $bytes / 1000000 );
+            $units = "MB";
+        }
+    }
+    return ("$bytes $units");
 }
 
-
-
-sub bar{
-	my $l=1;
-	my $i=0;
-	my $c="-";		# Default bar type
-	$l=shift;
-	$c=shift;
-	while ($i < $l) {
-		print $c;
-		$i++;
-	}
-	print "\n";	
+sub bar {
+    my $l = 1;
+    my $i = 0;
+    my $c = "-";    # Default bar type
+    $l = shift;
+    $c = shift;
+    while ( $i < $l ) {
+        print $c;
+        $i++;
+    }
+    print "\n";
 }
 
-sub displayTable{
-	my $r=shift;
-	my $tj=$r->{'table'};
-	my $t=decode_json($tj);
-	my $len=15;				# Default length 
-							#in case the table doesn't set it
-	print "DEBUG: Table hash:\n" if $debug;
-	print Dumper $t if $debug;
-	if (defined $t->{'len'}) {
-		$len=$t->{'len'};
-	}
+sub displayTable {
+    my $r   = shift;
+    my $tj  = $r->{'table'};
+    my $t   = decode_json($tj);
+    my $len = 15;                 # Default length
+                                  #in case the table doesn't set it
+    print "DEBUG: Table hash:\n" if $debug;
+    print Dumper $t if $debug;
+    if ( defined $t->{'len'} ) {
+        $len = $t->{'len'};
+    }
 
-	my $blen=5;						# Including the "row" entry
-	if (defined $t->{'format'}) {
-		foreach (@{$t->{'format'}}) {
-			$blen=$blen+$_;
-		}
-	} else {
-		$blen=40;
-	}
+    my $blen = 5;                 # Including the "row" entry
+    if ( defined $t->{'format'} ) {
+        foreach ( @{ $t->{'format'} } ) {
+            $blen = $blen + $_;
+        }
+    }
+    else {
+        $blen = 40;
+    }
 
-	bar($blen,"=");	
-	print " $t->{'title'}\n";
-	bar($blen,"=");	
-	print " Start: " . localtime($t->{'stime'}) . " ($ltz)\n";
-	print " End  : " . localtime($t->{'etime'}) . " ($ltz)\n";
-	print " Node : $t->{'nodename'}\n"							if (defined $t->{'nodename'});
-	print " Rows : $t->{'size'}\n";
-	print " SQL  : $t->{'sql'}\n";
-	print " Warnings: $t->{'warning'}\n" if defined $t->{'warning'};
-	bar($blen,"=");	
+    bar( $blen, "=" );
+    print " $t->{'title'}\n";
+    bar( $blen, "=" );
+    print " Start: " . localtime( $t->{'stime'} ) . " ($ltz)\n";
+    print " End  : " . localtime( $t->{'etime'} ) . " ($ltz)\n";
+    print " Node : $t->{'nodename'}\n" if ( defined $t->{'nodename'} );
+    print " Rows : $t->{'size'}\n";
+    print " SQL  : $t->{'sql'}\n";
+    print " Warnings: $t->{'warning'}\n" if defined $t->{'warning'};
+    bar( $blen, "=" );
 
-	# Column heads. Line number is added after
-	printf ("%5s", "Row");
+    # Column heads. Line number is added after
+    printf( "%5s", "Row" );
 
-	my $fc=0;
-	foreach (@{$t->{'cols'}}) {
-		if (defined $t->{'format'}[$fc]) {		# If format is defined in the table, use it for output
-			my $l=$t->{'format'}[$fc];			
-			printf ("%${l}s", $_);	
-		} else {	
-			printf ("%${len}s", $_);
-		}
-		$fc++;
-	}
-	print "\n";
+    my $fc = 0;
+    foreach ( @{ $t->{'cols'} } ) {
+        if ( defined $t->{'format'}[$fc] ) {    # If format is defined in the table, use it for output
+            my $l = $t->{'format'}[$fc];
+            printf( "%${l}s", $_ );
+        }
+        else {
+            printf( "%${len}s", $_ );
+        }
+        $fc++;
+    }
+    print "\n";
 
-	my $i=0;
-	my $table=$t->{'table'};
-	while ($i < $t->{'size'}) {
-		printf("%5s",$i);			# Line number at the start
-		my $fc=0;					# Counter for format field count
+    my $i     = 0;
+    my $table = $t->{'table'};
+    while ( $i < $t->{'size'} ) {
+        printf( "%5s", $i );    # Line number at the start
+        my $fc = 0;             # Counter for format field count
 
-		foreach my $field (@{$t->{'table'}{$i}}) {
-			# if the data needs converting to be displayed correctly, it should be called out in dtype
-			if (defined $t->{'dtype'}[$fc]) {
-				switch ($t->{'dtype'}[$fc]) {
-					case "udt" {
-						# Convert UTC Datetime time string into the users localtime
-#						$field = to_local_time($field, "%Y-%m-%d %T","America/New_York");
-#						$field = to_local_time($field, "%Y-%m-%d %T","UTC", "%F %k:%H:%S");
-						$field = convertTime($field, "UTC", "local", "%Y-%m-%d %T", "%F %k:%H:%S");
-					} case "protocol" {
-						switch ($field) {
-							case ("17"){$field = "udp";}
-							case ("6") {$field = "tcp";}
-							case ("1") {$field = "icmp";}
-						}
-					}
-				}
-			}	
-			if (defined $t->{'format'}[$fc]) {		# IF format is defined in the table, use it for output
-				my $l=$t->{'format'}[$fc];			
-				printf ("%${l}s", $field);
-			} else {								# Use the default column format length
-				#print "FORMAT $t->{'format'}[$fc]:";
-				printf ("%${len}s", $field);
-			}
-			$fc++;
-		} 
-		print "\n";
-		$i++;
-	}
-	bar($blen,"=");	
+        foreach my $field ( @{ $t->{'table'}{$i} } ) {
+
+            # if the data needs converting to be displayed correctly, it should be called out in dtype
+            if ( defined $t->{'dtype'}[$fc] ) {
+                switch ( $t->{'dtype'}[$fc] ) {
+                    case "udt" {
+
+                        # Convert UTC Datetime time string into the users localtime
+                        #						$field = to_local_time($field, "%Y-%m-%d %T","America/New_York");
+                        #						$field = to_local_time($field, "%Y-%m-%d %T","UTC", "%F %k:%H:%S");
+                        $field = convertTime( $field, "UTC", "local", "%Y-%m-%d %T", "%F %k:%H:%S" );
+                    }
+                    case "protocol" {
+                        switch ($field) {
+                            case ("17") { $field = "udp"; }
+                            case ("6")  { $field = "tcp"; }
+                            case ("1")  { $field = "icmp"; }
+                        }
+                    }
+                }
+            }
+            if ( defined $t->{'format'}[$fc] ) {    # IF format is defined in the table, use it for output
+                my $l = $t->{'format'}[$fc];
+                printf( "%${l}s", $field );
+            }
+            else {                                  # Use the default column format length
+                                                    #print "FORMAT $t->{'format'}[$fc]:";
+                printf( "%${len}s", $field );
+            }
+            $fc++;
+        }
+        print "\n";
+        $i++;
+    }
+    bar( $blen, "=" );
 }
 
-sub displayStatus{
-	my $s=shift;
-	my @nodedata=(
-		'ofpctype',
-		'description',
-		'packetspace',
-		'sessionspace',
-		'savespace',
-		'saveused',
-		'sessionused',
-		'packetused',
-		'packetpacptotal',
-		'localtime',
-		'lastctx',
-		'firstctx',
-		'firstpacket',
-		'sessiontime',
-		'ld1',
-		'ld5',
-		'ld15',
-		'sessionlag',
-		'sessioncount',
-		'nodetz',
-		);		# List of data to dispaly for a normal node
-	my @proxydata=(
-		'ofpctype',
-		'description',
-		'downnodes',
-		'upnodes');		#List of data to display for a proxy node
-	my @d=();
+sub displayStatus {
+    my $s         = shift;
+    my @nodedata  = ( 'ofpctype', 'description', 'packetspace', 'sessionspace', 'savespace', 'saveused', 'sessionused', 'packetused', 'packetpacptotal', 'localtime', 'lastctx', 'firstctx', 'firstpacket', 'sessiontime', 'ld1', 'ld5', 'ld15', 'sessionlag', 'sessioncount', 'nodetz', );    # List of data to dispaly for a normal node
+    my @proxydata = ( 'ofpctype', 'description', 'downnodes', 'upnodes' );                                                                                                                                                                                                                     #List of data to display for a proxy node
+    my @d         = ();
 
-	my $bar="=====================================\n";
+    my $bar = "=====================================\n";
 
-	print $bar;
-	print " Status from: $s->{'nodename'} \n"; 
-	if ($debug) {
-		print "DEBUG: Dumping status hash\n";
-		print Dumper $s;
-	}
+    print $bar;
+    print " Status from: $s->{'nodename'} \n";
+    if ($debug) {
+        print "DEBUG: Dumping status hash\n";
+        print Dumper $s;
+    }
 
-    foreach my $n (@{$s->{'nodelist'}}) {
-    	unless (defined $s->{$n}{'nodename'}{'val'}) {
-    		print " * Node: $n \n";
-    		print "   - No status came back from node '$n'\n";
-    		next;
-    	}
-    	print $bar;
-    	# Decide on the dataset to display based on node type
+    foreach my $n ( @{ $s->{'nodelist'} } ) {
+        unless ( defined $s->{$n}{'nodename'}{'val'} ) {
+            print " * Node: $n \n";
+            print "   - No status came back from node '$n'\n";
+            next;
+        }
+        print $bar;
 
-    	if ($s->{$n}{'ofpctype'}{'val'} eq "NODE") {
-    		@d = @nodedata;
-	    	print " * Node: $n\n";
-	   	} elsif ($s->{$n}{'ofpctype'}{'val'} eq "PROXY") {
-	   		@d = @proxydata;
-	    	print " * Proxy: $n\n";
-	   	} else {
-	   		print "Error don't know what this node type is \n";
-	   	}	
+        # Decide on the dataset to display based on node type
 
-		foreach(@d) {
-			if (defined $s->{$n}{$_}) {
-				if ($s->{$n}{$_}{'type'} eq 'p') {										
-					# Percentage output
-					print "   - $s->{$n}{$_}{'text'} : \t $s->{$n}{$_}{'val'} %\n";
-				} elsif ($s->{$n}{$_}{'type'} eq 'b') {									
-					# Bytes / space output 
-					print "   - $s->{$n}{$_}{'text'} : \t $s->{$n}{$_}{'val'} ";
-					print "(" . convbytes($s->{$n}{$_}{'val'}) . ")\n"; 
-				} elsif ($s->{$n}{$_}{'type'} eq 't') {									
-					#  text / raw output
-					print "   - $s->{$n}{$_}{'text'} : \t $s->{$n}{$_}{'val'} \n";
-				} elsif ($s->{$n}{$_}{'type'} eq 'e') {									
-					#  epoch timestamp format
-					print "   - $s->{$n}{$_}{'text'} : \t $s->{$n}{$_}{'val'} ";
-					print "(". localtime($s->{$n}{$_}{'val'}) . " $ltz)\n";
-				} else {
-					print "Don't know how to display datatype: $s->{$n}{$_}{'type'}\n";
-				}
-			}
-   		}
-    }  
+        if ( $s->{$n}{'ofpctype'}{'val'} eq "NODE" ) {
+            @d = @nodedata;
+            print " * Node: $n\n";
+        }
+        elsif ( $s->{$n}{'ofpctype'}{'val'} eq "PROXY" ) {
+            @d = @proxydata;
+            print " * Proxy: $n\n";
+        }
+        else {
+            print "Error don't know what this node type is \n";
+        }
+
+        foreach (@d) {
+            if ( defined $s->{$n}{$_} ) {
+                if ( $s->{$n}{$_}{'type'} eq 'p' ) {
+
+                    # Percentage output
+                    print "   - $s->{$n}{$_}{'text'} : \t $s->{$n}{$_}{'val'} %\n";
+                }
+                elsif ( $s->{$n}{$_}{'type'} eq 'b' ) {
+
+                    # Bytes / space output
+                    print "   - $s->{$n}{$_}{'text'} : \t $s->{$n}{$_}{'val'} ";
+                    print "(" . convbytes( $s->{$n}{$_}{'val'} ) . ")\n";
+                }
+                elsif ( $s->{$n}{$_}{'type'} eq 't' ) {
+
+                    #  text / raw output
+                    print "   - $s->{$n}{$_}{'text'} : \t $s->{$n}{$_}{'val'} \n";
+                }
+                elsif ( $s->{$n}{$_}{'type'} eq 'e' ) {
+
+                    #  epoch timestamp format
+                    print "   - $s->{$n}{$_}{'text'} : \t $s->{$n}{$_}{'val'} ";
+                    print "(" . localtime( $s->{$n}{$_}{'val'} ) . " $ltz)\n";
+                }
+                else {
+                    print "Don't know how to display datatype: $s->{$n}{$_}{'type'}\n";
+                }
+            }
+        }
+    }
 }
 
+sub displayResult {
 
-sub displayResult{
-	# TODO, why did I make $result a global?
+    # TODO, why did I make $result a global?
 
-	if ($result{'success'} == 1) { 			# Request is Okay and being processed
-		if ($r2->{'action'}{'val'} eq "fetch") {	
-			print 	"#####################################\n" .
-				"Date    : " . localtime($now) . "\n" .
-				"Filename: $result{'filename'} \n" .
-				"Size    : $result{'size'}\n" .
-				"MD5     : $result{'md5'}\n";
-		} elsif ($r2->{'action'}{'val'} eq "store") {
-			print 	"#####################################\n" .
-			 	"Queue Position: $result{'position'} \n".
-				"Remote File   : $result{'filename'}\n" .
-				"Result        : $result{'message'}\n";
-		} elsif ($r2->{'action'}{'val'} eq "apikey") {
-			print 	"#####################################\n" .
-			 		"OpenFPC API key for user $r2->{'user'}->{'val'}: $result{'message'}\n";
-		} else {
-			die("Results: Unknown action: $r2->{'action'}{'val'}\nSorry I don't know how to display this data.");
-		}
-	} else {				# Problem with request, provide fail info
-		print "Problem processing request: $result{'message'}\n";
-		print "Expected: $result{'expected_md5'}\n" if ($result{'expected_md5'});
-		print "Got     : $result{'md5'}\n" if ($result{'md5'});
-	}
+    if ( $result{'success'} == 1 ) {    # Request is Okay and being processed
+        if ( $r2->{'action'}{'val'} eq "fetch" ) {
+            print "#####################################\n" . "Date    : " . localtime($now) . "\n" . "Filename: $result{'filename'} \n" . "Size    : $result{'size'}\n" . "MD5     : $result{'md5'}\n";
+        }
+        elsif ( $r2->{'action'}{'val'} eq "store" ) {
+            print "#####################################\n" . "Queue Position: $result{'position'} \n" . "Remote File   : $result{'filename'}\n" . "Result        : $result{'message'}\n";
+        }
+        elsif ( $r2->{'action'}{'val'} eq "apikey" ) {
+            print "#####################################\n" . "OpenFPC API key for user $r2->{'user'}->{'val'}: $result{'message'}\n";
+        }
+        else {
+            die("Results: Unknown action: $r2->{'action'}{'val'}\nSorry I don't know how to display this data.");
+        }
+    }
+    else {    # Problem with request, provide fail info
+        print "Problem processing request: $result{'message'}\n";
+        print "Expected: $result{'expected_md5'}\n" if ( $result{'expected_md5'} );
+        print "Got     : $result{'md5'}\n"          if ( $result{'md5'} );
+    }
 }
 
 # Read in defailts from openfpc-client.rc if discovered
-my $tempref=readrcfile(\%cmdargs);
-%cmdargs=%$tempref;
+my $tempref = readrcfile( \%cmdargs );
+%cmdargs = %$tempref;
 
-GetOptions (    
-		'u|user=s' 		=> \$cmdargs{'user'},
-		's|server=s' 	=> \$cmdargs{'server'},
-		'o|port=s' 		=> \$cmdargs{'port'},
-		'h|help' 		=> \$cmdargs{'help'},
-		'q|quiet' 		=> \$cmdargs{'quiet'},
-		'w|write=s' 	=> \$cmdargs{'filename'},
-		't|logtype=s' 	=> \$cmdargs{'logtype'},
-		'e|logline|line=s' 	=> \$cmdargs{'logline'},
-		'a|action=s' 	=> \$cmdargs{'action'},
-		'p|password=s' 	=> \$cmdargs{'password'},
-		'm|comment=s' 	=> \$cmdargs{'comment'},
-		'g|gui'			=> \$cmdargs{'gui'},
-		'z|zip' 		=> \$cmdargs{'zip'},
-		'timestamp|t=s' => \$cmdargs{'timestamp'},
-		'src-addr|sip=s' => \$cmdargs{'sip'},
-        'dst-addr|dip=s' => \$cmdargs{'dip'}, 
-        'src-port|spt=s' => \$cmdargs{'spt'},
-        'dst-port|dpt=s' => \$cmdargs{'dpt'},
-        'proto=s' 		=> \$cmdargs{'proto'},
-		'node|device=s' => \$cmdargs{'device'},
-		'stime=s'		=>  \$cmdargs{'stime'},
-		'etime=s' 		=> \$cmdargs{'etime'},
-		'bpf=s' 		=> \$cmdargs{'bpf'},
-		'save' 			=> \$cmdargs{'dbsave'},
-		'l|last=s' 		=> \$cmdargs{'last'},
-		'H|hash' 		=> \$cmdargs{'hash'},
-		'limit=s' 		=> \$cmdargs{'limit'},
-		'utc' 			=> \$cmdargs{'utc'},
-    );
+GetOptions(
+    'u|user=s'         => \$cmdargs{'user'},
+    's|server=s'       => \$cmdargs{'server'},
+    'o|port=s'         => \$cmdargs{'port'},
+    'h|help'           => \$cmdargs{'help'},
+    'q|quiet'          => \$cmdargs{'quiet'},
+    'w|write=s'        => \$cmdargs{'filename'},
+    't|logtype=s'      => \$cmdargs{'logtype'},
+    'e|logline|line=s' => \$cmdargs{'logline'},
+    'a|action=s'       => \$cmdargs{'action'},
+    'p|password=s'     => \$cmdargs{'password'},
+    'm|comment=s'      => \$cmdargs{'comment'},
+    'g|gui'            => \$cmdargs{'gui'},
+    'z|zip'            => \$cmdargs{'zip'},
+    'timestamp|t=s'    => \$cmdargs{'timestamp'},
+    'src-addr|sip=s'   => \$cmdargs{'sip'},
+    'dst-addr|dip=s'   => \$cmdargs{'dip'},
+    'src-port|spt=s'   => \$cmdargs{'spt'},
+    'dst-port|dpt=s'   => \$cmdargs{'dpt'},
+    'proto=s'          => \$cmdargs{'proto'},
+    'node|device=s'    => \$cmdargs{'device'},
+    'stime=s'          => \$cmdargs{'stime'},
+    'etime=s'          => \$cmdargs{'etime'},
+    'bpf=s'            => \$cmdargs{'bpf'},
+    'save'             => \$cmdargs{'dbsave'},
+    'l|last=s'         => \$cmdargs{'last'},
+    'H|hash'           => \$cmdargs{'hash'},
+    'limit=s'          => \$cmdargs{'limit'},
+    'utc'              => \$cmdargs{'utc'},
+);
 
+$config{'server'} = $cmdargs{'server'} if $cmdargs{'server'};
+$config{'port'}   = $cmdargs{'port'}   if $cmdargs{'port'};
 
-$config{'server'} 				= $cmdargs{'server'}	if $cmdargs{'server'}; 
-$config{'port'} 				= $cmdargs{'port'}		if $cmdargs{'port'};
+$r2->{'user'}->{'val'}     = $cmdargs{'user'}     if $cmdargs{'user'};
+$r2->{'password'}->{'val'} = $cmdargs{'password'} if $cmdargs{'password'};
+$r2->{'filename'}->{'val'} = $cmdargs{'filename'} if $cmdargs{'filename'};
+$r2->{'logtype'}->{'val'}  = $cmdargs{'logtype'}  if $cmdargs{'logtype'};
+$r2->{'action'}->{'val'}   = $cmdargs{'action'}   if $cmdargs{'action'};
+$r2->{'logline'}->{'val'}  = $cmdargs{'logline'}  if $cmdargs{'logline'};
+$r2->{'comment'}->{'val'}  = $cmdargs{'comment'}  if $cmdargs{'comment'};
+$r2->{'device'}->{'val'}   = $cmdargs{'device'}   if $cmdargs{'device'};
+$r2->{'filetype'}->{'val'} = "ZIP"                if $cmdargs{'zip'};
+$r2->{'bpf'}->{'val'}      = $cmdargs{'bpf'}      if $cmdargs{'bpf'};
+$r2->{'sumtype'}->{'val'}  = $cmdargs{'sumtype'}  if ( $cmdargs{'sumtype'} );
+$r2->{'save'}->{'val'}     = $cmdargs{'save'}     if ( $cmdargs{'save'} );
+$r2->{'limit'}->{'val'}    = $cmdargs{'limit'}    if ( $cmdargs{'limit'} );
 
-$r2->{'user'}->{'val'} 			= $cmdargs{'user'}		if $cmdargs{'user'};
-$r2->{'password'}->{'val'} 		= $cmdargs{'password'}	if $cmdargs{'password'};
-$r2->{'filename'}->{'val'} 		= $cmdargs{'filename'}	if $cmdargs{'filename'};
-$r2->{'logtype'}->{'val'} 		= $cmdargs{'logtype'}   if $cmdargs{'logtype'};
-$r2->{'action'}->{'val'} 		= $cmdargs{'action'}	if $cmdargs{'action'};
-$r2->{'logline'}->{'val'} 		= $cmdargs{'logline'}	if $cmdargs{'logline'};
-$r2->{'comment'}->{'val'} 		= $cmdargs{'comment'}   if $cmdargs{'comment'};
-$r2->{'device'}->{'val'} 		= $cmdargs{'device'}	if $cmdargs{'device'};
-$r2->{'filetype'}->{'val'} 		= "ZIP"					if $cmdargs{'zip'};
-$r2->{'bpf'}->{'val'}			= $cmdargs{'bpf'}		if $cmdargs{'bpf'};
-$r2->{'sumtype'}->{'val'}		= $cmdargs{'sumtype'}   if ($cmdargs{'sumtype'});
-$r2->{'save'}->{'val'}			= $cmdargs{'save'}   	if ($cmdargs{'save'});
-$r2->{'limit'}->{'val'}			= $cmdargs{'limit'}   	if ($cmdargs{'limit'});
+$r2->{'sip'}->{'val'}   = $cmdargs{'sip'}   if ( $cmdargs{'sip'} );
+$r2->{'dip'}->{'val'}   = $cmdargs{'dip'}   if ( $cmdargs{'dip'} );
+$r2->{'dpt'}->{'val'}   = $cmdargs{'dpt'}   if ( $cmdargs{'dpt'} );
+$r2->{'spt'}->{'val'}   = $cmdargs{'spt'}   if ( $cmdargs{'spt'} );
+$r2->{'proto'}->{'val'} = $cmdargs{'proto'} if ( $cmdargs{'proto'} );
 
-$r2->{'sip'}->{'val'}			= $cmdargs{'sip'}   	if ($cmdargs{'sip'});
-$r2->{'dip'}->{'val'}			= $cmdargs{'dip'}   	if ($cmdargs{'dip'});
-$r2->{'dpt'}->{'val'}			= $cmdargs{'dpt'}   	if ($cmdargs{'dpt'});
-$r2->{'spt'}->{'val'}			= $cmdargs{'spt'}   	if ($cmdargs{'spt'});
-$r2->{'proto'}->{'val'}			= $cmdargs{'proto'}   	if ($cmdargs{'proto'});
+$r2->{'timestamp'}->{'val'} = $cmdargs{'timestamp'} if ( $cmdargs{'timestamp'} );
+$r2->{'stime'}->{'val'}     = $cmdargs{'stime'}     if ( $cmdargs{'stime'} );
+$r2->{'etime'}->{'val'}     = $cmdargs{'etime'}     if ( $cmdargs{'etime'} );
 
-$r2->{'timestamp'}->{'val'}		= $cmdargs{'timestamp'} if ($cmdargs{'timestamp'});
-$r2->{'stime'}->{'val'} 		= $cmdargs{'stime'} 	if ($cmdargs{'stime'});
-$r2->{'etime'}->{'val'}			= $cmdargs{'etime'} 	if ($cmdargs{'etime'});
+if ( $cmdargs{'last'} ) {
 
-if ($cmdargs{'last'}) {
-	# Convert last x into a start and end time
-	$r2->{'etime'}->{'val'} = $now;
-	$r2->{'stime'}->{'val'} = $now - $cmdargs{'last'};
-	if ($debug) {
-		print "DEBUG: --last $cmdargs{'last'} converted into:\n";
-		print "DEBUG: Start time $r2->{'stime'}{'val'} " . localtime($r2->{'stime'}{'val'}) . "\n";
-		print "DEBUG: End time   $r2->{'etime'}{'val'} " . localtime($r2->{'etime'}{'val'}) . "\n";
-	}
+    # Convert last x into a start and end time
+    $r2->{'etime'}->{'val'} = $now;
+    $r2->{'stime'}->{'val'} = $now - $cmdargs{'last'};
+    if ($debug) {
+        print "DEBUG: --last $cmdargs{'last'} converted into:\n";
+        print "DEBUG: Start time $r2->{'stime'}{'val'} " . localtime( $r2->{'stime'}{'val'} ) . "\n";
+        print "DEBUG: End time   $r2->{'etime'}{'val'} " . localtime( $r2->{'etime'}{'val'} ) . "\n";
+    }
 }
 
 # Provide a banner and queue position if were not in GUI or quiet mode
-unless( ($cmdargs{'quiet'} or $cmdargs{'gui'})) {
-	print 	"\n". 
-			"   * openfpc-client $openfpcver * \n" .
-			"     Part of the OpenFPC project - www.openfpc.org \n\n" ;
+unless ( ( $cmdargs{'quiet'} or $cmdargs{'gui'} ) ) {
+    print "\n" . "   * openfpc-client $openfpcver * \n" . "     Part of the OpenFPC project - www.openfpc.org \n\n";
 }
 
 showhelp() if $cmdargs{'help'};
 
 if ($debug) {
-	print "DEBUG: Time: Local time zone detected as $ltz\n";
-	print "DEBUG: Time: it's " . localtime() . " in $ltz\n";
-	my $dt = DateTime->now(time_zone => 'UTC');
-	print "DEBUG: Time: it's ", $dt->strftime('%a %b %d %T %Y') . " in UTC\n";
+    print "DEBUG: Time: Local time zone detected as $ltz\n";
+    print "DEBUG: Time: it's " . localtime() . " in $ltz\n";
+    my $dt = DateTime->now( time_zone => 'UTC' );
+    print "DEBUG: Time: it's ", $dt->strftime('%a %b %d %T %Y') . " in UTC\n";
 }
 
 # Check we have enough constraints to make an extraction with.
-if ($r2->{'action'}{'val'} =~ m/(fetch|store)/)  {
-	unless ($r2->{'logline'}->{'val'} or ($cmdargs{'bpf'} or $cmdargs{'sip'} or $cmdargs{'dip'} or $cmdargs{'spt'} or $cmdargs{'dpt'} )) {
-		unless ($cmdargs{'gui'} )  {
-			showhelp();
-		} else {
-			$result{'message'} = "Insufficient constraints added. Please add some session identifiers.";
-			displayResult($cmdargs{'gui'});
-			exit 1;
-		}
-		print "Error: This action requires a request line or session identifiers.\n\n";
-		exit;
-	}
-} elsif ($r2->{'action'}{'val'} eq "status" ) {
-	print "DEBUG: Sending status request\n" if ($debug);
-} elsif ($r2->{'action'}{'val'} eq "search" ) {
-	print "DEBUG: Sending Search request\n" if ($debug);
-} elsif ($r2->{'action'}{'val'} eq "apikey" ) {
-	print "DEBUG: Requesting API for user\n" if ($debug);
-} else {
-	die("Action must be one of \"status\" \"search\" \"fetch\" \"store\" \"apikey\". Invalid input: \"$r2->{'action'}{'val'}\".\nSee --help for more information\n");
+if ( $r2->{'action'}{'val'} =~ m/(fetch|store)/ ) {
+    unless ( $r2->{'logline'}->{'val'} or ( $cmdargs{'bpf'} or $cmdargs{'sip'} or $cmdargs{'dip'} or $cmdargs{'spt'} or $cmdargs{'dpt'} ) ) {
+        unless ( $cmdargs{'gui'} ) {
+            showhelp();
+        }
+        else {
+            $result{'message'} = "Insufficient constraints added. Please add some session identifiers.";
+            displayResult( $cmdargs{'gui'} );
+            exit 1;
+        }
+        print "Error: This action requires a request line or session identifiers.\n\n";
+        exit;
+    }
+}
+elsif ( $r2->{'action'}{'val'} eq "status" ) {
+    print "DEBUG: Sending status request\n" if ($debug);
+}
+elsif ( $r2->{'action'}{'val'} eq "search" ) {
+    print "DEBUG: Sending Search request\n" if ($debug);
+}
+elsif ( $r2->{'action'}{'val'} eq "apikey" ) {
+    print "DEBUG: Requesting API for user\n" if ($debug);
+}
+else {
+    die("Action must be one of \"status\" \"search\" \"fetch\" \"store\" \"apikey\". Invalid input: \"$r2->{'action'}{'val'}\".\nSee --help for more information\n");
 }
 
 # If we are in GUI mode, PHP's escapecmd function could have broken out logline, lets unescape it
 
-if ($cmdargs{'gui'}) {
-	$r2->{'logline'}{'val'} =~ s/\\(.)/$1/g;
+if ( $cmdargs{'gui'} ) {
+    $r2->{'logline'}{'val'} =~ s/\\(.)/$1/g;
 }
 
 # Unless user has passed a user and password via cmdargs, lets request one.
-unless ($r2->{'user'}->{'val'}) {
-	print "Username: ";
-	my $username=<STDIN>;
-	chomp $username;
-	$r2->{'user'}->{'val'} = $username;
+unless ( $r2->{'user'}->{'val'} ) {
+    print "Username: ";
+    my $username = <STDIN>;
+    chomp $username;
+    $r2->{'user'}->{'val'} = $username;
 }
-	
-unless ($r2->{'password'}->{'val'}) {
-	print "Password for user $r2->{'user'}{'val'} : ";
-	ReadMode 'noecho';
-	$r2->{'password'}{'val'} = ReadLine 0;
-	chomp $r2->{'password'}{'val'};
-	ReadMode 'normal';
-	print "\n";
+
+unless ( $r2->{'password'}->{'val'} ) {
+    print "Password for user $r2->{'user'}{'val'} : ";
+    ReadMode 'noecho';
+    $r2->{'password'}{'val'} = ReadLine 0;
+    chomp $r2->{'password'}{'val'};
+    ReadMode 'normal';
+    print "\n";
 }
 
 # Unless password val is already a hash, go make it one...
-unless ($cmdargs{'hash'}) {
-	print "DEBUG: Converting password into a hash\n" if $debug;
-	$r2->{'password'}{'val'} = OFPC::Request::mkhash($r2->{'user'}{'val'},$r2->{'password'}{'val'});
-} else {
-	print "DEBUG: Not converting password to a hash, assuming it is already one\n" if $debug;
+unless ( $cmdargs{'hash'} ) {
+    print "DEBUG: Converting password into a hash\n" if $debug;
+    $r2->{'password'}{'val'} = OFPC::Request::mkhash( $r2->{'user'}{'val'}, $r2->{'password'}{'val'} );
+}
+else {
+    print "DEBUG: Not converting password to a hash, assuming it is already one\n" if $debug;
 }
 
 my $sock = IO::Socket::INET->new(
-				PeerAddr => $config{'server'},
-                PeerPort => $config{'port'},
-                Proto => 'tcp',
-                );  
-unless ($sock) { 
-	$result{'message'} = "Unable to create socket to server $config{'server'} on TCP:$config{'port'}\n($@)\n"; 
-	displayResult($cmdargs{'gui'});
-	exit 1;
+    PeerAddr => $config{'server'},
+    PeerPort => $config{'port'},
+    Proto    => 'tcp',
+);
+unless ($sock) {
+    $result{'message'} = "Unable to create socket to server $config{'server'} on TCP:$config{'port'}\n($@)\n";
+    displayResult( $cmdargs{'gui'} );
+    exit 1;
 }
+
 #print Dumper $r2 if $debug;
 
 print "DEBUG: Connected to $config{'server'}\n" if ($debug);
-%result=OFPC::Request::request($sock,$r2);
+%result = OFPC::Request::request( $sock, $r2 );
 
 print "DEBUG: Request Result...\n" if ($debug);
 close($sock);
-print Dumper \%result if $debug;;
+print Dumper \%result if $debug;
 
-unless ($result{'success'}) {
-	print "OFPC Request Failed: $result{'message'}\n";
-	exit 1;
+unless ( $result{'success'} ) {
+    print "OFPC Request Failed: $result{'message'}\n";
+    exit 1;
 }
 
 # Output result to console
-if ($r2->{'action'}{'val'} eq "status") {
-	displayStatus(\%result);
-} elsif ($r2->{'action'}{'val'} =~/(search)/) {
-	displayTable(\%result);
-} else {
-	displayResult($cmdargs{'gui'});
+if ( $r2->{'action'}{'val'} eq "status" ) {
+    displayStatus( \%result );
+}
+elsif ( $r2->{'action'}{'val'} =~ /(search)/ ) {
+    displayTable( \%result );
+}
+else {
+    displayResult( $cmdargs{'gui'} );
 }
 
