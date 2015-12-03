@@ -1277,8 +1277,7 @@ sub donode {
     }
 
     wlog("DEBUG: Final PCAP roster ($pcapcount files in total) for extract is: @pcaproster\n") if $debug;
-
-    ( my $filename, my $size, my $md5, my $err ) = doExtract( $bpf, \@pcaproster, $r->{'metadata'}{'tempfile'} );
+    ( my $filename, my $size, my $md5, my $err ) = doExtract( $bpf, \@pcaproster, $r );
 
     if ($filename) {
         $result{'filename'} = $filename;
@@ -1599,7 +1598,8 @@ sub findBuffers {
 sub doExtract {
     my $bpf         = shift;
     my $filelistref = shift;
-    my $mergefile   = shift;
+    my $r           = shift;
+    my $mergefile   = $r->{'metadata'}{'tempfile'};
     my @filelist    = @{$filelistref};
     my $tempdir     = tempdir( CLEANUP => 1 );
     my $err;
@@ -1638,7 +1638,30 @@ sub doExtract {
         return ( 0, 0, 0 );
     }
 
-    wlog("DBEUG: Chopping pcap to time limits Starttime XXX ");
+    # Enforce a strict time window for extracted pcap files. This is a behaviour is enforced by default as defined in the $config:
+
+    if ($config{'STRICT_TIME'}) {
+      # Format date and time for use by edit cap YYYY-MM-DD H:M:S
+      # Can't use Time::Piece for everything because it's not as compatible as hoped.
+
+      my $t=Time::Piece::localtime($r->{'stime'}{'val'});
+      my $schop=$t->year ."-" . $t->mon . "-" . $t->mday . " " . $t->hms;
+
+      $t=Time::Piece::localtime($r->{'etime'}{'val'});
+      my $echop=$t->year ."-" . $t->mon . "-" . $t->mday . " " . $t->hms;
+      wlog("DEBUG: Enforcing strict time window limit: " . localtime($r->{'stime'}{'val'}) . "/" . localtime($r->{'etime'}{'val'}) . ". That's $schop and $echop") if $debug;
+      if (system("$config{'EDITCAP'} -A '$schop' -B '$echop' $config{'SAVEDIR'}/$mergefile $config{'SAVEDIR'}/$mergefile.short")) {
+        wlog("ERROR: Problem creating strict timewindow in file $config{'SAVEDIR'}/$mergefile.short'}. Will not swap out, sending larger file.");
+      }
+      else {
+        wlog("DBEUG: Success creating strict timewindow file $config{'SAVEDIR'}/$mergefile.short'}. Swapping for original") if $debug;
+        rename("$config{'SAVEDIR'}/$mergefile.short","$config{'SAVEDIR'}/$mergefile") or wlog("ERROR: Unable to swap strict timewindow file for loose timewindow file");
+      }
+    }
+    else {
+      wlog("DEBUG: STRICT_TIME is disabled in config. Won't shorten extraction.") if $debug;
+    }
+
 
     # Calculate a filesize (in human readable format), and a MD5
     my $filesize = `ls -lh $config{'SAVEDIR'}/$mergefile |awk '{print \$5}'`;
