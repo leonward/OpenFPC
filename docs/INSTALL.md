@@ -1,15 +1,16 @@
 Installing OpenFPC.
 =========================
 
-*Last updated Jan 13 2015*
+*Last updated Feb 2, 2019*
 
 ** Contact: leon@openfpc.org **
 
+Note:  Updates to the documentation were tested on Ubuntu Server 18.04.1 LTS.  The GUI and proxy modes were not tested.  Most of the changes are due to changes in Ubuntu and MySQL.
 
 To install OpenFPC you have two options:
 
 * Use the Ubuntu Packages:
-  These packages are not part of the Ubuntu distribution, I roll them myself. This should be the easiest way to get started.
+  These packages are not part of the Ubuntu distribution, I roll them myself. This should be the easiest way to get started.  (For newer versions of Ubuntu, you may need to install from source.)
 * Go grab the source from Github and install from source using the openfpc-install.sh script:
   If you're using Ubuntu and have a system that can work with the .deb packages, the only advantage of using the openfpc-install.sh script is that it makes it easier to use the most recent code. 
 
@@ -17,6 +18,8 @@ Both installation methods should leave you with a system that functions in the s
 
 Installing from Source
 ----------------------
+
+Ubuntu server and MySQL both made changes in the Ubuntu server versions 17-18 that complicate installation, so this document has been updated to account for the changes.
 
 If this is your first time installing OpenFPC and have decided against using the Ubuntu packages, it's wise to start off with a default installation (./openfpc-install.sh install). From there you can get used to how things function, and then customize it as needed. If you know what you're doing and don't want databases and users created automatically for you, take a look at './openfpc-install.sh help' for other options.
 
@@ -39,11 +42,22 @@ All of the below sections talk though the details of how to achieve the above.
 Install the Ubuntu package dependencies:
 ----------------------------------------
 
+Ubuntu 18 server no longer includes the Universe, Restricted, and Multiverse repositories in the default configuration (https://vninja.net/2018/10/08/ubuntu-18.04.1-lts-bionic-beaver-sources.list/).  Most of the OpenFPC dependencies are in the Universe repository, so that needs to be added to /etc/apt/sources.list
+
+```
+ $ sudo apt-add-repository universe
+```
+
 You'll need to install all of the below packages for OpenFPC to function. If you chose to install from the .deb file, these will be resolved for you thanks to the magic of apt.
 
 ```
  $ sudo apt-get install daemonlogger tcpdump tshark libdatetime-perl libprivileges-drop-perl libarchive-zip-perl libfilesys-df-perl mysql-server libdbi-perl libterm-readkey-perl libdate-simple-perl libdigest-sha-perl libjson-pp-perl libdatetime-perl libswitch-perl libdatetime-format-strptime-perl libdata-uuid-perl git
 ```
+The following dependencies have been added since the original build, and should be installed as well.
+```
+ $ sudo apt-get install libdancer2-perl starman libdbd-mysql-perl
+```
+
 
 Download & Install cxtracker
 ----------------------------
@@ -63,6 +77,20 @@ If cxtracker fails to install due to package dependencies, a simple -f install s
 ```
    $ sudo apt-get -f install
 ```
+Note:  The deb package may not install correctly on recent versions of Ubuntu server.  If it fails, you can install cxtracker from source without much trouble.  You will need to install make and a C compiler, which are included in build-essential.  Also, cxtracker has some dependencies of its own which need to be installed.
+```
+   $ sudo apt-get install build-essential
+   $ sudo apt-get install libnet-pcap-perl libpcap0.8-dev
+   $ git clone https://github.com/gamelinux/cxtracker.git
+   $ cd cxtracker/src
+   $ make
+```
+You can test cxtracker by running it with the -h option.  The OpenFPC default configuration (openfpc-default.conf) expects cxtracker to be located at /usr/bin/cxtracker, so put a copy there.
+```
+   $ sudo /cxtracker -h
+   $ sudo cp ./cxtracker /usr/bin/cxtracker
+   $ cd ~
+```
 
 Download OpenFPC.
 -----------------
@@ -77,6 +105,24 @@ $ git clone https://github.com/leonward/OpenFPC.git
 
 Tarballs can be found at http://leonward.github.com/OpenFPC/releases
 
+MySQL changes
+-------------
+It used to be that MySQL asked you to set a root password when you installed it.  Now, it installs with the root account set to Socket Peer-Credential Pluggable Authentication, which means you can log without a password if you are in the server’s root account, and you can't log in any other way (like with a password.)  Either sudo mysql -u root, or just sudo mysql will get you in to MySQL. Then you can change the plugin and set a password for the db root account. (see https://websiteforstudents.com/mysql-server-installed-without-password-for-root-on-ubuntu-17-10-18-04/)
+The OpenFPC installation requires root access to the MySQL database, so perform the following steps.
+```
+$ sudo mysql
+mysql> Use mysql;
+mysql> UPDATE user SET plugin='mysql_native_password' WHERE User='root';
+mysql> FLUSH PRIVILEGES;
+mysql> exit;
+$ sudo systemctl restart mysql.service
+$ sudo mysql_secure_installation
+# answer questions and set root password as desired, then test login
+$ mysql -u root -p
+mysql> exit;
+```
+Note:  If you select the VALIDATE PASSWORD plugin in mysql_secure_installation, you will need to update the session user password, SESSION_DB_PASS, in openfpc-default.conf so that it meets the requirements you chose.  This also applies to PROXY_DB_PASS, if you use it.
+
 Extract and install OpenFPC
 -----------------------------
 
@@ -86,9 +132,11 @@ Before you run the installer, there are likely a couple of things you should not
   Because openfpc-queued needs to use tcpdump to extract session data that is stored on disk, the Ubuntu apparmor profile that prevents it from *reading* files anywhere outside of a users home directory isn't viable. The installer will disable apparmor for tcpdump (and only tcpdump) by creating /etc/apparmor.d/disable/usr.sbin.tcpdump. If you don't want this, make sure you re-enable it, or edit the installer to not do this. Note that you'll have to make sure that all pcap operations take place in the openfpc user's ~, and that's less than ideal for a file organization point of view.
 * A node called "Default_Node" is created by default. 
    To change its configuration you can edit /etc/openfpc/openfpc-default.conf. If you're going to change the name of a node, **make sure you stop OpenFPC first**.
+  **Note**  There is a conflict with the db schema, which requires the node name be an integer.  A workaround has been applied to openfpc-default.conf file, so that the default node name is now 1 instead of Default_Node
 * A user called openfpc is added to the system
    This is used by all components to drop privileges to (you don't want daemons running as root)
 * Pay attention for any errors that pop up
+* The openfpc-default.conf file in your clone will be copied to /etc/openfpc/ during installation.  The configuration is straight-forward and will run without changes, with one exception.  The INTERFACE setting in the packet capture section must be the interface you want to capture packets from.  If INTERFACE does not point to an existing interface (eth0 is the default), daemonlogger will not start.
 
 
 ```
@@ -248,5 +296,5 @@ Here are a couple of tips to get started.
   $ openfpc-client --help
 ```
 
-To actually interact with your new OpenFPC Node (Default_Node), you can use the openfpc-client. The openfpc-client is a client application that talks with either an OpenFPC Node or OpenFPC Proxy over the network. This allows you to use a local tool on your workstation to search, extract, save and fetch pcaps from the remote device capturing data. By default openfpc-client tries to connect to the server localhost on TCP:4242. Check openfpc-client --help to find out how to specify a remote node (--server --port).
 
+To actually interact with your new OpenFPC Node (Default_Node), you can use the openfpc-client. The openfpc-client is a client application that talks with either an OpenFPC Node or OpenFPC Proxy over the network. This allows you to use a local tool on your workstation to search, extract, save and fetch pcaps from the remote device capturing data. By default openfpc-client tries to connect to the server localhost on TCP:4242. Check openfpc-client --help to find out how to specify a remote node (--server --port).

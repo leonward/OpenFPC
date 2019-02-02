@@ -396,7 +396,8 @@ function create_session
   mysql -u$DBUSER -p$DBPASS -B -N -e "use mysql; SELECT user FROM user" |grep -w $SESSION_DB_USER > /dev/null && die "User $SESSION_DB_USER already exists. This user must be unique."
 
   # Create new DB user
-	mysql -u$DBUSER -p$DBPASS -e "use 'mysql'; CREATE USER '$SESSION_DB_USER'@'localhost' IDENTIFIED BY '$SESSION_DB_PASS';"
+  # removed single quotes around mysql, causing error (syntax change?) 2/2/2019
+	mysql -u$DBUSER -p$DBPASS -e "use mysql; CREATE USER '$SESSION_DB_USER'@'localhost' IDENTIFIED BY '$SESSION_DB_PASS';"
 	mysql -u$DBUSER -p$DBPASS -e "use $SESSION_DB_NAME; GRANT ALL PRIVILEGES ON $SESSION_DB_NAME.* TO '$SESSION_DB_USER'@'localhost';"
 	echo -e " -  Session DB Created"
 }
