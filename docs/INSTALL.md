@@ -110,7 +110,7 @@ MySQL changes
 It used to be that MySQL asked you to set a root password when you installed it.  Now, it installs with the root account set to Socket Peer-Credential Pluggable Authentication, which means you can log without a password if you are in the server’s root account, and you can't log in any other way (like with a password.)  Either sudo mysql -u root, or just sudo mysql will get you in to MySQL. Then you can change the plugin and set a password for the db root account. (see https://websiteforstudents.com/mysql-server-installed-without-password-for-root-on-ubuntu-17-10-18-04/)
 The OpenFPC installation requires root access to the MySQL database, so perform the following steps.
 ```
-$ git sudo mysql
+$ sudo mysql
 mysql> Use mysql;
 mysql> UPDATE user SET plugin='mysql_native_password' WHERE User='root';
 mysql> FLUSH PRIVILEGES;
